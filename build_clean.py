@@ -30,7 +30,7 @@ def run_command(cmd, description, check=True):
     print(f"Running: {' '.join(cmd)}")
     
     try:
-        result = subprocess.run(cmd, check=check, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=check, capture_output=True, text=T, encoding='utf-8')
         if result.stdout:
             print(result.stdout)
         if result.stderr:

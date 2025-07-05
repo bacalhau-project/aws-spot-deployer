@@ -18,7 +18,6 @@ a = Analysis(
         'aiosqlite',
         'aiofiles',
         'yaml',
-        'pyyaml',
         'sqlite3',
         'asyncio',
         'concurrent.futures',
