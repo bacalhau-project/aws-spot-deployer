@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up UV
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install 3.11
+    
+    - name: Cache UV dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: uv-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          uv-${{ runner.os }}-
+    
+    - name: Install dependencies
+      working-directory: ./spot
+      run: uv sync
+    
+    - name: Run smoke tests
+      working-directory: ./spot
+      run: uv run -s test_smoke.py
+    
+    - name: Lint with ruff (if available)
+      working-directory: ./spot
+      run: |
+        if command -v ruff &> /dev/null; then
+          ruff check .
+          ruff format --check .
+        else
+          echo "Ruff not available, skipping lint"
+        fi
+      continue-on-error: true

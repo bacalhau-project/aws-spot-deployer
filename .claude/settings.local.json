@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ruff check:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(grep:*)",
+      "Bash(python:*)",
+      "Bash(uv run:*)",
+      "Bash(chmod:*)",
+      "Bash(./deploy_spot_portable.py --action verify)",
+      "Bash(./deploy_spot_portable.py --action validate)",
+      "Bash(mv:*)",
+      "Bash(./deploy_spot.py --action verify)",
+      "Bash(./deploy_spot.py --action list)",
+      "Bash(rm:*)",
+      "Bash(./deploy_spot.py --action print-database)",
+      "Bash(pip install:*)",
+      "Bash(ls:*)",
+      "Bash(pyinstaller:*)",
+      "Bash(./dist/aws-spot-deployer-test:*)",
+      "Bash(./dist/aws-spot-deployer-final:*)",
+      "Bash(./dist/aws-spot-deployer-working:*)",
+      "Bash(./dist/aws-spot-deployer-complete:*)",
+      "Bash(./deploy_spot_complete.py help)",
+      "Bash(./deploy_spot_complete.py verify)",
+      "Bash(./deploy_spot_complete.py list)",
+      "Bash(./dist/aws-spot-deployer:*)",
+      "*",
+      "Bash(cp:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(timeout 30s uv run:*)",
+      "Bash(rg:*)",
+      "Bash(time:*)",
+      "Bash(mkdir:*)",
+      "Bash(find:*)"
+    ],
+    "deny": []
+  }
+}

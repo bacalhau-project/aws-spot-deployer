@@ -1,0 +1,21 @@
+Region,Architecture,AMI ID
+ap-south-2,x86_64,ami-053b001a32d2b7537
+ap-south-2,arm64,ami-000a3ffd717cd1ec8
+ap-southeast-4,x86_64,ami-0285afe3e00d289cd
+ap-southeast-4,arm64,ami-07e3cf23404fa89f9
+me-south-1,x86_64,ami-0b7b2209cabb2fff9
+me-south-1,arm64,ami-02670db8a69f4605e
+ap-southeast-3,x86_64,ami-006d5039a863786ba
+ap-southeast-3,arm64,ami-05eec7717d8fa5ca0
+me-central-1,x86_64,ami-0ca86c155e2138702
+me-central-1,arm64,ami-04cadcc616f00aea6
+eu-south-1,x86_64,ami-08811b9f1f8078ae8
+eu-south-1,arm64,ami-0445044968b318d37
+ap-east-1,x86_64,ami-0f003dba8e9a98124
+ap-east-1,arm64,ami-046809224e00fbe4f
+eu-central-2,x86_64,ami-05e2061985dfdbe5e
+eu-central-2,arm64,ami-0e6bec8c240845b20
+af-south-1,x86_64,ami-093795645e0d00e6b
+af-south-1,arm64,ami-0d40684e42ee66595
+ca-west-1,x86_64,ami-040bbcb065742d23f
+ca-west-1,arm64,ami-066e048b8d9048fdc

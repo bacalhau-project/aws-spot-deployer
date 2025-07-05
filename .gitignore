@@ -1,0 +1,15 @@
+.env
+.idea
+.pem
+config*.yaml
+**/*.log
+machines.db
+**/__pycache__
+aws/*
+flox/run/*
+
+# AWS Data Cache (local only, not version controlled)
+.aws_cache/
+.aws_*.json
+.aws_*.csv
+.aws_*.gz
