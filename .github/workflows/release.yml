@@ -53,6 +53,8 @@ jobs:
     
     - name: Set up Python
       run: uv python install 3.11
+      continue-on-error: true
+      tries: 3
     
     - name: Cache UV dependencies
       uses: actions/cache@v4
