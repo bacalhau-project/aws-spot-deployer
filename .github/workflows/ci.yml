@@ -31,15 +31,12 @@ jobs:
           uv-${{ runner.os }}-
     
     - name: Install dependencies
-      working-directory: ./spot
       run: uv sync
     
     - name: Run smoke tests
-      working-directory: ./spot
       run: uv run -s test_smoke.py
     
     - name: Lint with ruff (if available)
-      working-directory: ./spot
       run: |
         if command -v ruff &> /dev/null; then
           ruff check .
