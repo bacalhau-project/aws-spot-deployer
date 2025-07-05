@@ -74,7 +74,7 @@ jobs:
           bash -c "
             apt-get update && apt-get install -y curl build-essential &&
             curl -LsSf https://astral.sh/uv/install.sh | sh &&
-            export PATH=\"/root/.cargo/bin:\$PATH\" &&
+            export PATH="/root/.local/bin:$PATH" &&
             uv python install 3.11 &&
             uv run -s build_clean.py &&
             mv dist/aws-spot-deployer dist/aws-spot-deployer-linux-aarch64
