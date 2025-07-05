@@ -81,7 +81,7 @@ jobs:
           "
     
     - name: Build for other platforms
-      if: !(matrix.platform == 'linux' && matrix.arch == 'aarch64')
+      if: "!(matrix.platform == 'linux' && matrix.arch == 'aarch64')"
       run: |
         uv run -s build_clean.py
         # Rename binary with platform suffix
@@ -93,7 +93,7 @@ jobs:
       shell: bash
     
     - name: Test binary
-      if: !(matrix.platform == 'linux' && matrix.arch == 'aarch64')
+      if: "!(matrix.platform == 'linux' && matrix.arch == 'aarch64')"
       run: |
         if [ "${{ matrix.platform }}" = "windows" ]; then
           ./dist/aws-spot-deployer-${{ matrix.target }}.exe --help
