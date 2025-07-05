@@ -79,7 +79,7 @@ jobs:
             export PATH="/root/.local/bin:$PATH" &&
             uv python install 3.11 &&
             uv run -s build_clean.py &&
-            mv dist/aws-spot-deployer dist/aws-spot-deployer-linux-aarch64
+            mv dist/aws-spot-deployer "dist/aws-spot-deployer-${{ matrix.target }}"
           "
     
     - name: Build for other platforms

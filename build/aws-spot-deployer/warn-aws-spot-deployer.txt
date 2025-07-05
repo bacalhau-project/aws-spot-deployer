@@ -30,7 +30,7 @@ excluded module named _frozen_importlib - imported by importlib (optional), impo
 missing module named org - imported by pickle (optional)
 missing module named multiprocessing.set_start_method - imported by multiprocessing (top-level), multiprocessing.spawn (top-level)
 missing module named multiprocessing.get_start_method - imported by multiprocessing (top-level), multiprocessing.spawn (top-level)
-missing module named pyimod02_importers - imported by /root/.cache/uv/archive-v0/ZPQ_4dU8T3KVVyxE3Tao5/lib/python3.11/site-packages/PyInstaller/hooks/rthooks/pyi_rth_pkgutil.py (delayed)
+missing module named pyimod02_importers - imported by /root/.cache/uv/archive-v0/2PMRpUAWXqPSFqRR6q6Ra/lib/python3.11/site-packages/PyInstaller/hooks/rthooks/pyi_rth_pkgutil.py (delayed)
 missing module named pygments.lexers.PrologLexer - imported by pygments.lexers (top-level), pygments.lexers.cplint (top-level)
 missing module named _winreg - imported by platform (delayed, optional), pygments.formatters.img (optional)
 excluded module named PIL - imported by pygments.formatters.img (optional)
