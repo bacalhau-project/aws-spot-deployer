@@ -22,15 +22,15 @@ MIN_MEMORY_GIB = 4  # Changed from 2 to 4 GB to ensure enough memory
 
 # Instance families that are good candidates for small workloads
 PREFERRED_INSTANCE_FAMILIES = [
-    "t3",    # T3 medium has 2 vCPU, 4GB
-    "t2",    # T2 medium has 2 vCPU, 4GB
-    "t3a",   # T3a medium has 2 vCPU, 4GB
-    "t4g",   # T4g medium has 2 vCPU, 4GB
-    "m5",    # General purpose instances
+    "t3",  # T3 medium has 2 vCPU, 4GB
+    "t2",  # T2 medium has 2 vCPU, 4GB
+    "t3a",  # T3a medium has 2 vCPU, 4GB
+    "t4g",  # T4g medium has 2 vCPU, 4GB
+    "m5",  # General purpose instances
     "m5a",
     "m6g",
     "m6i",
-    "a1",    # ARM-based instances - can be cheaper
+    "a1",  # ARM-based instances - can be cheaper
 ]
 
 # AWS instance types vCPU correction map
@@ -45,7 +45,6 @@ INSTANCE_TYPE_VCPU_CORRECTION = {
     "t2.large": 2,
     "t2.xlarge": 4,
     "t2.2xlarge": 8,
-    
     "t3.nano": 1,
     "t3.micro": 1,
     "t3.small": 1,
@@ -53,7 +52,6 @@ INSTANCE_TYPE_VCPU_CORRECTION = {
     "t3.large": 2,
     "t3.xlarge": 4,
     "t3.2xlarge": 8,
-    
     "t3a.nano": 1,
     "t3a.micro": 1,
     "t3a.small": 1,
@@ -61,7 +59,6 @@ INSTANCE_TYPE_VCPU_CORRECTION = {
     "t3a.large": 2,
     "t3a.xlarge": 4,
     "t3a.2xlarge": 8,
-    
     "t4g.nano": 1,
     "t4g.micro": 1,
     "t4g.small": 1,
@@ -92,10 +89,10 @@ def check_region_spot_availability(region):
             # Apply vCPU correction for known instance types
             reported_vcpus = instance.get("VCpuInfo", {}).get("DefaultVCpus", 0)
             vcpus = INSTANCE_TYPE_VCPU_CORRECTION.get(instance_type, reported_vcpus)
-            
+
             # Get memory in GiB
             memory_gib = instance.get("MemoryInfo", {}).get("SizeInMiB", 0) / 1024
-            
+
             # Check if instance meets minimum requirements
             if vcpus >= MIN_VCPU and memory_gib >= MIN_MEMORY_GIB:
                 # Calculate a "size score" - lower is better (smaller instance)

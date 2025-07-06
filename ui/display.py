@@ -11,7 +11,7 @@ This module handles all rich-based UI components including:
 
 import asyncio
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
 from rich.console import Console
 from rich.layout import Layout
@@ -53,10 +53,12 @@ def make_progress_table() -> Table:
 
     # Get all statuses from status manager
     all_statuses = status_manager.get_all_statuses()
-    
+
     # Sort by region, then by instance ID
-    sorted_items = sorted(all_statuses.items(), key=lambda x: (x[1]["region"], x[1]["instance_id"]))
-    
+    sorted_items = sorted(
+        all_statuses.items(), key=lambda x: (x[1]["region"], x[1]["instance_id"])
+    )
+
     for key, status_data in sorted_items:
         # Format status with appropriate styling
         status = status_data["status"]
@@ -73,101 +75,89 @@ def make_progress_table() -> Table:
 
         # Format elapsed time
         elapsed_display = format_elapsed_time(status_data["elapsed_seconds"])
-        
+
         # Format error message (truncate if too long)
         error_msg = status_data.get("error_message", "")
         if len(error_msg) > 50:
             error_msg = error_msg[:47] + "..."
-        
+
         table.add_row(
             status_data["region"],
-            status_data["instance_id"][:12] if status_data["instance_id"] else "",  # Truncate long IDs
+            status_data["instance_id"][:12]
+            if status_data["instance_id"]
+            else "",  # Truncate long IDs
             status_data["instance_type"],
             status_display,
             status_data["public_ip"],
             status_data["private_ip"],
             elapsed_display,
-            error_msg
+            error_msg,
         )
-    
+
     return table
 
 
 def make_operations_log_panel() -> Panel:
     """Create the operations log panel."""
     logs = status_manager.get_operations_logs()
-    
+
     if not logs:
         log_content = "[dim]No operations logged yet...[/dim]"
     else:
         # Show last 10 logs
         log_content = "\n".join(logs[-10:])
-    
-    return Panel(
-        log_content,
-        title="Recent Operations",
-        border_style="blue",
-        height=12
-    )
+
+    return Panel(log_content, title="Recent Operations", border_style="blue", height=12)
 
 
 def make_summary_panel() -> Panel:
     """Create the summary statistics panel."""
     summary = status_manager.get_summary()
-    
+
     summary_text = f"""
-[green]Running:[/green] {summary['running']}
-[yellow]Pending:[/yellow] {summary['pending']}
-[blue]Completed:[/blue] {summary['done']}
-[red]Failed:[/red] {summary['failed']}
-[white]Total:[/white] {summary['total']}
+[green]Running:[/green] {summary["running"]}
+[yellow]Pending:[/yellow] {summary["pending"]}
+[blue]Completed:[/blue] {summary["done"]}
+[red]Failed:[/red] {summary["failed"]}
+[white]Total:[/white] {summary["total"]}
 """
-    
-    return Panel(
-        summary_text.strip(),
-        title="Summary",
-        border_style="green",
-        width=25
-    )
+
+    return Panel(summary_text.strip(), title="Summary", border_style="green", width=25)
 
 
 def create_layout(progress: Progress, table: Table) -> Layout:
     """Create the main layout for the live display."""
     layout = Layout()
-    
+
     # Split into top and bottom
-    layout.split_column(
-        Layout(name="top", size=3),
-        Layout(name="main")
-    )
-    
+    layout.split_column(Layout(name="top", size=3), Layout(name="main"))
+
     # Top section for progress bars
     layout["top"].update(Panel(progress, title="Progress", border_style="green"))
-    
+
     # Main section split between table and logs
     layout["main"].split_row(
-        Layout(name="table", ratio=3),
-        Layout(name="sidebar", ratio=1)
+        Layout(name="table", ratio=3), Layout(name="sidebar", ratio=1)
     )
-    
+
     # Table section
     layout["table"].update(Panel(table, title="Instances", border_style="cyan"))
-    
+
     # Sidebar split between summary and logs
     layout["sidebar"].split_column(
         Layout(make_summary_panel(), name="summary", size=8),
-        Layout(make_operations_log_panel(), name="logs")
+        Layout(make_operations_log_panel(), name="logs"),
     )
-    
+
     return layout
 
 
 async def update_table(live: Live):
     """Continuously update the live table display."""
     global table_update_running, table_update_event
-    
+
     table_update_running = True
-    
+
     try:
         # Create progress bar
         progress = Progress(
@@ -176,43 +166,42 @@ async def update_table(live: Live):
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             TextColumn("{task.completed}/{task.total}"),
         )
-        
+
         # Add main task
         main_task = progress.add_task(task_name, total=task_total)
-        
+
         while table_update_running:
             try:
                 # Update progress bar
                 progress.update(main_task, completed=task_count, description=task_name)
-                
+
                 # Process any pending progress events
                 async with events_to_progress_lock:
                     for event in events_to_progress:
                         if event["action"] == "add_task":
                             event["task_id"] = progress.add_task(
-                                event["description"], 
-                                total=event.get("total", 100)
+                                event["description"], total=event.get("total", 100)
                             )
                         elif event["action"] == "update_task":
                             progress.update(
                                 event["task_id"],
                                 completed=event.get("completed", 0),
-                                description=event.get("description", "")
+                                description=event.get("description", ""),
                             )
                         elif event["action"] == "remove_task":
                             progress.remove_task(event["task_id"])
-                    
+
                     events_to_progress.clear()
-                
+
                 # Create new table
                 table = make_progress_table()
-                
+
                 # Create layout
                 layout = create_layout(progress, table)
-                
+
                 # Update the live display
                 live.update(layout)
-                
+
                 # Wait for next update
                 try:
                     await asyncio.wait_for(table_update_event.wait(), timeout=2.0)
@@ -220,11 +209,11 @@ async def update_table(live: Live):
                 except asyncio.TimeoutError:
                     # Regular update every 2 seconds
                     pass
-                    
+
             except Exception as e:
                 logger.error(f"Error updating table: {e}")
                 await asyncio.sleep(1)
-                
+
     except Exception as e:
         logger.error(f"Error in update_table: {e}")
     finally:
@@ -239,51 +228,42 @@ def trigger_table_update():
 
 async def add_progress_task(description: str, total: int = 100) -> TaskID:
     """Add a new progress task."""
-    event = {
-        "action": "add_task",
-        "description": description,
-        "total": total
-    }
-    
+    event = {"action": "add_task", "description": description, "total": total}
+
     async with events_to_progress_lock:
         events_to_progress.append(event)
-    
+
     trigger_table_update()
-    
+
     # Wait for the task to be created
     await asyncio.sleep(0.1)
-    
+
     # Return the task ID (this is a simplified approach)
     return len(events_to_progress) - 1
 
 
-async def update_progress_task(task_id: TaskID, completed: int, description: Optional[str] = None):
+async def update_progress_task(
+    task_id: TaskID, completed: int, description: Optional[str] = None
+):
     """Update a progress task."""
-    event = {
-        "action": "update_task",
-        "task_id": task_id,
-        "completed": completed
-    }
-    
+    event = {"action": "update_task", "task_id": task_id, "completed": completed}
+
     if description:
         event["description"] = description
-    
+
     async with events_to_progress_lock:
         events_to_progress.append(event)
-    
+
     trigger_table_update()
 
 
 async def remove_progress_task(task_id: TaskID):
     """Remove a progress task."""
-    event = {
-        "action": "remove_task",
-        "task_id": task_id
-    }
-    
+    event = {"action": "remove_task", "task_id": task_id}
+
     async with events_to_progress_lock:
         events_to_progress.append(event)
-    
+
     trigger_table_update()
 
 
@@ -314,38 +294,38 @@ def stop_table_updates():
 
 class LiveDisplay:
     """Context manager for live display."""
-    
+
     def __init__(self):
         self.live = None
         self.update_task = None
-    
+
     async def __aenter__(self):
         """Start the live display."""
         # Create initial table
         table = make_progress_table()
         progress = Progress()
         layout = create_layout(progress, table)
-        
+
         # Start live display
         self.live = Live(layout, console=console, refresh_per_second=2)
         self.live.start()
-        
+
         # Start update task
         self.update_task = asyncio.create_task(update_table(self.live))
-        
+
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Stop the live display."""
         # Stop the update task
         stop_table_updates()
-        
+
         if self.update_task:
             try:
                 await asyncio.wait_for(self.update_task, timeout=2.0)
             except asyncio.TimeoutError:
                 self.update_task.cancel()
-        
+
         # Stop live display
         if self.live:
             self.live.stop()

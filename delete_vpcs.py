@@ -282,9 +282,7 @@ class AwsVpcCleaner:
         """Delete VPC dependencies in the correct order."""
         try:
             # Get VPC dependencies
-            (await self.execute_aws_api(ec2.describe_vpcs, VpcIds=[vpc_id]))[
-                "Vpcs"
-            ][0]
+            (await self.execute_aws_api(ec2.describe_vpcs, VpcIds=[vpc_id]))["Vpcs"][0]
 
             # First, terminate any EC2 instances in the VPC
             instances = (

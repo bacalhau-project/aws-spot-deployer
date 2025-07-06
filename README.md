@@ -93,6 +93,8 @@ regions:
 | `status` | Show detailed status of deployment | `./aws-spot-deployer status` |
 | `destroy` | Terminate all managed spot instances | `./aws-spot-deployer destroy` |
 | `cleanup` | Full cleanup (instances + VPC resources) | `./aws-spot-deployer cleanup` |
+| `upload-script` | Upload and execute scripts on running instances | `./aws-spot-deployer upload-script ./my_script.sh` |
+| `cache` | Manage AWS data cache (refresh, stats, clear) | `./aws-spot-deployer cache stats` |
 | `help` | Show detailed help and usage information | `./aws-spot-deployer help` |
 
 ### Command Options
@@ -121,7 +123,100 @@ The tool automatically:
 - **Cost Optimization**: Always selects the cheapest available spot instances
 - **Clean Teardown**: Complete cleanup of all AWS resources when finished
 - **State Management**: Remembers all deployed instances across restarts
+- **Script Upload & Execution**: Deploy and run custom scripts on all instances
+- **File Transfer System**: Upload supporting files (credentials, configs) with scripts
 - **Comprehensive Logging**: Detailed logs for troubleshooting (`debug_deploy_spot.log`)
+
+## Script Upload & Execution System
+
+After deploying your Bacalhau cluster, you can upload and execute custom scripts on all running instances. This is perfect for deploying additional software, updating configurations, or running maintenance tasks.
+
+### Basic Script Upload
+
+Upload and execute a single script:
+
+```bash
+# Upload and run a script on all running instances
+./aws-spot-deployer upload-script ./my_maintenance_script.sh
+
+# Example: Update all instances with latest security patches
+./aws-spot-deployer upload-script ./update_system.sh
+```
+
+### Advanced: Script + Supporting Files
+
+For complex deployments that need supporting files (credentials, configurations, data files), use the files directory system:
+
+```bash
+# 1. Create a files directory with supporting files
+mkdir ./files
+cp database.config ./files/
+cp api_credentials.json ./files/
+cp deployment_data.csv ./files/
+
+# 2. Upload script - files are automatically uploaded first
+./aws-spot-deployer upload-script ./deploy_application.sh
+```
+
+**How it works:**
+1. Tool automatically detects `./files` directory
+2. Creates unique temporary directory on each instance (`/tmp/deploy_files_<timestamp>_<pid>`)
+3. Uploads all files from `./files` to the temporary directory
+4. Runs your script with `DEPLOY_FILES_DIR` environment variable pointing to uploaded files
+5. Your script can access files: `cat $DEPLOY_FILES_DIR/database.config`
+
+### Script Examples
+
+**Basic System Update Script** (`update_system.sh`):
+```bash
+#!/bin/bash
+echo "Updating system packages..."
+sudo apt update && sudo apt upgrade -y
+echo "System update completed on $(hostname)"
+```
+
+**Application Deployment with Files** (`deploy_app.sh`):
+```bash
+#!/bin/bash
+echo "Deploying application with configuration files..."
+
+# Access uploaded files
+CONFIG_FILE="$DEPLOY_FILES_DIR/app.config"
+CREDENTIALS="$DEPLOY_FILES_DIR/api_credentials.json"
+
+if [ -f "$CONFIG_FILE" ]; then
+    echo "Found configuration file, copying to /etc/myapp/"
+    sudo mkdir -p /etc/myapp
+    sudo cp "$CONFIG_FILE" /etc/myapp/
+fi
+
+if [ -f "$CREDENTIALS" ]; then
+    echo "Found credentials, setting up API access..."
+    sudo cp "$CREDENTIALS" /etc/myapp/credentials.json
+    sudo chmod 600 /etc/myapp/credentials.json
+fi
+
+echo "Application deployment completed"
+```
+
+### File Upload Features
+
+- **Automatic Detection**: Detects `./files` directory automatically
+- **Preserves Structure**: Maintains file organization and permissions
+- **Efficient Transfer**: Uses tar compression for fast upload
+- **Unique Isolation**: Each upload gets unique temporary directory
+- **Environment Integration**: `DEPLOY_FILES_DIR` variable available in scripts
+- **Progress Tracking**: Real-time progress bars for uploads and execution
+- **Error Handling**: Comprehensive error reporting for failed transfers
+
+### Common Use Cases
+
+1. **Configuration Management**: Deploy updated config files across cluster
+2. **Credential Distribution**: Securely distribute API keys or certificates  
+3. **Data Deployment**: Upload datasets or reference files
+4. **Software Installation**: Deploy custom applications with dependencies
+5. **Maintenance Tasks**: Run system updates or health checks
+6. **Monitoring Setup**: Deploy monitoring agents with configurations
 
 ## Troubleshooting
 
@@ -144,6 +239,22 @@ The tool automatically:
 4. **Resources Not Fully Cleaned Up**: Use the cleanup command which includes retry logic
    ```bash
    ./aws-spot-deployer cleanup
+   ```
+
+5. **Script Upload Failures**: Check SSH connectivity and key permissions
+   ```bash
+   # Test SSH connection manually
+   ssh -i ~/.ssh/id_ed25519 ubuntu@<instance-ip>
+   
+   # Check key permissions (should be 600)
+   chmod 600 ~/.ssh/id_ed25519
+   ```
+
+6. **Files Not Found in Script**: Verify DEPLOY_FILES_DIR environment variable
+   ```bash
+   # In your script, debug with:
+   echo "Files directory: $DEPLOY_FILES_DIR"
+   ls -la "$DEPLOY_FILES_DIR"
    ```
 
 ### Getting Help
@@ -214,6 +325,7 @@ When developing, you can run directly from source:
 uv run -s deploy_spot.py setup
 uv run -s deploy_spot.py verify
 uv run -s deploy_spot.py create
+uv run -s deploy_spot.py upload-script ./my_script.sh
 
 # Using Python directly (requires installing dependencies)
 python deploy_spot.py help
@@ -224,9 +336,14 @@ python deploy_spot.py help
 ```
 ├── deploy_spot.py           # Main source file (self-contained)
 ├── aws-spot-deployer.spec   # PyInstaller build specification
-├── test_smoke.py           # Comprehensive test suite (18 tests)
+├── test_smoke.py           # Comprehensive test suite (38 tests)
 ├── build_clean.py          # Automated build system
 ├── config.yaml_example     # Configuration template
+├── test_upload_script.sh   # Example script for upload testing
+├── files/                  # Optional directory for supporting files
+│   ├── credentials.json    # Example: API credentials
+│   ├── app.config         # Example: Application configuration
+│   └── data.csv           # Example: Data files
 └── dist/
     └── aws-spot-deployer   # Compiled binary (26MB)
 ```

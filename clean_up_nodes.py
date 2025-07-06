@@ -14,7 +14,6 @@ import sys
 import threading
 
 
-
 def get_nodes(api_host):
     """Get list of all Bacalhau nodes."""
     try:

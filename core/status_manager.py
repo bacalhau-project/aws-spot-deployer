@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class InstanceStatus:
     """Track the status of a single instance."""
-    
+
     def __init__(self, region: str, instance_id: str = ""):
         self.region = region
         self.instance_id = instance_id
@@ -28,7 +28,7 @@ class InstanceStatus:
         self.last_update = datetime.now()
         self.error_message = ""
         self.done = False
-        
+
     def update(
         self,
         status: Optional[str] = None,
@@ -36,7 +36,7 @@ class InstanceStatus:
         private_ip: Optional[str] = None,
         instance_type: Optional[str] = None,
         error_message: Optional[str] = None,
-        mark_done: bool = False
+        mark_done: bool = False,
     ):
         """Update instance status."""
         if status:
@@ -51,13 +51,13 @@ class InstanceStatus:
             self.error_message = error_message
         if mark_done:
             self.done = True
-        
+
         self.last_update = datetime.now()
-    
+
     def elapsed_time(self) -> int:
         """Get elapsed time in seconds."""
         return int((datetime.now() - self.start_time).total_seconds())
-    
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         return {
@@ -71,32 +71,34 @@ class InstanceStatus:
             "last_update": self.last_update.isoformat(),
             "error_message": self.error_message,
             "done": self.done,
-            "elapsed_seconds": self.elapsed_time()
+            "elapsed_seconds": self.elapsed_time(),
         }
 
 
 class StatusManager:
     """Manage status for all instances and operations."""
-    
+
     def __init__(self):
         self.statuses: Dict[str, InstanceStatus] = {}
         self.global_node_count = 0
         self.operations_logs: List[str] = []
         self.operations_logs_lock = asyncio.Lock()
         self.max_operations_logs = 20
-        
+
     def add_instance(self, region: str, instance_id: str = "") -> InstanceStatus:
         """Add a new instance to track."""
         key = f"{region}:{instance_id}" if instance_id else region
         status = InstanceStatus(region, instance_id)
         self.statuses[key] = status
         return status
-    
-    def get_instance(self, region: str, instance_id: str = "") -> Optional[InstanceStatus]:
+
+    def get_instance(
+        self, region: str, instance_id: str = ""
+    ) -> Optional[InstanceStatus]:
         """Get instance status."""
         key = f"{region}:{instance_id}" if instance_id else region
         return self.statuses.get(key)
-    
+
     def update_instance(
         self,
         region: str,
@@ -106,46 +108,50 @@ class StatusManager:
         private_ip: Optional[str] = None,
         instance_type: Optional[str] = None,
         error_message: Optional[str] = None,
-        mark_done: bool = False
+        mark_done: bool = False,
     ):
         """Update instance status."""
         key = f"{region}:{instance_id}" if instance_id else region
-        
+
         if key not in self.statuses:
             self.add_instance(region, instance_id)
-        
+
         self.statuses[key].update(
             status=status,
             public_ip=public_ip,
             private_ip=private_ip,
             instance_type=instance_type,
             error_message=error_message,
-            mark_done=mark_done
+            mark_done=mark_done,
         )
-    
+
     def get_all_statuses(self) -> Dict[str, Dict]:
         """Get all instance statuses as dictionaries."""
         return {key: status.to_dict() for key, status in self.statuses.items()}
-    
+
     def get_summary(self) -> Dict:
         """Get summary statistics."""
         total = len(self.statuses)
         done = sum(1 for status in self.statuses.values() if status.done)
-        running = sum(1 for status in self.statuses.values() if status.status == "running")
+        running = sum(
+            1 for status in self.statuses.values() if status.status == "running"
+        )
         failed = sum(1 for status in self.statuses.values() if status.error_message)
-        
+
         return {
             "total": total,
             "done": done,
             "running": running,
             "failed": failed,
-            "pending": total - done - running - failed
+            "pending": total - done - running - failed,
         }
-    
-    def log_operation(self, message: str, level: str = "info", region: Optional[str] = None):
+
+    def log_operation(
+        self, message: str, level: str = "info", region: Optional[str] = None
+    ):
         """Add an operation log message (synchronous version)."""
         timestamp = datetime.now().strftime("%H:%M:%S")
-        
+
         # Format the message with color based on level
         if level == "error":
             formatted_message = f"[red]{timestamp} ERROR:[/red] "
@@ -153,20 +159,20 @@ class StatusManager:
             formatted_message = f"[yellow]{timestamp} WARN:[/yellow] "
         else:
             formatted_message = f"[green]{timestamp} INFO:[/green] "
-        
+
         # Add region if provided
         if region:
             formatted_message += f"[cyan]{region}:[/cyan] "
-        
+
         formatted_message += message
-        
+
         # Add to logs (not thread-safe, but better than nothing)
         self.operations_logs.append(formatted_message)
-        
+
         # Keep only the most recent logs
         if len(self.operations_logs) > self.max_operations_logs:
-            self.operations_logs = self.operations_logs[-self.max_operations_logs:]
-        
+            self.operations_logs = self.operations_logs[-self.max_operations_logs :]
+
         # Also log to standard logger
         if level == "error":
             logger.error(message)
@@ -174,11 +180,13 @@ class StatusManager:
             logger.warning(message)
         else:
             logger.info(message)
-    
-    async def log_operation_async(self, message: str, level: str = "info", region: Optional[str] = None):
+
+    async def log_operation_async(
+        self, message: str, level: str = "info", region: Optional[str] = None
+    ):
         """Add an operation log message (async version with proper locking)."""
         timestamp = datetime.now().strftime("%H:%M:%S")
-        
+
         # Format the message with color based on level
         if level == "error":
             formatted_message = f"[red]{timestamp} ERROR:[/red] "
@@ -186,21 +194,21 @@ class StatusManager:
             formatted_message = f"[yellow]{timestamp} WARN:[/yellow] "
         else:
             formatted_message = f"[green]{timestamp} INFO:[/green] "
-        
+
         # Add region if provided
         if region:
             formatted_message += f"[cyan]{region}:[/cyan] "
-        
+
         formatted_message += message
-        
+
         # Thread-safe update to operations logs
         async with self.operations_logs_lock:
             self.operations_logs.append(formatted_message)
-            
+
             # Keep only the most recent logs
             if len(self.operations_logs) > self.max_operations_logs:
-                self.operations_logs = self.operations_logs[-self.max_operations_logs:]
-        
+                self.operations_logs = self.operations_logs[-self.max_operations_logs :]
+
         # Also log to standard logger
         if level == "error":
             logger.error(message)
@@ -208,15 +216,15 @@ class StatusManager:
             logger.warning(message)
         else:
             logger.info(message)
-    
+
     def get_operations_logs(self) -> List[str]:
         """Get recent operations logs."""
         return self.operations_logs.copy()
-    
+
     def clear_logs(self):
         """Clear all logs."""
         self.operations_logs.clear()
-    
+
     def reset(self):
         """Reset all status tracking."""
         self.statuses.clear()
@@ -249,7 +257,9 @@ def log_operation(message: str, level: str = "info", region: Optional[str] = Non
     status_manager.log_operation(message, level, region)
 
 
-async def log_operation_async(message: str, level: str = "info", region: Optional[str] = None):
+async def log_operation_async(
+    message: str, level: str = "info", region: Optional[str] = None
+):
     """Log operation async using global status manager."""
     await status_manager.log_operation_async(message, level, region)
 
@@ -261,7 +271,7 @@ def update_all_statuses(status_dict: Dict):
             region, instance_id = key.split(":", 1)
         else:
             region, instance_id = key, ""
-        
+
         status_manager.update_instance(
             region=region,
             instance_id=instance_id,
@@ -270,7 +280,7 @@ def update_all_statuses(status_dict: Dict):
             private_ip=status_data.get("private_ip"),
             instance_type=status_data.get("instance_type"),
             error_message=status_data.get("error_message"),
-            mark_done=status_data.get("done", False)
+            mark_done=status_data.get("done", False),
         )
 
 

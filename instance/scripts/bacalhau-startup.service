@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 Environment=BACALHAU_DATA_DIR=/bacalhau_data
 Environment=BACALHAU_NODE_DIR=/bacalhau_node
-ExecStart=uv run -s /usr/local/bin/startup.py
+ExecStart=uv run -s /usr/local/bin/setup_orchestrator.py
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

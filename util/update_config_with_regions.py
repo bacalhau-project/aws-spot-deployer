@@ -129,7 +129,6 @@ def main():
             "us-west-2": ["t3.medium", "t2.medium"],
             "ca-central-1": ["t3.medium", "t2.medium"],
             "ca-west-1": ["t3.medium"],
-            
             # Europe
             "eu-west-1": ["t3.medium", "t2.medium"],
             "eu-west-2": ["t3.medium", "t2.medium"],
@@ -139,7 +138,6 @@ def main():
             "eu-north-1": ["t3.medium"],
             "eu-south-1": ["t3.medium"],
             "eu-south-2": ["t3.medium"],
-            
             # Asia Pacific
             "ap-northeast-1": ["t3.medium", "t2.medium"],
             "ap-northeast-2": ["t3.medium", "t2.medium"],
@@ -152,38 +150,41 @@ def main():
             "ap-south-1": ["t3.medium", "t2.medium"],
             "ap-south-2": ["t3.medium"],
             "ap-east-1": ["t3.medium"],
-            
             # Middle East and Africa
             "me-central-1": ["t3.medium"],
             "me-south-1": ["t3.medium"],
             "af-south-1": ["t3.medium"],
-            
             # South America
             "sa-east-1": ["t3.medium", "t2.medium"],
         }
-        
+
         # Default to t2.medium which is widely available with 2vCPU/4GB RAM
         machine_type = "t2.medium"
-        
+
         # First preference: Check if we have a region-specific override
         if region in region_instance_map:
             machine_type = region_instance_map[region][0]
-            
+
         # Second preference: Check if recommended instance meets our specs (2vCPU, 4GB+)
         # This helps find the most cost-effective option from available_regions.json
-        if (recommended_instance and 
-            region_details.get(region, {}).get("available", False)):
-            
+        if recommended_instance and region_details.get(region, {}).get(
+            "available", False
+        ):
             instance_info = region_details[region].get("cheapest_instance", {})
-            
+
             # Verify instance has 2+ vCPU and 4+ GB RAM
-            if (instance_info.get("vcpus", 0) >= 2 and 
-                instance_info.get("memory_gib", 0) >= 4):
-                
+            if (
+                instance_info.get("vcpus", 0) >= 2
+                and instance_info.get("memory_gib", 0) >= 4
+            ):
                 machine_type = recommended_instance
-                print(f"Using recommended instance {machine_type} for {region} (confirmed: {instance_info.get('vcpus')} vCPU, {instance_info.get('memory_gib')} GB RAM)")
+                print(
+                    f"Using recommended instance {machine_type} for {region} (confirmed: {instance_info.get('vcpus')} vCPU, {instance_info.get('memory_gib')} GB RAM)"
+                )
             else:
-                print(f"Recommended instance {recommended_instance} rejected (insufficient resources). Using {machine_type} for {region}")
+                print(
+                    f"Recommended instance {recommended_instance} rejected (insufficient resources). Using {machine_type} for {region}"
+                )
         else:
             print(f"Using default instance {machine_type} for {region}")
 

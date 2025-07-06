@@ -2829,41 +2829,47 @@ def check_ssh_key() -> bool:
 async def setup_environment():
     """Set up the environment by finding available regions and updating config."""
     console.print("[bold green]Setting up environment...[/bold green]")
-    
+
     # Step 1: Get available regions
-    console.print("[yellow]Step 1: Finding available regions with suitable spot instances...[/yellow]")
+    console.print(
+        "[yellow]Step 1: Finding available regions with suitable spot instances...[/yellow]"
+    )
     try:
         get_regions_module.main()
         console.print("[green]✓ Available regions found and saved[/green]")
     except Exception as e:
         console.print(f"[red]✗ Failed to get available regions: {e}[/red]")
         return
-    
+
     # Step 2: Get Ubuntu AMIs for available regions
-    console.print("[yellow]Step 2: Getting Ubuntu AMIs for available regions...[/yellow]")
+    console.print(
+        "[yellow]Step 2: Getting Ubuntu AMIs for available regions...[/yellow]"
+    )
     try:
         get_amis_module.main()
         console.print("[green]✓ AMIs retrieved and saved[/green]")
     except Exception as e:
         console.print(f"[red]✗ Failed to get AMIs: {e}[/red]")
         return
-    
+
     # Step 3: Update config with optimal regions
-    console.print("[yellow]Step 3: Updating config.yaml with optimal regions...[/yellow]")
+    console.print(
+        "[yellow]Step 3: Updating config.yaml with optimal regions...[/yellow]"
+    )
     try:
         update_config_module.main()
         console.print("[green]✓ Config updated successfully[/green]")
     except Exception as e:
         console.print(f"[red]✗ Failed to update config: {e}[/red]")
         return
-    
+
     console.print("[bold green]Environment setup completed![/bold green]")
 
 
 async def verify_environment():
     """Verify the environment and configuration."""
     console.print("[bold blue]Verifying environment...[/bold blue]")
-    
+
     # Load and verify config
     try:
         config = Config("config.yaml")
@@ -2871,7 +2877,7 @@ async def verify_environment():
     except Exception as e:
         console.print(f"[red]✗ Config file error: {e}[/red]")
         return
-    
+
     # Verify architecture compatibility
     console.print("[yellow]Checking architecture compatibility...[/yellow]")
     try:
@@ -2884,94 +2890,97 @@ async def verify_environment():
             console.print("[green]✓ Architecture compatibility verified[/green]")
     except Exception as e:
         console.print(f"[red]✗ Architecture verification failed: {e}[/red]")
-    
+
     # Verify AWS credentials
     console.print("[yellow]Checking AWS credentials...[/yellow]")
     if check_aws_sso_token():
         console.print("[green]✓ AWS credentials valid[/green]")
     else:
         console.print("[red]✗ AWS credentials invalid[/red]")
-    
+
     # Verify SSH keys
     console.print("[yellow]Checking SSH keys...[/yellow]")
     if check_ssh_key():
         console.print("[green]✓ SSH keys configured correctly[/green]")
     else:
         console.print("[red]✗ SSH keys not configured correctly[/red]")
-    
+
     # Check for required files
     console.print("[yellow]Checking required files...[/yellow]")
-    required_files = [
-        "config.yaml",
-        "available_regions.json",
-        "ubuntu_amis.json"
-    ]
-    
+    required_files = ["config.yaml", "available_regions.json", "ubuntu_amis.json"]
+
     for file in required_files:
         if os.path.exists(file):
             console.print(f"[green]✓ {file} exists[/green]")
         else:
             console.print(f"[red]✗ {file} missing[/red]")
-    
+
     console.print("[bold blue]Environment verification completed![/bold blue]")
 
 
 async def cleanup_resources():
     """Enhanced cleanup with retry logic and VPC deletion."""
     console.print("[bold red]Cleaning up resources...[/bold red]")
-    
+
     # First, destroy instances if any exist
     console.print("[yellow]Step 1: Destroying instances...[/yellow]")
     await destroy_instances()
-    
+
     # Then, clean up VPCs
     console.print("[yellow]Step 2: Cleaning up VPCs...[/yellow]")
     try:
         # Import VPC cleanup functionality
         from delete_vpcs import VPCManager
+
         vpc_manager = VPCManager()
         await vpc_manager.main()
-        
+
         console.print("[green]✓ VPC cleanup completed[/green]")
     except Exception as e:
         console.print(f"[red]✗ VPC cleanup failed: {e}[/red]")
-        console.print("[yellow]You may need to run 'uv run -s delete_vpcs.py' manually[/yellow]")
-    
+        console.print(
+            "[yellow]You may need to run 'uv run -s delete_vpcs.py' manually[/yellow]"
+        )
+
     console.print("[bold red]Resource cleanup completed![/bold red]")
 
 
 async def check_status():
     """Check the status of all resources and instances."""
     console.print("[bold cyan]Checking status...[/bold cyan]")
-    
+
     # Check database status
     console.print("[yellow]Database status:[/yellow]")
     try:
         await machine_state.load()
-        console.print(f"[green]✓ Database contains {machine_state.count()} instances[/green]")
+        console.print(
+            f"[green]✓ Database contains {machine_state.count()} instances[/green]"
+        )
     except Exception as e:
         console.print(f"[red]✗ Database error: {e}[/red]")
-    
+
     # Check live AWS resources
     console.print("[yellow]AWS resources status:[/yellow]")
     await list_spot_instances()
-    
+
     # Check configuration
     console.print("[yellow]Configuration status:[/yellow]")
     try:
         config = Config("config.yaml")
-        total_instances = config.data.get('aws', {}).get('total_instances', 0)
-        console.print(f"[green]✓ Configured for {total_instances} total instances[/green]")
-        
-        if 'regions' in config.data:
-            if isinstance(config.data['regions'], list):
-                region_count = len(config.data['regions'])
+        total_instances = config.data.get("aws", {}).get("total_instances", 0)
+        console.print(
+            f"[green]✓ Configured for {total_instances} total instances[/green]"
+        )
+
+        if "regions" in config.data:
+            if isinstance(config.data["regions"], list):
+                region_count = len(config.data["regions"])
             else:
-                region_count = len(config.data['regions'].keys())
+                region_count = len(config.data["regions"].keys())
             console.print(f"[green]✓ Configured for {region_count} regions[/green]")
     except Exception as e:
         console.print(f"[red]✗ Configuration error: {e}[/red]")
-    
+
     console.print("[bold cyan]Status check completed![/bold cyan]")
 
 

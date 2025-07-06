@@ -1,0 +1,6 @@
+boto3
+botocore
+rich
+aiosqlite
+aiofiles
+pyyaml
