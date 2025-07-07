@@ -399,6 +399,47 @@ class TestScriptUploadFunctionality(unittest.TestCase):
             self.assertTrue(os.path.exists(files_dir))
             self.assertTrue(os.path.isdir(files_dir))
 
+    def test_config_startup_script_path(self):
+        """Test that config can return startup script path."""
+        import tempfile
+        import yaml
+        import os
+
+        config_data = {
+            "startup_script_path": "./custom_startup.sh",
+            "files_directory_path": "./custom_files",
+        }
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            yaml.dump(config_data, f)
+            config_file = f.name
+
+        try:
+            config = deploy_spot.Config(config_file)
+            self.assertEqual(config.get_startup_script_path(), "./custom_startup.sh")
+            self.assertEqual(config.get_files_directory_path(), "./custom_files")
+        finally:
+            os.unlink(config_file)
+
+    def test_config_default_paths(self):
+        """Test that config returns default paths when not specified."""
+        import tempfile
+        import yaml
+        import os
+
+        config_data = {"aws": {"total_instances": 1}}
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            yaml.dump(config_data, f)
+            config_file = f.name
+
+        try:
+            config = deploy_spot.Config(config_file)
+            self.assertEqual(config.get_startup_script_path(), "./startup_script.sh")
+            self.assertEqual(config.get_files_directory_path(), "./files")
+        finally:
+            os.unlink(config_file)
+
 
 class TestEnvironmentValidation(unittest.TestCase):
     """Test environment validation functions."""
@@ -748,6 +789,12 @@ class TestAsyncOperations(unittest.TestCase):
             "machine_type": "t3.medium",
         }
         config.get_username.return_value = "test-user"
+        config.get_startup_script_path.return_value = (
+            "/nonexistent/startup.sh"  # Non-existent path
+        )
+        config.get_files_directory_path.return_value = (
+            "/nonexistent/files"  # Non-existent path
+        )
 
         # Mock AMI lookup
         mock_get_ami.return_value = {"image_id": "ami-12345", "name": "ubuntu-22.04"}

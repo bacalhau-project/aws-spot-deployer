@@ -330,6 +330,14 @@ class Config(dict):
             "username", self.get("aws", {}).get("username", "bacalhau-runner")
         )
 
+    def get_startup_script_path(self) -> str:
+        """Get startup script path from configuration."""
+        return self.get("startup_script_path", "./startup_script.sh")
+
+    def get_files_directory_path(self) -> str:
+        """Get files directory path from configuration."""
+        return self.get("files_directory_path", "./files")
+
 
 # =============================================================================
 # AWS DATA CACHE MANAGEMENT
@@ -913,6 +921,49 @@ async def create_spot_instances(config: Config, db: MachineStateManager) -> int:
         f"Creating {total_instances} instances across {len(regions)} regions..."
     )
 
+    # Check for startup script and files directory
+    startup_script_path = config.get_startup_script_path()
+    files_directory_path = config.get_files_directory_path()
+
+    script_exists = os.path.exists(startup_script_path)
+    files_exist = os.path.exists(files_directory_path) and os.path.isdir(
+        files_directory_path
+    )
+
+    if script_exists:
+        _get_console().print(
+            f"[green]✓ Startup script detected: {startup_script_path}[/green]"
+        )
+        _get_console().print(
+            "[cyan]Will automatically upload and execute after instance creation[/cyan]"
+        )
+    else:
+        _get_console().print(
+            f"[yellow]⚠ No startup script found at: {startup_script_path}[/yellow]"
+        )
+        _get_console().print(
+            "[yellow]Instances will be created without automatic script execution[/yellow]"
+        )
+
+    if files_exist:
+        file_count = len(
+            [
+                f
+                for f in os.listdir(files_directory_path)
+                if os.path.isfile(os.path.join(files_directory_path, f))
+            ]
+        )
+        _get_console().print(
+            f"[green]✓ Files directory detected: {files_directory_path} ({file_count} files)[/green]"
+        )
+        _get_console().print(
+            "[cyan]Files will be automatically uploaded with the startup script[/cyan]"
+        )
+    else:
+        _get_console().print(
+            f"[dim]No files directory found at: {files_directory_path}[/dim]"
+        )
+
     created_count = 0
     for region in regions:
         try:
@@ -1011,6 +1062,48 @@ usermod -aG docker {config.get_username()}
         except Exception as e:
             _get_console().print(
                 f"[red]Error processing region {region}: {str(e)}[/red]"
+            )
+
+    # Automatic script upload if instances were created and script exists
+    if created_count > 0 and script_exists:
+        _get_console().print(
+            f"\n[bold blue]Automatically uploading startup script to {created_count} instances...[/bold blue]"
+        )
+
+        # Wait a bit for instances to be ready for SSH
+        _get_console().print("[cyan]Waiting for instances to be SSH-ready...[/cyan]")
+        await asyncio.sleep(30)
+
+        try:
+            # Use existing upload script function with the detected paths
+            (
+                success_count,
+                total_count,
+            ) = await upload_script_to_instances_with_custom_paths(
+                config,
+                db,
+                startup_script_path,
+                files_directory_path if files_exist else None,
+            )
+
+            if success_count > 0:
+                _get_console().print(
+                    f"[bold green]✓ Startup script successfully executed on {success_count}/{total_count} instances[/bold green]"
+                )
+            else:
+                _get_console().print(
+                    f"[yellow]⚠ Startup script upload failed on all {total_count} instances[/yellow]"
+                )
+                _get_console().print(
+                    "[yellow]You can retry later with: ./deploy_spot.py upload-script[/yellow]"
+                )
+
+        except Exception as e:
+            _get_console().print(
+                f"[red]Error during automatic script upload: {str(e)}[/red]"
+            )
+            _get_console().print(
+                "[yellow]You can retry later with: ./deploy_spot.py upload-script[/yellow]"
             )
 
     return created_count
@@ -1518,10 +1611,10 @@ async def _upload_files_directory(
         return False, ""
 
 
-async def upload_script_to_instances(
-    config: Config, db, script_path: str
+async def upload_script_to_instances_with_custom_paths(
+    config: Config, db, script_path: str, files_dir: str = None
 ) -> tuple[int, int]:
-    """Upload files directory (if exists) and execute a script on all running instances."""
+    """Upload files directory and execute a script on all running instances with custom paths."""
     import subprocess
 
     # Validate script path
@@ -1529,8 +1622,9 @@ async def upload_script_to_instances(
         raise FileNotFoundError(f"Script not found: {script_path}")
 
     # Check for files directory
-    files_dir = "./files"
-    has_files_dir = os.path.exists(files_dir) and os.path.isdir(files_dir)
+    if files_dir is None:
+        files_dir = "./files"
+    has_files_dir = files_dir and os.path.exists(files_dir) and os.path.isdir(files_dir)
 
     if has_files_dir:
         file_count = len(
@@ -1686,6 +1780,16 @@ async def upload_script_to_instances(
     return success_count, total_count
 
 
+async def upload_script_to_instances(
+    config: Config, db, script_path: str
+) -> tuple[int, int]:
+    """Upload files directory (if exists) and execute a script on all running instances."""
+    # Use the flexible function with default files directory
+    return await upload_script_to_instances_with_custom_paths(
+        config, db, script_path, "./files"
+    )
+
+
 # =============================================================================
 # MAIN CLI INTERFACE
 # =============================================================================
@@ -1706,7 +1810,7 @@ COMMANDS:
     setup      Setup environment (find regions, get AMIs, create config template)
     verify     Verify configuration and environment are ready
     validate   Run comprehensive validation tests
-    create     Deploy spot instances across configured regions
+    create     Deploy spot instances and auto-upload startup script
     list       List all managed spot instances with status
     status     Show detailed status of deployment and instances
     destroy    Terminate all managed spot instances
@@ -1762,6 +1866,9 @@ CONFIGURATION:
         token: your_network_token            # Authentication token
         tls: true                           # Use TLS for connections
     
+    startup_script_path: ./startup_script.sh     # Auto-upload script
+    files_directory_path: ./files              # Supporting files directory
+    
     regions:
         - us-west-2:
             image: auto                      # Auto-select Ubuntu AMI
@@ -1803,7 +1910,7 @@ def show_help():
     [green]setup[/green]      Setup environment (find regions, get AMIs, create config template)
     [green]verify[/green]     Verify configuration and environment are ready
     [green]validate[/green]   Run comprehensive validation tests
-    [green]create[/green]     Deploy spot instances across configured regions
+    [green]create[/green]     Deploy spot instances and auto-upload startup script
     [green]list[/green]       List all managed spot instances with status
     [green]status[/green]     Show detailed status of deployment and instances
     [green]destroy[/green]    Terminate all managed spot instances
@@ -1857,6 +1964,9 @@ def show_help():
           - nats://your-orchestrator:4222    # Bacalhau NATS endpoints
         token: your_network_token            # Authentication token
         tls: true                           # Use TLS for connections
+    
+    [blue]startup_script_path:[/blue] ./startup_script.sh     # Auto-upload script
+    [blue]files_directory_path:[/blue] ./files              # Supporting files directory
     
     [blue]regions:[/blue]
         - us-west-2:

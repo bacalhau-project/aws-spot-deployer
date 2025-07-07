@@ -13,3 +13,9 @@ flox/run/*
 .aws_*.json
 .aws_*.csv
 .aws_*.gz
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+*.egg-info/
+uv.lock

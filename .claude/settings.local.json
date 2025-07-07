@@ -33,7 +33,16 @@
       "Bash(rg:*)",
       "Bash(time:*)",
       "Bash(mkdir:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(for file in /Users/daaronch/code/spot/util/get_available_regions.py)",
+      "Bash(do)",
+      "Bash(echo \"=== $file ===\")",
+      "Bash(head:*)",
+      "Bash(echo)",
+      "Bash(done)",
+      "Bash(git restore:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

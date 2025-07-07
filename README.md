@@ -66,11 +66,48 @@ bacalhau:
   token: your_network_token            # Authentication token
   tls: true                           # Use TLS for connections
 
+# Automatic script upload during instance creation
+startup_script_path: ./startup_script.sh     # Script to auto-upload and execute
+files_directory_path: ./files                # Directory with supporting files
+
 regions:
   - us-west-2:
       image: auto                      # Auto-select Ubuntu AMI
       machine_type: t3.medium         # Instance type
       node_count: auto                # Auto-distribute instances
+```
+
+### Automatic Script Execution
+
+When you run `create`, the tool automatically:
+
+1. **Detects startup script** at `startup_script_path` (default: `./startup_script.sh`)
+2. **Detects files directory** at `files_directory_path` (default: `./files`)  
+3. **Creates instances** with standard infrastructure setup
+4. **Waits for SSH readiness** (30 seconds)
+5. **Automatically uploads and executes** the startup script with files
+
+**Example setup:**
+```bash
+# Create your startup script
+cat > startup_script.sh << 'EOF'
+#!/bin/bash
+echo "Configuring instance with uploaded files..."
+# Access files via $DEPLOY_FILES_DIR environment variable
+if [ -d "$DEPLOY_FILES_DIR" ]; then
+    echo "Processing $(ls -1 $DEPLOY_FILES_DIR | wc -l) uploaded files"
+    # Your custom configuration here
+fi
+echo "Instance setup completed!"
+EOF
+
+# Create files directory with configurations
+mkdir files
+echo "database_url=postgres://..." > files/config.env
+echo "api_key=your-key" > files/credentials.txt
+
+# Deploy - script and files uploaded automatically
+./aws-spot-deployer create
 ```
 
 **Important**: 
@@ -334,18 +371,21 @@ python deploy_spot.py help
 ### Project Structure
 
 ```
-├── deploy_spot.py           # Main source file (self-contained)
-├── aws-spot-deployer.spec   # PyInstaller build specification
-├── test_smoke.py           # Comprehensive test suite (38 tests)
-├── build_clean.py          # Automated build system
-├── config.yaml_example     # Configuration template
-├── test_upload_script.sh   # Example script for upload testing
-├── files/                  # Optional directory for supporting files
-│   ├── credentials.json    # Example: API credentials
-│   ├── app.config         # Example: Application configuration
-│   └── data.csv           # Example: Data files
+├── deploy_spot.py                      # Main source file (self-contained)
+├── aws-spot-deployer.spec              # PyInstaller build specification
+├── test_smoke.py                       # Comprehensive test suite (42 tests)
+├── build_clean.py                      # Automated build system
+├── config.yaml_example                 # Basic configuration template
+├── config_with_auto_upload_example.yaml # Full config with auto-upload settings
+├── startup_script.sh                   # Default auto-upload script
+├── test_upload_script.sh               # Basic test script
+├── deploy_with_files_example.sh        # Advanced example with files
+├── files/                              # Optional directory for supporting files
+│   ├── credentials.json                # Example: API credentials
+│   ├── app.config                     # Example: Application configuration
+│   └── deployment_data.csv            # Example: Data files
 └── dist/
-    └── aws-spot-deployer   # Compiled binary (26MB)
+    └── aws-spot-deployer              # Compiled binary (26MB)
 ```
 
 ### Code Style
