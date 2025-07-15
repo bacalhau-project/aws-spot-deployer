@@ -1,17 +1,24 @@
 [Unit]
-Description=Bacalhau Startup Script
-After=network-online.target
-Wants=network-online.target
+Description=Initial System Setup
+After=network-online.target cloud-init.target
+Before=setup-config.service bacalhau.service sensor-generator.service
+Wants=network-online.target setup-config.service
+# Removed dependency on configure-services.service
 
 [Service]
-Type=simple
-Environment=BACALHAU_DATA_DIR=/bacalhau_data
-Environment=BACALHAU_NODE_DIR=/bacalhau_node
-ExecStart=uv run -s /usr/local/bin/setup_orchestrator.py
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+ExecStartPre=/bin/bash -c 'test -f /opt/uploaded_files/scripts/simple-startup.py || (echo "ERROR: simple-startup.py not found" >> /opt/startup.log && exit 1)'
+ExecStartPre=/bin/bash -c 'echo "[$(date)] Starting initial setup" >> /opt/startup.log'
+ExecStart=/usr/bin/python3 /opt/uploaded_files/scripts/simple-startup.py
+ExecStartPost=/bin/bash -c 'echo "[$(date)] Initial setup completed with exit code $?" >> /opt/startup.log'
+RemainAfterExit=yes
+StandardOutput=append:/opt/startup.log
+StandardError=append:/opt/startup.log
 Restart=on-failure
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
+RestartSec=10
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target default.target

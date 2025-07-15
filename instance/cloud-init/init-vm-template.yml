@@ -46,11 +46,6 @@ runcmd:
   - chown -R ${username}:${username} /home/${username}/.ssh
   - chmod 700 /home/${username}/.ssh
   - chmod 600 /home/${username}/.ssh/authorized_keys
-  - restorecon -R /home/${username}/.ssh || true # SELinux context if available
-
-  # Enable EC2 Instance Connect
-  - systemctl enable ec2-instance-connect
-  - systemctl start ec2-instance-connect
 
   # Create necessary directories first
   - mkdir -p ${bacalhau_data_dir} ${bacalhau_node_dir} /etc/bacalhau /etc/systemd/system /usr/local/bin
@@ -89,18 +84,6 @@ runcmd:
   - mkdir -p /home/${username}/.cache/uv
   - chown -R ${username}:${username} /home/${username}/.cache
 
-  # Install health check web server
-  - mv /tmp/exs/healthz-web-server.py /usr/local/bin/healthz-web-server.py
-  - chmod 755 /usr/local/bin/healthz-web-server.py
-  - chown ${username}:${username} /usr/local/bin/healthz-web-server.py
-
-  # Create a symlink without .py extension for Gunicorn
-  - ln -sf /usr/local/bin/healthz-web-server.py /usr/local/bin/healthz-web-server
-
-  # Install service
-  - mv /tmp/exs/healthz-web.service /etc/systemd/system/healthz-web.service
-  - chmod 644 /etc/systemd/system/healthz-web.service
-
   # Configure Docker to start on boot
   - systemctl enable docker.service
   - systemctl enable containerd.service
@@ -109,8 +92,6 @@ runcmd:
   - systemctl daemon-reload
   - systemctl enable docker
   - systemctl start docker
-  - systemctl enable healthz-web.service
-  - systemctl start healthz-web.service
   - systemctl enable bacalhau-startup.service
   - systemctl start bacalhau-startup.service
 

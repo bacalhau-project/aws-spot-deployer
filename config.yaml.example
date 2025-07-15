@@ -1,0 +1,236 @@
+# AWS Spot Instance Deployer Configuration
+# This is a comprehensive example showing all available configuration options
+
+aws:
+  # =========================================================================
+  # BASIC SETTINGS
+  # =========================================================================
+  
+  # Total number of instances to create across all regions
+  total_instances: 3
+  
+  # SSH username for connecting to instances
+  username: ubuntu
+  
+  # =========================================================================
+  # SSH KEY CONFIGURATION
+  # =========================================================================
+  
+  # Option 1: Use existing AWS key pair (recommended for production)
+  ssh_key_name: "my-aws-key-pair"
+  
+  # Option 2: Specify local SSH key files (will be uploaded to instances)
+  # public_ssh_key_path: "~/.ssh/id_rsa.pub"
+  # private_ssh_key_path: "~/.ssh/id_rsa"
+  
+  # =========================================================================
+  # FILE AND SCRIPT CONFIGURATION
+  # =========================================================================
+  
+  # Directory containing files to upload to all instances
+  files_directory: "files"
+  
+  # Directory containing scripts to be packaged and uploaded
+  scripts_directory: "instance/scripts"
+  
+  # Cloud-init template file for instance initialization
+  cloud_init_template: "instance/cloud-init/init-vm-template.yml"
+  
+  # Main startup script that runs on instance boot
+  startup_script: "instance/scripts/startup.py"
+  
+  # Optional additional commands script
+  # additional_commands_script: "instance/scripts/additional_commands.sh"
+  
+  # =========================================================================
+  # BACALHAU CONFIGURATION
+  # =========================================================================
+  
+  # Directory for Bacalhau data on instances
+  bacalhau_data_dir: "/bacalhau_data"
+  
+  # Directory for Bacalhau node configuration
+  bacalhau_node_dir: "/bacalhau_node"
+  
+  # Bacalhau configuration template
+  bacalhau_config_template: "instance/config/config-template.yaml"
+  
+  # Docker Compose configuration for Bacalhau
+  docker_compose_template: "instance/scripts/docker-compose.yaml"
+  
+  # =========================================================================
+  # INSTANCE CONFIGURATION
+  # =========================================================================
+  
+  # Maximum spot price limit (optional - uses market price if not specified)
+  # spot_price_limit: 0.10
+  
+  # Instance storage size in GB
+  instance_storage_gb: 20
+  
+  # Associate public IP address with instances
+  associate_public_ip: true
+  
+  # =========================================================================
+  # NETWORK CONFIGURATION
+  # =========================================================================
+  
+  # Specific VPC ID to use (optional - uses default VPC if not specified)
+  # vpc_id: "vpc-12345678"
+  
+  # Specific subnet ID to use (optional - uses default subnet if not specified)
+  # subnet_id: "subnet-12345678"
+  
+  # Additional security groups to attach (optional)
+  # security_groups:
+  #   - "sg-12345678"
+  #   - "sg-87654321"
+  
+  # =========================================================================
+  # TAGS AND METADATA
+  # =========================================================================
+  
+  # Additional tags to apply to all instances
+  tags:
+    Project: "MyProject"
+    Environment: "Development"
+    Owner: "YourName"
+    Purpose: "SpotInstanceDeployment"
+
+# =========================================================================
+# REGIONAL CONFIGURATION
+# =========================================================================
+
+regions:
+  # US West (Oregon)
+  - us-west-2:
+      # Instance type to use in this region
+      machine_type: "t3.medium"
+      
+      # AMI selection: "auto" for latest Ubuntu 22.04 LTS, or specify AMI ID
+      image: "auto"
+      # image: "ami-0abcdef1234567890"  # Alternative: specific AMI ID
+      
+      # Region-specific spot price limit (optional)
+      # spot_price_limit: 0.08
+      
+      # Region-specific instance storage (optional)
+      # instance_storage_gb: 30
+      
+      # Region-specific tags (optional)
+      # tags:
+      #   Region: "us-west-2"
+      #   DataCenter: "Oregon"
+  
+  # US East (N. Virginia)
+  - us-east-1:
+      machine_type: "t3.medium"
+      image: "auto"
+      
+      # Different instance type for this region
+      # machine_type: "t3.large"
+      
+      # Region-specific configuration
+      # spot_price_limit: 0.09
+      # instance_storage_gb: 25
+  
+  # Europe (Ireland)
+  - eu-west-1:
+      machine_type: "t3.medium"
+      image: "auto"
+      
+      # Example of using a specific AMI in this region
+      # image: "ami-0987654321abcdef0"
+      
+      # European region might have different pricing
+      # spot_price_limit: 0.12
+
+# =========================================================================
+# ADDITIONAL EXAMPLES
+# =========================================================================
+
+# Example with more regions and varied configurations:
+# regions:
+#   - us-west-1:
+#       machine_type: "t3.small"
+#       image: "auto"
+#       spot_price_limit: 0.05
+#   - us-west-2:
+#       machine_type: "t3.medium"
+#       image: "auto"
+#       spot_price_limit: 0.08
+#   - us-east-1:
+#       machine_type: "t3.large"
+#       image: "auto"
+#       spot_price_limit: 0.10
+#   - eu-west-1:
+#       machine_type: "t3.medium"
+#       image: "auto"
+#       spot_price_limit: 0.12
+#   - ap-southeast-1:
+#       machine_type: "t3.medium"
+#       image: "auto"
+#       spot_price_limit: 0.11
+
+# =========================================================================
+# CONFIGURATION NOTES
+# =========================================================================
+
+# 1. SSH Key Configuration:
+#    - Use ssh_key_name for existing AWS key pairs (recommended for instance creation)
+#    - Use public_ssh_key_path/private_ssh_key_path for local keys (REQUIRED for file upload)
+#    - The tool uses a 3-step process:
+#      Step 1: Create instances with minimal cloud-init (SSH setup only)
+#      Step 2: Upload files and scripts via SCP
+#      Step 3: Execute startup scripts via SSH
+#
+# 2. File Upload Process:
+#    - Files in files_directory are uploaded to /tmp/uploaded_files/ on each instance
+#    - Scripts in scripts_directory are uploaded to /tmp/uploaded_files/scripts/
+#    - Bacalhau config is uploaded to /tmp/uploaded_files/bacalhau_config.yaml
+#    - All uploads happen via SCP after instances are created and SSH is ready
+#
+# 3. Script Execution:
+#    - startup_script is executed first (typically Python script)
+#    - additional_commands_script is executed second (typically shell script)
+#    - Scripts run with uploaded files available in /tmp/uploaded_files/
+#    - Execution happens remotely via SSH with proper error handling
+#
+# 4. Cloud-init Usage:
+#    - Minimal cloud-init script only does basic setup (SSH, Docker, packages)
+#    - No large scripts or files embedded in cloud-init (avoids size limits)
+#    - Complex setup is handled in post-creation SSH steps
+#
+# 5. Networking:
+#    - If vpc_id/subnet_id not specified, tool uses default VPC/subnet
+#    - Security groups are automatically created with ports 22 and 4222 open
+#    - Additional security groups can be specified in security_groups array
+#
+# 6. Pricing:
+#    - spot_price_limit is optional - uses current market price if not set
+#    - Can be set globally or per-region
+#    - Regional settings override global settings
+#
+# 7. Instance Types:
+#    - Default is t3.medium but can be customized per region
+#    - Ensure chosen instance type is available in all specified regions
+#
+# 8. AMI Selection:
+#    - "auto" automatically finds latest Ubuntu 22.04 LTS AMI
+#    - Can specify explicit AMI ID if needed
+#    - AMI IDs are region-specific
+#
+# 9. Storage:
+#    - instance_storage_gb sets EBS root volume size
+#    - Can be configured globally or per-region
+#    - Minimum recommended: 20GB
+#
+# 10. Tags:
+#     - Global tags apply to all instances
+#     - Regional tags can supplement or override global tags
+#     - Useful for cost tracking and resource management
+#
+# 11. Live Progress Tracking:
+#     - Table shows progress through: Creation → SSH Wait → Upload → Startup Script → Additional Commands
+#     - Each step is tracked with appropriate status indicators
+#     - Failures are clearly marked with error messages

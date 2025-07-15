@@ -1,1 +1,0 @@
-# Database package for spot instance deployment

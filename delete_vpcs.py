@@ -36,9 +36,9 @@ from rich.table import Table
 from rich.text import Text
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
 )
 
 
@@ -170,7 +170,7 @@ class AwsVpcCleaner:
             "Region", style="cyan", width=min(20, int(terminal_width * 0.15))
         )
         self.details_table.add_column(
-            "Status", style="yellow", width=min(30, int(terminal_width * 0.25))
+            "Status", style="yellow", width=min(50, int(terminal_width * 0.25))
         )
         self.details_table.add_column(
             "Resources", style="magenta", width=min(30, int(terminal_width * 0.30))

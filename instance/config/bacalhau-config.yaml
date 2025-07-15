@@ -1,0 +1,24 @@
+# Basic Bacalhau configuration file
+# This file is copied to /bacalhau_node/config.yaml by the setup-config service
+
+# Node configuration
+node:
+  name: "bacalhau-node"
+  type: "compute"
+  compute:
+    enabled: true
+  requester:
+    enabled: false
+
+# API configuration  
+api:
+  host: "0.0.0.0"
+  port: 1234
+
+# Logging configuration
+logging:
+  level: "info"
+  format: "json"
+
+# Storage configuration
+datadir: "/bacalhau_data"

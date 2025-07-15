@@ -4,10 +4,10 @@
 # dependencies = []
 # ///
 
-import subprocess
 import logging
-import time
+import subprocess
 import sys
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

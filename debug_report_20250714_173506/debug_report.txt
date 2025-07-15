@@ -1,0 +1,73 @@
+========================================
+Debug Report for 54.219.179.125
+Generated: Mon Jul 14 17:35:13 PDT 2025
+========================================
+
+=== Cloud-Init_Status ===
+✅ Cloud-init completed successfully
+❌ Progress file missing
+❌ Found 2 errors in cloud-init log
+✅ docker-ce installed
+✅ python3 installed
+✅ curl installed
+✅ git installed
+✅ All packages installed
+Summary
+❌ Cloud-init encountered issues - check logs above
+
+=== Directory_Structure ===
+[0;32m✅[0m /opt/uploaded_files (perms: 755, owner: ubuntu:ubuntu)
+[0;32m✅[0m /opt/uploaded_files/scripts (perms: 755, owner: ubuntu:ubuntu)
+[0;32m✅[0m /opt/uploaded_files/config (perms: 755, owner: ubuntu:ubuntu)
+[1;33m⚠[0m  /tmp/exs not found (optional)
+[1;33m⚠[0m  /tmp/uploaded_files not found (optional)
+[0;31m❌[0m /bacalhau_node MISSING!
+[0;31m❌[0m /bacalhau_data MISSING!
+[0;31m❌[0m /opt/sensor MISSING!
+[0;31m❌[0m /opt/sensor/config MISSING!
+[0;31m❌[0m /opt/uploaded_files/scripts/simple-startup.py MISSING!
+[0;31m❌[0m /opt/uploaded_files/scripts/generate_node_identity.py MISSING!
+[1;33m⚠[0m  /opt/uploaded_files/scripts/setup_bacalhau.py not found
+[1;33m⚠[0m  /opt/uploaded_files/scripts/verify_docker.py not found
+[0;31m❌[0m /opt/uploaded_files/scripts/bacalhau-startup.service MISSING!
+[0;31m❌[0m /opt/uploaded_files/scripts/setup-config.service MISSING!
+[0;31m❌[0m /opt/uploaded_files/scripts/bacalhau.service MISSING!
+[0;31m❌[0m /opt/uploaded_files/scripts/sensor-generator.service MISSING!
+[0;31m❌[0m /etc/systemd/system/bacalhau-startup.service NOT installed
+[0;31m❌[0m /etc/systemd/system/setup-config.service NOT installed
+[0;31m❌[0m /etc/systemd/system/bacalhau.service NOT installed
+[0;31m❌[0m /etc/systemd/system/sensor-generator.service NOT installed
+[0;32m✅[0m /opt/uploaded_files/config/bacalhau-config.yaml (423B, perms: 755)
+[0;32m✅[0m /opt/uploaded_files/config/sensor-config.yaml (2417B, perms: 755)
+[0;32m✅[0m /opt/uploaded_files/config/config-template.yaml (270B, perms: 755)
+[0;31m❌[0m /opt/uploaded_files/scripts/docker-compose-bacalhau.yaml MISSING!
+[0;31m❌[0m /opt/uploaded_files/scripts/docker-compose-sensor.yaml MISSING!
+[0;32m✅[0m /opt/startup.log (108B, perms: 666)
+[0;32m✅[0m /var/log/startup-progress.log (408B, perms: 644)
+8. File Count Summary
+Summary
+[0;31m❌[0m Missing 10 critical items:
+
+=== Docker_Containers ===
+[0;32m✅[0m Docker installed: Docker version 28.3.2, build 578ccf6
+[0;32m✅[0m Docker Compose: Docker Compose version v2.38.2
+[0;32m✅[0m Docker daemon is running
+[1;33m⚠[0m  No containers are running
+[0;31m❌[0m docker-compose-bacalhau.yaml not found
+[0;31m❌[0m docker-compose-sensor.yaml not found
+[1;33m⚠[0m  Bacalhau container not running
+[1;33m⚠[0m  Sensor container not running
+[0;31m❌[0m Node identity file not found
+Summary
+[0;31m❌[0m No containers are running
+
+=== SystemD_Services ===
+[0;31m❌[0m bacalhau-startup.service: not found
+[0;31m❌[0m setup-config.service: not found
+[0;31m❌[0m bacalhau.service: not found
+[0;31m❌[0m sensor-generator.service: not found
+[0;32m✅[0m Docker service is active
+Summary
+
+
+=== Recommendations ===

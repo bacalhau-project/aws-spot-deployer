@@ -1,0 +1,95 @@
+{
+  "instances": [
+    {
+      "id": "i-0db9fde282fcf0ea9",
+      "region": "us-west-1",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "3.101.151.218",
+      "private_ip": "172.31.7.98",
+      "created": "2025-07-15T08:40:47.346393"
+    },
+    {
+      "id": "i-0dbe5bf8b0d93e5b7",
+      "region": "us-west-2",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "34.208.36.127",
+      "private_ip": "172.31.12.68",
+      "created": "2025-07-15T08:40:47.955776"
+    },
+    {
+      "id": "i-072019d6c67c61447",
+      "region": "ca-central-1",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "3.97.203.5",
+      "private_ip": "172.31.39.241",
+      "created": "2025-07-15T08:40:48.145358"
+    },
+    {
+      "id": "i-04d485582534851c9",
+      "region": "us-east-2",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "3.141.0.142",
+      "private_ip": "172.31.5.47",
+      "created": "2025-07-15T08:40:48.453191"
+    },
+    {
+      "id": "i-06c21c2bca7aefc38",
+      "region": "eu-west-1",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "54.229.66.23",
+      "private_ip": "10.0.9.215",
+      "created": "2025-07-15T08:40:48.642820"
+    },
+    {
+      "id": "i-06e0eec0bc431ca6f",
+      "region": "ap-northeast-1",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "18.176.93.122",
+      "private_ip": "172.31.17.254",
+      "created": "2025-07-15T08:40:48.911320"
+    },
+    {
+      "id": "i-0b873e42654a20b16",
+      "region": "eu-north-1",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "13.61.21.124",
+      "private_ip": "172.31.42.209",
+      "created": "2025-07-15T08:40:49.170831"
+    },
+    {
+      "id": "i-0f06357ac595627a1",
+      "region": "eu-central-1",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "18.199.93.42",
+      "private_ip": "172.31.29.210",
+      "created": "2025-07-15T08:40:49.758251"
+    },
+    {
+      "id": "i-03c60c10620ae434a",
+      "region": "ap-southeast-1",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "54.254.173.66",
+      "private_ip": "172.31.22.41",
+      "created": "2025-07-15T08:40:49.671276"
+    },
+    {
+      "id": "i-0d1afc385ece350f8",
+      "region": "sa-east-1",
+      "type": "t3.medium",
+      "state": "running",
+      "public_ip": "18.230.152.117",
+      "private_ip": "172.31.45.108",
+      "created": "2025-07-15T08:40:49.874510"
+    }
+  ],
+  "last_updated": "2025-07-15T08:43:29.570410"
+}

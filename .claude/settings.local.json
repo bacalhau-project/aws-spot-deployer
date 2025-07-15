@@ -42,7 +42,25 @@
       "Bash(done)",
       "Bash(git restore:*)",
       "Bash(git rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(uv add:*)",
+      "Bash(echo $VIRTUAL_ENV)",
+      "Bash(unset VIRTUAL_ENV)",
+      "Bash(./deploy_spot_simple.py create)",
+      "Bash(aws ec2 describe-images:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(cat:*)",
+      "Edit(*)",
+      "MultiEdit(*)",
+      "Write(*)",
+      "Bash(ssh:*)",
+      "Bash(./debug_instance.sh:*)",
+      "Bash(scp:*)",
+      "Bash(./test_deployment_fixes.sh:*)",
+      "Bash(diff:*)",
+      "Bash(/usr/bin/diff:*)"
     ],
     "deny": []
   }

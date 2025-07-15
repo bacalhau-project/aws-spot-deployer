@@ -1,0 +1,19 @@
+=== System Status ===
+Uptime:  00:35:13 up 48 min,  0 users,  load average: 0.08, 0.02, 0.01
+
+=== Directory Check ===
+✅ Scripts uploaded
+❌ Sensor config missing
+
+=== Service Status ===
+❌ bacalhau-startup: not installed
+❌ setup-config: not installed
+❌ bacalhau: not installed
+❌ sensor-generator: not installed
+
+=== Docker Status ===
+✅ Docker installed
+   Running containers: 0
+
+=== Node Identity ===
+❌ Node identity missing
