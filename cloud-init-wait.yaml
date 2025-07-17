@@ -84,10 +84,7 @@ write_files:
       systemctl enable bacalhau-startup.service
       systemctl start bacalhau-startup.service
 
-      echo "[$(date)] Services started. Rebooting in 30 seconds..." | tee -a /opt/startup.log
-
-      # Schedule reboot to ensure clean start
-      shutdown -r +0.5 "Deployment complete, rebooting for clean start"
+      echo "[$(date)] Services started." | tee -a /opt/startup.log
     owner: root:root
     permissions: "0755"
 

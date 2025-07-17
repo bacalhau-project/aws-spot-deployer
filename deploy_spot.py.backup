@@ -32,6 +32,7 @@ import base64
 import json
 import logging
 import os
+import random
 import subprocess
 import sys
 import tarfile
@@ -1051,6 +1052,245 @@ def upload_deployment_bundle(hostname: str, username: str, private_key_path: str
             logger.error(f"Upload failed: {e}")
         return False
 
+def wait_for_instance_ready(
+    hostname: str,
+    username: str,
+    private_key_path: str,
+    timeout: int = 300,
+    instance_key: str = None,
+    update_status_func=None,
+    progress_callback=None,
+    config=None,
+) -> bool:
+    """Wait for SSH to be ready and for cloud-init to finish with detailed progress tracking."""
+    start_time = time.time()
+    ssh_ready = False
+    last_log_time = 0
+
+    def update_progress(phase, progress, status=""):
+        if progress_callback and instance_key:
+            progress_callback(instance_key, phase, progress, status)
+        if update_status_func and instance_key:
+            update_status_func(instance_key, f"{phase}: {status}")
+
+    update_progress("SSH: Connection", 0, "Starting SSH connection check...")
+
+    while time.time() - start_time < timeout:
+        elapsed = int(time.time() - start_time)
+
+        # Phase 1: Wait for SSH
+        if not ssh_ready:
+            update_progress(
+                "SSH: Connection", 10, f"Attempting SSH connection... ({elapsed}s)"
+            )
+            try:
+                result = subprocess.run(
+                    [
+                        "ssh",
+                        "-i",
+                        private_key_path,
+                        "-o",
+                        "StrictHostKeyChecking=no",
+                        "-o",
+                        "UserKnownHostsFile=/dev/null",
+                        "-o",
+                        "ConnectTimeout=5",
+                        f"{username}@{hostname}",
+                        'echo "SSH ready"',
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode == 0:
+                    ssh_ready = True
+                    update_progress(
+                        "SSH: Connection", 100, "SSH connection established"
+                    )
+                    time.sleep(2)  # Brief pause before cloud-init check
+                    
+                    # Upload deployment bundle after SSH is ready
+                    if elapsed > 20 and config:  # Give cloud-init time to set up
+                        # Create bundle once
+                        if not hasattr(wait_for_instance_ready, '_bundle_file'):
+                            update_progress("Bundle", 60, "Creating deployment bundle...")
+                            wait_for_instance_ready._bundle_file = create_deployment_bundle(config)
+                        
+                        # Upload bundle
+                        update_progress("Upload", 70, "Uploading deployment files...")
+                        if upload_deployment_bundle(hostname, username, private_key_path, 
+                                                   wait_for_instance_ready._bundle_file):
+                            update_progress("Upload", 85, "Deployment files uploaded")
+                            # Give the instance time to extract and start services
+                            time.sleep(5)
+                            return True
+                        else:
+                            update_progress("Upload", 70, "Upload failed, retrying...")
+                    continue
+                else:
+                    update_progress(
+                        "SSH: Connection",
+                        20 + (elapsed * 2),
+                        f"SSH not ready... ({elapsed}s)",
+                    )
+            except (subprocess.TimeoutExpired, Exception):
+                update_progress(
+                    "SSH: Connection",
+                    20 + (elapsed * 2),
+                    f"SSH connection failed... ({elapsed}s)",
+                )
+
+        # Phase 2: SSH is up, check for cloud-init progress
+        if ssh_ready:
+            # Occasionally stream live logs for better UX
+            current_time = time.time()
+            if current_time - last_log_time > 8:  # Every 8 seconds
+                last_log_time = current_time
+                try:
+                    # Get latest meaningful log line
+                    log_cmd = 'tail -5 /var/log/cloud-init-output.log 2>/dev/null | grep -E "(Setting up|Installing|Running|Starting|Configuring)" | tail -1'
+                    log_result = subprocess.run(
+                        [
+                            "ssh",
+                            "-i",
+                            private_key_path,
+                            "-o",
+                            "StrictHostKeyChecking=no",
+                            "-o",
+                            "UserKnownHostsFile=/dev/null",
+                            "-o",
+                            "ConnectTimeout=2",
+                            f"{username}@{hostname}",
+                            log_cmd,
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=3,
+                    )
+                    if log_result.returncode == 0 and log_result.stdout.strip():
+                        log_line = log_result.stdout.strip()[:60]  # Truncate
+                        update_progress("Cloud-Init", 0, f"📦 {log_line}")
+                except Exception:
+                    pass
+
+            update_progress("Cloud-Init", 0, "Checking cloud-init status...")
+            try:
+                # Enhanced status checking with multiple sources
+                check_commands = [
+                    'test -f /tmp/setup_complete && echo "SETUP_COMPLETE"',
+                    "cat /tmp/cloud-init-status 2>/dev/null",
+                    'cloud-init status 2>/dev/null | grep -o "status:.*" | cut -d: -f2',
+                    "systemctl is-active docker 2>/dev/null",
+                    "tail -1 /var/log/startup-progress.log 2>/dev/null",
+                ]
+
+                combined_command = ' && echo "|||" && '.join(check_commands)
+                result = subprocess.run(
+                    [
+                        "ssh",
+                        "-i",
+                        private_key_path,
+                        "-o",
+                        "StrictHostKeyChecking=no",
+                        "-o",
+                        "UserKnownHostsFile=/dev/null",
+                        "-o",
+                        "ConnectTimeout=5",
+                        f"{username}@{hostname}",
+                        f'bash -c "{combined_command}"',
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=6,
+                )
+
+                if result.returncode == 0:
+                    outputs = result.stdout.strip().split("|||")
+
+                    # Check if setup is complete
+                    if len(outputs) > 0 and "SETUP_COMPLETE" in outputs[0]:
+                        update_progress("Cloud-Init", 100, "Cloud-init complete")
+                        update_progress(
+                            "Instance Ready", 100, "Instance is fully ready ✅"
+                        )
+                        return True
+
+                    # Parse status from different sources
+                    status_msg = "Initializing..."
+                    progress = 20
+
+                    if len(outputs) > 1 and outputs[1]:
+                        cloud_status = outputs[1].strip()
+                        if "Docker setup" in cloud_status:
+                            status_msg = "Installing Docker..."
+                            progress = 40
+                        elif "SSH key setup" in cloud_status:
+                            status_msg = "Configuring SSH keys..."
+                            progress = 35
+                        elif "Installing uv" in cloud_status:
+                            status_msg = "Installing package manager..."
+                            progress = 50
+                        elif "Package updates" in cloud_status:
+                            status_msg = "Updating packages..."
+                            progress = 30
+                        elif "Cloud-init finalizing" in cloud_status:
+                            status_msg = "Finalizing setup..."
+                            progress = 90
+                        elif "Ready for connections" in cloud_status:
+                            status_msg = "Almost ready..."
+                            progress = 95
+                        else:
+                            status_msg = cloud_status[:50]
+                            progress = 60
+
+                    # Check cloud-init official status
+                    if len(outputs) > 2 and outputs[2]:
+                        ci_status = outputs[2].strip()
+                        if "done" in ci_status:
+                            progress = max(progress, 85)
+                            status_msg = "Cloud-init finishing up..."
+                        elif "running" in ci_status:
+                            progress = max(progress, 25)
+
+                    # Check Docker status
+                    if len(outputs) > 3 and outputs[3] == "active":
+                        progress = max(progress, 70)
+                        if progress == 70:
+                            status_msg = "Docker is ready"
+
+                    # Check startup progress log
+                    if len(outputs) > 4 and outputs[4]:
+                        startup_log = outputs[4].strip()
+                        if "Docker installed" in startup_log:
+                            progress = max(progress, 45)
+                        elif "SSH keys configured" in startup_log:
+                            progress = max(progress, 38)
+                        elif "UV package manager installed" in startup_log:
+                            progress = max(progress, 55)
+                        elif "All configurations complete" in startup_log:
+                            progress = max(progress, 92)
+
+                    # Add elapsed time to status
+                    if elapsed > 30:
+                        status_msg = f"{status_msg} ({elapsed}s)"
+
+                    update_progress("Cloud-Init", progress, status_msg)
+                else:
+                    update_progress("Cloud-Init", 15, "Waiting for cloud-init...")
+
+            except (subprocess.TimeoutExpired, Exception):
+                update_progress("Cloud-Init", 10, "Checking cloud-init status...")
+
+        time.sleep(5)
+
+    update_progress("Timeout", 0, f"Timeout after {timeout}s")
+    if update_status_func and instance_key:
+        update_status_func(
+            instance_key,
+            "ERROR: Timeout waiting for instance to be ready.",
+            is_final=True,
+        )
+    return False
 
 
 def wait_for_instance_ready(
@@ -1066,6 +1306,7 @@ def wait_for_instance_ready(
     """Wait for SSH to be ready and for cloud-init to finish with detailed progress tracking."""
     start_time = time.time()
     ssh_ready = False
+    last_log_time = 0
 
     def update_progress(phase, progress, status=""):
         if progress_callback and instance_key:
@@ -2522,54 +2763,19 @@ def cmd_list(state: SimpleStateManager) -> None:
 
 
 def cmd_destroy(config: SimpleConfig, state: SimpleStateManager) -> None:
-    """Terminate running instances and clean up resources with enhanced UI."""
+    """Terminate running instances and clean up resources."""
     if not check_aws_auth():
         return
-    
+
     instances = state.load_instances()
     if not instances:
         rich_warning("No instances to destroy.")
         return
-    
-    # Setup local logging
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = f"spot_destroy_{timestamp}.log"
-    logger = logging.getLogger("spot_destroyer")
-    logger.setLevel(logging.INFO)
-    
-    if not logger.handlers:
-        # File handler
-        file_handler = logging.FileHandler(log_filename)
-        file_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(asctime)s - %(threadName)s - %(message)s")
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-    
-    console.print(f"\n[bold red]⚠️  WARNING: This will terminate {len(instances)} instances[/bold red]")
-    console.print("\nThe following instances will be terminated:")
-    
-    # Show instances to be destroyed
-    destroy_table = Table(show_header=True, header_style="bold red")
-    destroy_table.add_column("Region", style="magenta")
-    destroy_table.add_column("Instance ID", style="cyan")
-    destroy_table.add_column("Type", style="green")
-    destroy_table.add_column("Public IP", style="blue")
-    
-    for inst in sorted(instances, key=lambda i: i.get("region", "")):
-        destroy_table.add_row(
-            inst.get("region", "unknown"),
-            inst.get("id", "unknown"),
-            inst.get("type", "unknown"),
-            inst.get("public_ip", "N/A")
-        )
-    
-    console.print(destroy_table)
-    console.print("\n[yellow]This action cannot be undone![/yellow]")
-    
-    if input("\nType 'yes' to confirm destruction: ").lower() != "yes":
-        console.print("[green]Destruction cancelled.[/green]")
+
+    rich_warning("This will terminate all managed instances and delete the associated security group.")
+    if input("Are you sure? (y/n): ").lower() != "y":
         return
-    
+
     # Group instances by region
     region_map = {}
     for inst in instances:
@@ -2577,244 +2783,47 @@ def cmd_destroy(config: SimpleConfig, state: SimpleStateManager) -> None:
         if region not in region_map:
             region_map[region] = []
         region_map[region].append(inst["id"])
-    
-    # Track destruction status
-    destruction_status = {}
-    for region, instance_ids in region_map.items():
-        for inst_id in instance_ids:
-            destruction_status[f"{region}-{inst_id}"] = {
-                "region": region,
-                "instance_id": inst_id,
-                "status": "Pending",
-                "security_group": "Pending"
-            }
-    
-    def generate_destroy_layout():
-        table = Table(
-            title=f"Destroying {len(instances)} instances",
-            show_header=True,
-            header_style="bold red"
-        )
-        table.add_column("Region", style="magenta")
-        table.add_column("Instance ID", style="cyan")
-        table.add_column("Termination Status", style="yellow")
-        table.add_column("Security Group", style="blue")
-        
-        for key, item in sorted(destruction_status.items()):
-            status = item["status"]
-            if "SUCCESS" in status or "terminated" in status.lower():
-                status_style = f"[bold green]{status}[/bold green]"
-            elif "ERROR" in status or "FAIL" in status:
-                status_style = f"[bold red]{status}[/bold red]"
-            else:
-                status_style = f"[yellow]{status}[/yellow]"
-            
-            sg_status = item["security_group"]
-            if "deleted" in sg_status.lower() or "cleaned" in sg_status.lower():
-                sg_style = f"[green]{sg_status}[/green]"
-            elif "error" in sg_status.lower() or "failed" in sg_status.lower():
-                sg_style = f"[red]{sg_status}[/red]"
-            else:
-                sg_style = f"[yellow]{sg_status}[/yellow]"
-            
-            table.add_row(
-                item["region"],
-                item["instance_id"],
-                status_style,
-                sg_style
-            )
-        
-        # Add log panel
-        try:
-            with open(log_filename, 'r') as f:
-                log_content = "\n".join(f.readlines()[-10:])
-        except (FileNotFoundError, IOError):
-            log_content = "Waiting for log entries..."
-        
-        log_panel = Panel(log_content, title="Destruction Log", border_style="red", height=10)
-        
-        layout = Layout()
-        layout.split_column(Layout(table), Layout(log_panel))
-        return layout
-    
-    def update_status(region, instance_id, status=None, sg_status=None):
-        key = f"{region}-{instance_id}"
-        if key in destruction_status:
-            if status:
-                destruction_status[key]["status"] = status
-            if sg_status:
-                destruction_status[key]["security_group"] = sg_status
-            logger.info(f"[{instance_id}] {status or ''} {sg_status or ''}")
-    
-    # Terminate instances and security groups
+
+    # Terminate instances and security groups in parallel
     def terminate_in_region(region, instance_ids):
         try:
+            rich_status(f"Terminating {len(instance_ids)} instances in {region}...")
             ec2 = boto3.client("ec2", region_name=region)
-            
-            # Update status for each instance
-            for inst_id in instance_ids:
-                update_status(region, inst_id, "Terminating...")
-            
-            # Terminate instances
             ec2.terminate_instances(InstanceIds=instance_ids)
-            
-            for inst_id in instance_ids:
-                update_status(region, inst_id, "Termination requested")
-            
-            # Wait for instances to terminate
-            logger.info(f"Waiting for {len(instance_ids)} instances to terminate in {region}...")
+            rich_success(f"Termination request sent for instances in {region}.")
+
+            # Wait for instances to terminate before deleting security group
             waiter = ec2.get_waiter('instance_terminated')
-            waiter.wait(
-                InstanceIds=instance_ids,
-                WaiterConfig={
-                    'Delay': 5,
-                    'MaxAttempts': 120  # 10 minutes max
-                }
-            )
-            
-            for inst_id in instance_ids:
-                update_status(region, inst_id, "Terminated")
-            
-            # Get VPC for the security group
-            vpcs = ec2.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
-            if not vpcs["Vpcs"]:
-                # No default VPC, try to find security group by name
-                try:
-                    sgs = ec2.describe_security_groups(
-                        Filters=[{"Name": "group-name", "Values": ["spot-deployer-sg"]}]
-                    )
-                    if sgs["SecurityGroups"]:
-                        vpc_id = sgs["SecurityGroups"][0]["VpcId"]
-                    else:
-                        for inst_id in instance_ids:
-                            update_status(region, inst_id, sg_status="No VPC found")
-                        return region
-                except ec2.exceptions.ClientError:
-                    for inst_id in instance_ids:
-                        update_status(region, inst_id, sg_status="No VPC found")
-                    return region
-            else:
-                vpc_id = vpcs["Vpcs"][0]["VpcId"]
-            
-            # Delete security group with retry logic
-            max_retries = 5
-            retry_delay = 10
-            
-            for attempt in range(max_retries):
-                try:
-                    # Find security group
-                    sgs = ec2.describe_security_groups(
-                        Filters=[
-                            {"Name": "vpc-id", "Values": [vpc_id]},
-                            {"Name": "group-name", "Values": ["spot-deployer-sg"]}
-                        ]
-                    )
-                    
-                    if not sgs["SecurityGroups"]:
-                        for inst_id in instance_ids:
-                            update_status(region, inst_id, sg_status="SG not found")
-                        break
-                    
-                    sg_id = sgs["SecurityGroups"][0]["GroupId"]
-                    
-                    # Check for dependencies
-                    # Get all network interfaces using this security group
-                    enis = ec2.describe_network_interfaces(
-                        Filters=[{"Name": "group-id", "Values": [sg_id]}]
-                    )
-                    
-                    if enis["NetworkInterfaces"]:
-                        logger.warning(f"Security group {sg_id} still has {len(enis['NetworkInterfaces'])} network interfaces attached")
-                        if attempt < max_retries - 1:
-                            for inst_id in instance_ids:
-                                update_status(region, inst_id, sg_status=f"Waiting for dependencies ({attempt+1}/{max_retries})")
-                            time.sleep(retry_delay)
-                            continue
-                        else:
-                            for inst_id in instance_ids:
-                                update_status(region, inst_id, sg_status="Dependencies remain")
-                            break
-                    
-                    # Try to delete the security group
-                    ec2.delete_security_group(GroupId=sg_id)
-                    for inst_id in instance_ids:
-                        update_status(region, inst_id, sg_status="SG deleted")
-                    logger.info(f"Security group {sg_id} deleted in {region}")
-                    break
-                    
-                except ec2.exceptions.ClientError as e:
-                    error_code = e.response['Error']['Code']
-                    if error_code == 'InvalidGroup.NotFound':
-                        for inst_id in instance_ids:
-                            update_status(region, inst_id, sg_status="SG already deleted")
-                        break
-                    elif error_code == 'DependencyViolation':
-                        if attempt < max_retries - 1:
-                            for inst_id in instance_ids:
-                                update_status(region, inst_id, sg_status=f"Retrying ({attempt+1}/{max_retries})")
-                            logger.warning(f"Security group has dependencies, retrying in {retry_delay}s...")
-                            time.sleep(retry_delay)
-                        else:
-                            for inst_id in instance_ids:
-                                update_status(region, inst_id, sg_status="Failed: Dependencies")
-                            logger.error(f"Failed to delete security group after {max_retries} attempts: {e}")
-                    elif error_code == 'VPCIdNotSpecified':
-                        for inst_id in instance_ids:
-                            update_status(region, inst_id, sg_status="No default VPC")
-                        logger.error(f"No default VPC in {region}")
-                        break
-                    else:
-                        for inst_id in instance_ids:
-                            update_status(region, inst_id, sg_status=f"Error: {error_code}")
-                        logger.error(f"Failed to delete security group: {e}")
-                        break
+            waiter.wait(InstanceIds=instance_ids)
+            rich_success(f"Instances in {region} terminated.")
+
+            # Delete the security group
+            try:
+                rich_status(f"Deleting security group in {region}...")
+                ec2.delete_security_group(GroupName='spot-deployer-sg')
+                rich_success(f"Security group 'spot-deployer-sg' deleted in {region}.")
+            except ec2.exceptions.ClientError as e:
+                if "does not exist" in str(e):
+                    rich_warning(f"Security group 'spot-deployer-sg' not found in {region}.")
+                else:
+                    rich_error(f"Failed to delete security group in {region}: {e}")
             
             return region
-            
         except Exception as e:
-            logger.error(f"Failed to terminate instances in {region}: {e}")
-            for inst_id in instance_ids:
-                update_status(region, inst_id, f"ERROR: {str(e)[:30]}", "Failed")
+            rich_error(f"Failed to terminate instances or security group in {region}: {e}")
             return None
-    
-    with Live(generate_destroy_layout(), refresh_per_second=2, console=console) as live:
-        with ThreadPoolExecutor(max_workers=len(region_map)) as executor:
-            futures = [
-                executor.submit(terminate_in_region, r, ids)
-                for r, ids in region_map.items()
-            ]
-            
-            # Wait for all terminations to complete with live updates
-            while any(not f.done() for f in futures):
-                live.update(generate_destroy_layout())
-                time.sleep(0.5)
-            
-            # Final update
-            live.update(generate_destroy_layout())
-            
-            # Process results
-            for future in futures:
-                terminated_region = future.result()
-                if terminated_region:
-                    state.remove_instances_by_region(terminated_region)
-        
-        # Keep display for a moment to show final status
-        time.sleep(2)
-    
-    # Final summary
-    console.print("\n[bold]Destruction Summary:[/bold]")
-    success_count = sum(1 for s in destruction_status.values() if "Terminated" in s["status"])
-    sg_success = sum(1 for s in destruction_status.values() if "deleted" in s["security_group"].lower())
-    
-    if success_count == len(instances):
-        console.print(f"[green]✅ All {success_count} instances terminated successfully[/green]")
-    else:
-        console.print(f"[yellow]⚠️  {success_count}/{len(instances)} instances terminated[/yellow]")
-    
-    if sg_success > 0:
-        console.print(f"[green]✅ {sg_success} security groups cleaned up[/green]")
-    
-    console.print(f"\n[dim]Destruction log saved to: {log_filename}[/dim]")
+
+    with ThreadPoolExecutor(max_workers=len(region_map)) as executor:
+        futures = [
+            executor.submit(terminate_in_region, r, ids)
+            for r, ids in region_map.items()
+        ]
+        for future in futures:
+            terminated_region = future.result()
+            if terminated_region:
+                state.remove_instances_by_region(terminated_region)
+
+    rich_success("All managed instances have been scheduled for termination and security groups are being cleaned up.")
 
 
 def cmd_help() -> None:
