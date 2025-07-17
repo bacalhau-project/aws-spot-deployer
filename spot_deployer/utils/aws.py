@@ -3,7 +3,7 @@ import os
 import json
 import time
 import threading
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 from datetime import datetime
 
 import boto3

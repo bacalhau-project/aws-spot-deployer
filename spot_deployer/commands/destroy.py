@@ -1,6 +1,5 @@
 """Destroy command implementation with enhanced UI."""
 import time
-import logging
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
@@ -10,7 +9,7 @@ from ..core.config import SimpleConfig
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth
 from ..utils.display import (
-    rich_warning, rich_error, console, Table, Layout, Live, Panel
+    rich_warning, console, Table, Layout, Live, Panel
 )
 from ..utils.logging import setup_logger
 

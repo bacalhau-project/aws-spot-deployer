@@ -1,7 +1,7 @@
 """Logging utilities for spot deployer."""
 import logging
 import re
-from typing import Dict, Optional
+from typing import Optional
 
 from .display import RICH_AVAILABLE, console
 

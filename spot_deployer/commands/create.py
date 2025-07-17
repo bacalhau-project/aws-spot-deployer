@@ -1,23 +1,21 @@
 """Create command implementation."""
 import os
 import time
-import logging
 import threading
 import subprocess
 from datetime import datetime
-from typing import List, Dict
+from typing import List
 from concurrent.futures import ThreadPoolExecutor
 
 import boto3
 
 from ..core.config import SimpleConfig
 from ..core.state import SimpleStateManager
-from ..core.constants import ColumnWidths, DEFAULT_TIMEOUT
-from ..core.instance_manager import create_instances_in_region, wait_for_instance_ready
+from ..core.constants import ColumnWidths
 from ..utils.aws import check_aws_auth
 from ..utils.display import (
     rich_status, rich_success, rich_error, rich_warning,
-    console, Table, Layout, Live, RICH_AVAILABLE
+    console, Table, Layout, Live
 )
 from ..utils.logging import ConsoleLogger, setup_logger
 from ..utils.ssh import transfer_files_scp, enable_startup_service, wait_for_ssh_only

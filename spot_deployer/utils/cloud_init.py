@@ -2,7 +2,6 @@
 import os
 import tarfile
 import tempfile
-from typing import Optional
 
 from ..core.config import SimpleConfig
 from .display import rich_warning

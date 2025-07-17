@@ -2,7 +2,7 @@
 import os
 import subprocess
 import time
-from typing import Optional, Dict, List, Callable
+from typing import Optional, Callable
 
 from ..core.constants import DEFAULT_SSH_TIMEOUT
 

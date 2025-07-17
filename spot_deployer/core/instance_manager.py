@@ -1,7 +1,7 @@
 """Instance creation and management logic."""
 import time
 import subprocess
-from typing import List, Dict, Optional, Callable
+from typing import List, Dict
 from datetime import datetime
 
 import boto3

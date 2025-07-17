@@ -3,9 +3,9 @@
 # Try to import Rich components
 try:
     from rich.console import Console
-    from rich.layout import Layout
-    from rich.live import Live
-    from rich.panel import Panel
+    from rich.layout import Layout  # noqa: F401 - Re-exported for other modules
+    from rich.live import Live  # noqa: F401 - Re-exported for other modules
+    from rich.panel import Panel  # noqa: F401 - Re-exported for other modules
     from rich.progress import (
         BarColumn,
         Progress,
@@ -14,13 +14,18 @@ try:
         TextColumn,
         TimeElapsedColumn,
     )
-    from rich.table import Table
+    from rich.table import Table  # noqa: F401 - Re-exported for other modules
     
     RICH_AVAILABLE = True
     console = Console()
 except ImportError:
     RICH_AVAILABLE = False
     console = None
+    # Define placeholders for type hints when Rich is not available
+    Layout = None
+    Live = None
+    Panel = None
+    Table = None
 
 
 def rich_print(message: str, style: str = None) -> None:
