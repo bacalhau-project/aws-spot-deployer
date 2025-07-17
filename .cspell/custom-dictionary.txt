@@ -1,4 +1,9 @@
 BACALHAU
+daaronch
+dind
+healthcheck
 healthz
+NOPASSWD
 oneshot
+runcmd
 usermod

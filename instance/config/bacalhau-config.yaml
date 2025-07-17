@@ -1,24 +1,52 @@
-# Basic Bacalhau configuration file
+# Bacalhau Compute Node Configuration
 # This file is copied to /bacalhau_node/config.yaml by the setup-config service
 
-# Node configuration
-node:
-  name: "bacalhau-node"
-  type: "compute"
-  compute:
-    enabled: true
-  requester:
-    enabled: false
+# Node name provider - uses hostname for unique identification
+NameProvider: hostname
 
-# API configuration  
-api:
-  host: "0.0.0.0"
-  port: 1234
+# Data directory for Bacalhau
+DataDir: /bacalhau_data
+
+# API Configuration
+API:
+  Host: 0.0.0.0
+  Port: 1234
+
+# Compute node configuration
+Compute:
+  Enabled: true
+  # Orchestrators are configured via BACALHAU_COMPUTE_ORCHESTRATORS environment variable
+  # Network port range for compute jobs
+  Network:
+    PortRangeStart: 20000
+    PortRangeEnd: 30000
+  # Heartbeat settings
+  Heartbeat:
+    InfoUpdateInterval: 1m0s
+    Interval: 15s
+  # Resource allocation - conservative for spot instances
+  AllocatedCapacity:
+    CPU: "70%"
+    Memory: "70%"
+    Disk: "50%"
+    GPU: "0%"
+  # Allow access to sensor data directories
+  AllowListedLocalPaths:
+    - "/opt/sensor/data:ro"
+    - "/opt/sensor/exports:rw"
+    - "/tmp:rw"
+    - "/bacalhau_data:rw"
+
+# Disable orchestrator mode
+Orchestrator:
+  Enabled: false
+
+# Job admission control
+JobAdmissionControl:
+  Locality: anywhere
 
 # Logging configuration
-logging:
-  level: "info"
-  format: "json"
-
-# Storage configuration
-datadir: "/bacalhau_data"
+Logging:
+  Level: info
+  Mode: default
+  LogDebugInfoInterval: 30s

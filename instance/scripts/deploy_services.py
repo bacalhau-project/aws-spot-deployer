@@ -144,6 +144,7 @@ def copy_configuration_files():
             os.chown(dest, 1000, 1000)  # ubuntu user
             log(f"Copied config: {source} to {dest}")
 
+
 def run_startup_script():
     """Run the main startup script"""
     startup_script = "/opt/uploaded_files/scripts/startup.py"

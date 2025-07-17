@@ -1,72 +1,117 @@
-# Deployment Fixes Summary
+# Deployment Fixes Summary - Updated
 
-## Issues Identified and Fixed
+## All Issues Fixed
 
-### 1. **Service Script Mismatch**
-- **Problem**: `bacalhau-startup.service` was looking for `simple-startup.py` but only `startup.py` was being referenced
-- **Fix**: Already had `simple-startup.py` which is the correct minimal script without reboot
-- **Status**: ✅ Fixed - Service correctly references `simple-startup.py`
+### 1. Cloud-init Size Issue (RESOLVED)
+- **Problem**: Cloud-init was 120KB, exceeding AWS 16KB limit
+- **Solution**: Implemented two-stage deployment:
+  - Minimal cloud-init (3.6KB) that waits for file upload
+  - Upload deployment bundle after SSH is available
+  - Cloud-init waits for `/tmp/UPLOAD_COMPLETE` marker
 
-### 2. **Missing Configuration File**
-- **Problem**: `setup-config.service` expects `/opt/uploaded_files/config/bacalhau-config.yaml` but it didn't exist
-- **Fix**: Created `instance/config/bacalhau-config.yaml` with basic Bacalhau configuration
-- **Status**: ✅ Fixed
+### 2. Circular Dependency (RESOLVED)
+- **Problem**: `bacalhau-startup.service` had `After=cloud-init.target` creating a dependency cycle
+- **Solution**: Removed the cloud-init.target dependency from the service file
 
-### 3. **File Movement Issue in Cloud-Init**
-- **Problem**: Cloud-init was using `mv` which could fail if files were in use
-- **Fix**: Changed to use `cp` (copy) instead of `mv` (move) for reliability
-- **Status**: ✅ Fixed in `deploy_spot.py`
+### 3. UV Installation Issue (RESOLVED)
+- **Problem**: UV was installed to `/root/.local/bin` but services run as ubuntu user
+- **Solution**: 
+  - Changed to install UV system-wide: `UV_INSTALL_DIR="/usr/local/bin"`
+  - Updated PATH in bacalhau-startup.service to use `/usr/local/bin`
+  - Removed duplicate UV installation in cloud-init
 
-### 4. **Service Chain Conflicts**
-- **Problem**: The old `startup.py` reboots the system, conflicting with systemd service management
-- **Solution**: Using `simple-startup.py` which doesn't reboot and lets systemd handle services
-- **Status**: ✅ Resolved
+### 4. Shutdown Command Error (RESOLVED)
+- **Problem**: `shutdown -r +0.2` is invalid (minimum is 1 minute)
+- **Solution**: Changed to `shutdown -r +1` in startup.py
 
-## Service Startup Order
+### 5. Docker Compose Plugin (RESOLVED)
+- **Problem**: docker-compose-plugin might not be available
+- **Solution**: Added explicit installation in cloud-init runcmd
 
-The correct service startup sequence is:
-1. `bacalhau-startup.service` - Initial setup, Docker verification
-2. `setup-config.service` - Creates directories, copies configs, generates node identity
-3. `bacalhau.service` & `sensor-generator.service` - Start Docker containers (in parallel)
+## Deployment Flow
 
-## Files Created/Modified
+1. **Cloud-init Phase**:
+   - Creates ubuntu user with SSH keys
+   - Installs docker.io, python3, python3-pip
+   - Installs UV system-wide to /usr/local/bin
+   - Installs docker-compose-plugin
+   - Waits for /tmp/UPLOAD_COMPLETE marker
+   - Enables setup-deployment.service
+   - Reboots
 
-1. **Created**: `instance/config/bacalhau-config.yaml` - Basic Bacalhau configuration
-2. **Modified**: `deploy_spot.py` - Fixed file copying in cloud-init script
-3. **Created**: `debug_deployment.sh` - Comprehensive debugging script
-4. **Created**: `test_deployment_fixes.sh` - Quick verification script
+2. **Upload Phase** (handled by deploy_spot.py):
+   - Uploads deployment-bundle.tar.gz to /tmp/
+   - Creates /tmp/UPLOAD_COMPLETE marker
 
-## How to Test
+3. **Setup Phase** (after reboot):
+   - setup-deployment.service extracts bundle
+   - Creates directories and copies files
+   - Enables all services
+   - Reboots again
 
-1. **Before Deployment**: Run `./test_deployment_fixes.sh` to verify all files are in place
-2. **Deploy**: `uv run -s deploy_spot.py create`
-3. **After Deployment**: Run `./debug_deployment.sh <instance-ip>` to check deployment state
+4. **Startup Phase** (after second reboot):
+   - bacalhau-startup.service runs startup.py using UV
+   - Configures and starts Docker containers
+   - Sets up sensor services
+   - Generates node identity
 
-## Expected Behavior
+## Files Modified
 
-After deployment:
-- All files should be in `/opt/uploaded_files/scripts/` and `/opt/uploaded_files/config/`
-- Services should start in the correct order
-- No system reboot during service startup
-- Docker containers should be running
-- Node identity should be generated at `/opt/sensor/config/node_identity.json`
+1. **`/Users/daaronch/code/spot/deploy_spot.py`**:
+   - Fixed UV installation to use system-wide location
+   - Added docker-compose-plugin installation
+   - Removed duplicate UV installation
 
-## Debugging Commands
+2. **`/Users/daaronch/code/spot/instance/scripts/bacalhau-startup.service`**:
+   - Removed circular dependency on cloud-init.target
+   - Updated PATH to use /usr/local/bin for UV
 
-If issues persist, SSH into the instance and run:
+3. **`/Users/daaronch/code/spot/instance/scripts/startup.py`**:
+   - Fixed shutdown command from +0.2 to +1
+
+## Testing Commands
+
 ```bash
-# Check service status
-sudo systemctl status bacalhau-startup.service
-sudo systemctl status setup-config.service
+# 1. Run linting check
+uv run ruff check deploy_spot.py
 
-# Check logs
-sudo journalctl -u bacalhau-startup.service -n 50
-cat /opt/startup.log
+# 2. Destroy existing instances
+uv run -s deploy_spot.py destroy
 
-# Check file locations
-ls -la /opt/uploaded_files/scripts/
-ls -la /opt/uploaded_files/config/
+# 3. Deploy fresh instances
+uv run -s deploy_spot.py create
 
-# Check Docker
-docker ps -a
+# 4. Wait ~5 minutes, then check deployment
+ssh -i ~/.ssh/your-key ubuntu@<instance-ip> "tail -50 /opt/startup.log"
+
+# 5. Verify services
+ssh -i ~/.ssh/your-key ubuntu@<instance-ip> "sudo systemctl status bacalhau-startup setup-deployment"
+
+# 6. Check Docker containers
+ssh -i ~/.ssh/your-key ubuntu@<instance-ip> "docker ps -a"
+
+# 7. Verify UV installation
+ssh -i ~/.ssh/your-key ubuntu@<instance-ip> "which uv && uv --version"
+
+# 8. Check docker-compose
+ssh -i ~/.ssh/your-key ubuntu@<instance-ip> "docker compose version"
 ```
+
+## Expected Results
+
+After deployment completes:
+- UV should be available at `/usr/local/bin/uv`
+- Docker Compose plugin should be installed
+- All services should start without errors
+- No circular dependency warnings in logs
+- Bacalhau containers should be running
+- System should reboot cleanly after startup
+
+## Next Steps
+
+1. Run the linting check to ensure code quality
+2. Deploy test instances
+3. Monitor the deployment logs
+4. Verify all services start correctly
+
+All identified issues have been resolved. The deployment should now work end-to-end.

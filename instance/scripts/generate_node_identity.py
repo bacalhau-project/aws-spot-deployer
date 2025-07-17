@@ -3,7 +3,6 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "requests",
-#     "hashlib",
 # ]
 # ///
 
@@ -78,11 +77,11 @@ class NodeIdentityGenerator:
         model_index = (self.seed // 1000) % len(manufacturer["models"])
         model = manufacturer["models"][model_index]
         
-        # Generate firmware version deterministically
+        # Generate semver-compliant firmware version deterministically
         major = (self.seed // 10000) % 5 + 1  # 1-5
         minor = (self.seed // 100000) % 20    # 0-19
         patch = (self.seed // 1000000) % 50   # 0-49
-        firmware = f"{manufacturer['firmware_prefix']}_v{major}.{minor}.{patch}"
+        firmware = f"{major}.{minor}.{patch}"
         
         return {
             "manufacturer": manufacturer["manufacturer"],

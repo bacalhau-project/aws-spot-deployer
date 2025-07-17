@@ -142,6 +142,38 @@ regions:
       image: auto  # Auto-discovers latest Ubuntu 22.04
 ```
 
+### Bacalhau Orchestrator Configuration
+
+**IMPORTANT**: Bacalhau compute nodes require orchestrator connection details. These are provided via credential files:
+
+#### Credential Files (Required)
+
+Create these files in the `files/` directory before deployment:
+
+1. **`files/orchestrator_endpoint`** - Contains the NATS endpoint URL
+   ```
+   nats://orchestrator.example.com:4222
+   ```
+
+2. **`files/orchestrator_token`** - Contains the authentication token
+   ```
+   your-secret-token-here
+   ```
+
+**Security Notes:**
+- The files are listed in `.gitignore` to prevent accidental commits
+- If these files are missing, compute nodes will start but won't connect to any orchestrator
+
+#### How It Works
+
+1. During `deploy_spot.py create`, the credential files are uploaded to `/opt/uploaded_files/`
+2. The `bacalhau.service` runs `set_bacalhau_env.sh` which:
+   - Reads the credential files
+   - Creates a `.bacalhau.env` file with environment variables
+3. Docker Compose loads these environment variables:
+   - `BACALHAU_COMPUTE_ORCHESTRATORS` - The orchestrator endpoint
+   - `BACALHAU_COMPUTE_AUTH_TOKEN` - The authentication token
+
 ## Key Design Patterns
 
 ### Immutable Infrastructure

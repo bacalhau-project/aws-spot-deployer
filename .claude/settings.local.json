@@ -60,7 +60,12 @@
       "Bash(scp:*)",
       "Bash(./test_deployment_fixes.sh:*)",
       "Bash(diff:*)",
-      "Bash(/usr/bin/diff:*)"
+      "Bash(/usr/bin/diff:*)",
+      "Bash(echo:*)",
+      "Bash(INSTANCE_ID=i-test123 uv run -s instance/scripts/generate_node_identity.py)",
+      "Bash(INSTANCE_ID=i-test123 python3 instance/scripts/generate_node_identity.py)",
+      "Bash(touch:*)",
+      "Bash(SSH_KEY=/Users/daaronch/.ssh/id_ed25519 ./check_deployment.sh 18.116.87.213)"
     ],
     "deny": []
   }

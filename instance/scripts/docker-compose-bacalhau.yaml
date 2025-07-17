@@ -9,17 +9,18 @@ services:
       - /bacalhau_node/config.yaml:/etc/bacalhau/config.yaml:ro
       - /bacalhau_node/node-info:/etc/node-info
       - /bacalhau_data:/bacalhau_data
+      - /opt/sensor/data:/opt/sensor/data
+      - /opt/sensor/exports:/opt/sensor/exports
+      - /tmp:/tmp
     ports:
-      - "1234:1234"  # API port
-      - "4222:4222"  # NATS port
-    environment:
-      - BACALHAU_NODE_NETWORK_TYPE=libp2p
+      - "1234:1234" # API port
+      - "4222:4222" # NATS port
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:1234/api/v1/agent/alive"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:1234/api/v1/agent/alive"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     logging:
       driver: "json-file"
       options:

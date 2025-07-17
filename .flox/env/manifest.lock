@@ -29,27 +29,27 @@
     {
       "attr_path": "python3",
       "broken": false,
-      "derivation": "/nix/store/l3yrcw6mprh8gihyg9g7cbsj9lzh4cmg-python3-3.13.4.drv",
+      "derivation": "/nix/store/hrard23qy2n8hlq6jr9pg94ymjvrf7mg-python3-3.13.5.drv",
       "description": "High-level dynamically-typed programming language",
       "install_id": "python3",
       "license": "Python-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=30e2e2857ba47844aa71991daa6ed1fc678bcbb7",
-      "name": "python3-3.13.4",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=62e0f05ede1da0d54515d4ea8ce9c733f12d9f08",
+      "name": "python3-3.13.5",
       "pname": "python3",
-      "rev": "30e2e2857ba47844aa71991daa6ed1fc678bcbb7",
-      "rev_count": 822156,
-      "rev_date": "2025-06-27T08:03:01Z",
-      "scrape_date": "2025-06-29T04:56:23.331508Z",
+      "rev": "62e0f05ede1da0d54515d4ea8ce9c733f12d9f08",
+      "rev_count": 830073,
+      "rev_date": "2025-07-14T08:06:13Z",
+      "scrape_date": "2025-07-16T00:32:29.226010Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "3.13.4",
+      "version": "3.13.5",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/j1spz18w5a10r9nj4wpkyh0cx730rs4z-python3-3.13.4"
+        "out": "/nix/store/riv3i1wrig5kaf89wgpx46581f71gfqb-python3-3.13.5"
       },
       "system": "aarch64-darwin",
       "group": "toplevel",
@@ -58,28 +58,28 @@
     {
       "attr_path": "python3",
       "broken": false,
-      "derivation": "/nix/store/b01sskbw6j34gyqvs3wqcq3gdzkpz7r8-python3-3.13.4.drv",
+      "derivation": "/nix/store/c78k7nlp76f7xyz0r31bkafgb8aaybki-python3-3.13.5.drv",
       "description": "High-level dynamically-typed programming language",
       "install_id": "python3",
       "license": "Python-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=30e2e2857ba47844aa71991daa6ed1fc678bcbb7",
-      "name": "python3-3.13.4",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=62e0f05ede1da0d54515d4ea8ce9c733f12d9f08",
+      "name": "python3-3.13.5",
       "pname": "python3",
-      "rev": "30e2e2857ba47844aa71991daa6ed1fc678bcbb7",
-      "rev_count": 822156,
-      "rev_date": "2025-06-27T08:03:01Z",
-      "scrape_date": "2025-06-29T05:20:15.298462Z",
+      "rev": "62e0f05ede1da0d54515d4ea8ce9c733f12d9f08",
+      "rev_count": 830073,
+      "rev_date": "2025-07-14T08:06:13Z",
+      "scrape_date": "2025-07-16T00:57:40.047124Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "3.13.4",
+      "version": "3.13.5",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "debug": "/nix/store/6b7k5hh6j6jfb4zx4z9mba3ijk2fhhd2-python3-3.13.4-debug",
-        "out": "/nix/store/avgafrfq80hx92p98m60wh2khmnmxrzc-python3-3.13.4"
+        "debug": "/nix/store/z90g6ca112y3jgdjqalpznrnlg8i9cab-python3-3.13.5-debug",
+        "out": "/nix/store/chgczp3c2zsr14bxkx9vfwsywajbgbgg-python3-3.13.5"
       },
       "system": "aarch64-linux",
       "group": "toplevel",
@@ -88,27 +88,27 @@
     {
       "attr_path": "python3",
       "broken": false,
-      "derivation": "/nix/store/x6pl21i2q7jbv5rszclg4hscyd5b1n1b-python3-3.13.4.drv",
+      "derivation": "/nix/store/h374kf34b54w4wkrhh19mplha17hcc2z-python3-3.13.5.drv",
       "description": "High-level dynamically-typed programming language",
       "install_id": "python3",
       "license": "Python-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=30e2e2857ba47844aa71991daa6ed1fc678bcbb7",
-      "name": "python3-3.13.4",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=62e0f05ede1da0d54515d4ea8ce9c733f12d9f08",
+      "name": "python3-3.13.5",
       "pname": "python3",
-      "rev": "30e2e2857ba47844aa71991daa6ed1fc678bcbb7",
-      "rev_count": 822156,
-      "rev_date": "2025-06-27T08:03:01Z",
-      "scrape_date": "2025-06-29T05:38:21.783112Z",
+      "rev": "62e0f05ede1da0d54515d4ea8ce9c733f12d9f08",
+      "rev_count": 830073,
+      "rev_date": "2025-07-14T08:06:13Z",
+      "scrape_date": "2025-07-16T01:19:04.006972Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "3.13.4",
+      "version": "3.13.5",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "out": "/nix/store/il3s6rjh49l9ccg1nlqm93w67lcnfmqn-python3-3.13.4"
+        "out": "/nix/store/zvsvpabmbi49sczlbhn7908g1c1qphdg-python3-3.13.5"
       },
       "system": "x86_64-darwin",
       "group": "toplevel",
@@ -117,28 +117,28 @@
     {
       "attr_path": "python3",
       "broken": false,
-      "derivation": "/nix/store/larsjhyzxl4vbkz6g621ka2d0z9krqcg-python3-3.13.4.drv",
+      "derivation": "/nix/store/v1fqi3zvjbs36z3hvy9bfk9bpvb9bsck-python3-3.13.5.drv",
       "description": "High-level dynamically-typed programming language",
       "install_id": "python3",
       "license": "Python-2.0",
-      "locked_url": "https://github.com/flox/nixpkgs?rev=30e2e2857ba47844aa71991daa6ed1fc678bcbb7",
-      "name": "python3-3.13.4",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=62e0f05ede1da0d54515d4ea8ce9c733f12d9f08",
+      "name": "python3-3.13.5",
       "pname": "python3",
-      "rev": "30e2e2857ba47844aa71991daa6ed1fc678bcbb7",
-      "rev_count": 822156,
-      "rev_date": "2025-06-27T08:03:01Z",
-      "scrape_date": "2025-06-29T06:00:26.638850Z",
+      "rev": "62e0f05ede1da0d54515d4ea8ce9c733f12d9f08",
+      "rev_count": 830073,
+      "rev_date": "2025-07-14T08:06:13Z",
+      "scrape_date": "2025-07-16T01:45:28.906Z",
       "stabilities": [
         "unstable"
       ],
       "unfree": false,
-      "version": "3.13.4",
+      "version": "3.13.5",
       "outputs_to_install": [
         "out"
       ],
       "outputs": {
-        "debug": "/nix/store/5rzc9mjyfmqrvg270x0fa3d47lvvvhzd-python3-3.13.4-debug",
-        "out": "/nix/store/sd81bvmch7njdpwx3lkjslixcbj5mivz-python3-3.13.4"
+        "debug": "/nix/store/wv1jq7hs7iy0jk28bvqd3dhyp5hbrvlb-python3-3.13.5-debug",
+        "out": "/nix/store/djck7mx6jad1w0yy6zings96dyxanls6-python3-3.13.5"
       },
       "system": "x86_64-linux",
       "group": "toplevel",

@@ -35,13 +35,22 @@ import os
 import random
 import subprocess
 import sys
+import tarfile
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Dict, List, Optional
 
 import boto3
 import yaml
+
+# Global caches for AWS resources to speed up deployment
+VPC_CACHE = {}
+SUBNET_CACHE = {}
+SECURITY_GROUP_CACHE = {}
+AMI_CACHE = {}
+CACHE_LOCK = threading.Lock()
 
 try:
     from rich.console import Console
@@ -378,11 +387,20 @@ def get_latest_ubuntu_ami(region: str, log_function=None) -> Optional[str]:
             log_function(msg)
         else:
             print(msg)
+    
+    # Check memory cache first (fastest)
+    with CACHE_LOCK:
+        if region in AMI_CACHE:
+            log_message(f"Using memory-cached AMI for {region}: {AMI_CACHE[region]}")
+            return AMI_CACHE[region]
 
-    # Try cache first
+    # Try file cache second
     cached = load_cache(cache_file)
     if cached and "ami_id" in cached:
-        log_message(f"Using cached AMI for {region}: {cached['ami_id']}")
+        log_message(f"Using file-cached AMI for {region}: {cached['ami_id']}")
+        # Also store in memory cache
+        with CACHE_LOCK:
+            AMI_CACHE[region] = cached["ami_id"]
         return cached["ami_id"]
 
     # Fetch from AWS
@@ -487,7 +505,7 @@ class ConsoleLogger(logging.Handler):
                             potential_key = match.group(1)
                             if potential_key in self.instance_ip_map:
                                 instance_key = potential_key
-                                instance_ip = self.instance_ip_map.get(instance_key, "")
+                                instance_ip = self.instance_ip_map.get(potential_key, "")
                     else:
                         # Add region context
                         region = thread_name.replace("Region-", "")
@@ -681,18 +699,8 @@ runcmd:
   - chmod 700 /home/{config.username()}/.ssh
   - chmod 600 /home/{config.username()}/.ssh/authorized_keys
   
-  - echo "Installing uv" > /tmp/cloud-init-status
-  # Install uv for Python scripts
-  - curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
-  - chmod 755 /usr/local/bin/uv
   
   - echo "Finalizing setup" > /tmp/cloud-init-status
-  
-  # Wait for Docker to be fully ready
-  - systemctl is-active --quiet docker || systemctl restart docker
-  - sleep 5
-  - docker version
-  - docker compose version || echo "Docker Compose will be checked by startup script"
   
   # Signal that instance is ready
   - echo "Cloud-init finalizing" > /tmp/cloud-init-status
@@ -728,6 +736,322 @@ runcmd:
     return cloud_init_script
 
 
+def generate_full_cloud_init(config: SimpleConfig) -> str:
+    """Generate minimal cloud-init that waits for deployment bundle."""
+    
+    # Get public SSH key content
+    public_key = config.public_ssh_key_content()
+    if not public_key:
+        rich_warning("No public SSH key found - SSH access may not work")
+        public_key = ""
+    
+    # Read orchestrator credentials if they exist
+    orchestrator_endpoint = ""
+    orchestrator_token = ""
+    files_dir = config.files_directory()
+    
+    try:
+        endpoint_file = os.path.join(files_dir, "orchestrator_endpoint")
+        if os.path.exists(endpoint_file):
+            with open(endpoint_file, 'r') as f:
+                orchestrator_endpoint = f.read().strip()
+                # Ensure proper format
+                if orchestrator_endpoint and not orchestrator_endpoint.startswith("nats://"):
+                    if ":" not in orchestrator_endpoint:
+                        orchestrator_endpoint = f"nats://{orchestrator_endpoint}:4222"
+                    else:
+                        orchestrator_endpoint = f"nats://{orchestrator_endpoint}"
+        
+        token_file = os.path.join(files_dir, "orchestrator_token")
+        if os.path.exists(token_file):
+            with open(token_file, 'r') as f:
+                orchestrator_token = f.read().strip()
+    except Exception as e:
+        rich_warning(f"Could not read orchestrator credentials: {e}")
+    
+    # Build minimal cloud-init that waits for files
+    cloud_init = f"""#cloud-config
+
+users:
+  - name: {config.username()}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - {public_key}
+    groups: docker
+
+package_update: true
+packages:
+  - python3
+  - python3-pip
+  - wget
+  - curl
+  - jq
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - apt-transport-https
+  - software-properties-common
+
+write_files:
+  - path: /opt/startup.log
+    content: |
+      Cloud-init started
+    owner: root:root
+    permissions: '0666'
+
+  - path: /opt/orchestrator_endpoint
+    content: |
+      {orchestrator_endpoint}
+    owner: root:root
+    permissions: '0644'
+    
+  - path: /opt/orchestrator_token
+    content: |
+      {orchestrator_token}
+    owner: root:root
+    permissions: '0600'
+
+  - path: /opt/setup_deployment.sh
+    content: |
+      #!/bin/bash
+      # This script runs after reboot to set up all services
+      
+      echo "[$(date)] Starting deployment setup" | tee -a /opt/startup.log
+      
+      # Extract deployment bundle
+      if [ ! -f /opt/deployment-bundle.tar.gz ]; then
+          echo "[$(date)] ERROR: Deployment bundle not found!" | tee -a /opt/startup.log
+          exit 1
+      fi
+      
+      echo "[$(date)] Extracting deployment bundle..." | tee -a /opt/startup.log
+      cd /opt
+      tar -xzf deployment-bundle.tar.gz
+      
+      # Move files to correct locations
+      echo "[$(date)] Installing files..." | tee -a /opt/startup.log
+      
+      # Copy configs
+      if [ -d /opt/config ]; then
+          mkdir -p /opt/uploaded_files/config
+          cp -r /opt/config/* /opt/uploaded_files/config/
+      fi
+      
+      # Copy scripts
+      if [ -d /opt/scripts ]; then
+          mkdir -p /opt/uploaded_files/scripts
+          cp -r /opt/scripts/* /opt/uploaded_files/scripts/
+          chmod +x /opt/uploaded_files/scripts/*.sh
+          chmod +x /opt/uploaded_files/scripts/*.py
+      fi
+      
+      # Copy credential files
+      cp /opt/orchestrator_endpoint /opt/uploaded_files/
+      cp /opt/orchestrator_token /opt/uploaded_files/
+      chmod 600 /opt/uploaded_files/orchestrator_token
+      
+      # Create required directories
+      mkdir -p /bacalhau_node /bacalhau_data
+      mkdir -p /opt/sensor/{{config,data,logs,exports}}
+      chown -R ubuntu:ubuntu /opt/uploaded_files /bacalhau_node /bacalhau_data /opt/sensor
+      
+      # Install systemd services
+      echo "[$(date)] Installing systemd services..." | tee -a /opt/startup.log
+      cp /opt/uploaded_files/scripts/*.service /etc/systemd/system/ 2>/dev/null || true
+      systemctl daemon-reload
+      
+      # Ensure uv is in PATH for systemd services
+      echo 'PATH="/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"' >> /etc/environment
+      
+      # Start services in order
+      echo "[$(date)] Starting services..." | tee -a /opt/startup.log
+      
+      # Start bacalhau-startup first
+      systemctl enable bacalhau-startup.service
+      systemctl start bacalhau-startup.service
+      
+      # Wait for startup to complete
+      sleep 10
+      
+      # Check if services are running
+      echo "[$(date)] Checking Docker containers..." | tee -a /opt/startup.log
+      docker ps | tee -a /opt/startup.log
+      
+      # Check if bacalhau is running
+      if docker ps | grep -q bacalhau; then
+          echo "[$(date)] SUCCESS: Bacalhau container is running" | tee -a /opt/startup.log
+      else
+          echo "[$(date)] WARNING: Bacalhau container not found" | tee -a /opt/startup.log
+      fi
+      
+      echo "[$(date)] Deployment setup complete" | tee -a /opt/startup.log
+    owner: root:root
+    permissions: '0755'
+
+  - path: /etc/systemd/system/setup-deployment.service
+    content: |
+      [Unit]
+      Description=Setup deployment after reboot
+      After=network-online.target docker.service cloud-init.service
+      Requires=docker.service
+      
+      [Service]
+      Type=oneshot
+      ExecStart=/opt/setup_deployment.sh
+      RemainAfterExit=yes
+      StandardOutput=journal+console
+      StandardError=journal+console
+      TimeoutStartSec=600
+      Restart=on-failure
+      RestartSec=30
+      
+      [Install]
+      WantedBy=multi-user.target
+    owner: root:root
+    permissions: '0644'
+
+runcmd:
+  # Install Docker from official repository
+  - |
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    apt-get update -qq
+    apt-get install -qq -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    usermod -aG docker ubuntu
+    systemctl enable docker
+    systemctl start docker
+  
+  # Install uv for Python dependency management system-wide
+  - curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
+  - chmod 755 /usr/local/bin/uv
+  
+  # Wait for deployment bundle upload
+  - echo "[$(date)] Waiting for deployment bundle upload..." | tee -a /opt/startup.log
+  - |
+    TIMEOUT=600
+    ELAPSED=0
+    while [ ! -f /tmp/UPLOAD_COMPLETE ] && [ $ELAPSED -lt $TIMEOUT ]; do
+        echo "[$(date)] Still waiting... ($ELAPSED/$TIMEOUT seconds)" | tee -a /opt/startup.log
+        sleep 10
+        ELAPSED=$((ELAPSED + 10))
+    done
+    
+    if [ ! -f /tmp/UPLOAD_COMPLETE ]; then
+        echo "[$(date)] ERROR: Timeout waiting for upload!" | tee -a /opt/startup.log
+        exit 1
+    fi
+    
+    echo "[$(date)] Upload complete marker detected" | tee -a /opt/startup.log
+    
+    # Move bundle to final location
+    if [ -f /tmp/deployment-bundle.tar.gz ]; then
+        mv /tmp/deployment-bundle.tar.gz /opt/
+        echo "[$(date)] Bundle moved to /opt/" | tee -a /opt/startup.log
+    fi
+    
+    # Enable the setup service to run after reboot
+    systemctl enable setup-deployment.service
+    echo "[$(date)] Setup service enabled for next boot" | tee -a /opt/startup.log
+    
+    # Schedule a reboot
+    echo "[$(date)] Scheduling reboot in 30 seconds..." | tee -a /opt/startup.log
+    shutdown -r +1 "Rebooting to complete deployment"
+"""
+    
+    return cloud_init
+
+
+def create_deployment_bundle(config: SimpleConfig) -> str:
+    """Create a tar.gz bundle of all deployment files."""
+    import tempfile
+    
+    bundle_file = os.path.join(tempfile.gettempdir(), "deployment-bundle.tar.gz")
+    
+    with tarfile.open(bundle_file, "w:gz") as tar:
+        # Add scripts
+        scripts_dir = config.scripts_directory()
+        if os.path.exists(scripts_dir):
+            for file in os.listdir(scripts_dir):
+                filepath = os.path.join(scripts_dir, file)
+                if os.path.isfile(filepath):
+                    tar.add(filepath, arcname=f"scripts/{file}")
+        
+        # Add configs
+        config_dir = "instance/config"
+        if os.path.exists(config_dir):
+            for file in os.listdir(config_dir):
+                filepath = os.path.join(config_dir, file)
+                if os.path.isfile(filepath):
+                    tar.add(filepath, arcname=f"config/{file}")
+        
+        # Add other files (except credentials)
+        files_dir = config.files_directory()
+        if os.path.exists(files_dir):
+            for file in os.listdir(files_dir):
+                if file in ["orchestrator_endpoint", "orchestrator_token"]:
+                    continue
+                filepath = os.path.join(files_dir, file)
+                if os.path.isfile(filepath):
+                    tar.add(filepath, arcname=f"files/{file}")
+    
+    return bundle_file
+
+
+def upload_deployment_bundle(hostname: str, username: str, private_key_path: str, bundle_file: str, logger=None) -> bool:
+    """Upload deployment bundle to instance and create completion marker."""
+    
+    # Upload bundle to /tmp
+    bundle_temp_path = "/tmp/deployment-bundle.tar.gz"
+    marker_path = "/tmp/UPLOAD_COMPLETE"
+    
+    scp_command = [
+        "scp",
+        "-i", private_key_path,
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "ConnectTimeout=10",
+        bundle_file,
+        f"{username}@{hostname}:{bundle_temp_path}"
+    ]
+    
+    try:
+        # Upload bundle
+        result = subprocess.run(scp_command, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            if logger:
+                logger.error(f"Failed to upload bundle: {result.stderr}")
+            return False
+        
+        # Create completion marker
+        ssh_command = [
+            "ssh",
+            "-i", private_key_path,
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            f"{username}@{hostname}",
+            f"touch {marker_path}"
+        ]
+        
+        result = subprocess.run(ssh_command, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            if logger:
+                logger.info(f"Successfully uploaded bundle to {hostname}")
+            return True
+        else:
+            if logger:
+                logger.error(f"Failed to create upload marker: {result.stderr}")
+            return False
+            
+    except subprocess.TimeoutExpired:
+        if logger:
+            logger.error("Upload timed out after 60 seconds")
+        return False
+    except Exception as e:
+        if logger:
+            logger.error(f"Upload failed: {e}")
+        return False
+
 def wait_for_instance_ready(
     hostname: str,
     username: str,
@@ -736,6 +1060,7 @@ def wait_for_instance_ready(
     instance_key: str = None,
     update_status_func=None,
     progress_callback=None,
+    config=None,
 ) -> bool:
     """Wait for SSH to be ready and for cloud-init to finish with detailed progress tracking."""
     start_time = time.time()
@@ -783,6 +1108,24 @@ def wait_for_instance_ready(
                         "SSH: Connection", 100, "SSH connection established"
                     )
                     time.sleep(2)  # Brief pause before cloud-init check
+                    
+                    # Upload deployment bundle after SSH is ready
+                    if elapsed > 20 and config:  # Give cloud-init time to set up
+                        # Create bundle once
+                        if not hasattr(wait_for_instance_ready, '_bundle_file'):
+                            update_progress("Bundle", 60, "Creating deployment bundle...")
+                            wait_for_instance_ready._bundle_file = create_deployment_bundle(config)
+                        
+                        # Upload bundle
+                        update_progress("Upload", 70, "Uploading deployment files...")
+                        if upload_deployment_bundle(hostname, username, private_key_path, 
+                                                   wait_for_instance_ready._bundle_file):
+                            update_progress("Upload", 85, "Deployment files uploaded")
+                            # Give the instance time to extract and start services
+                            time.sleep(5)
+                            return True
+                        else:
+                            update_progress("Upload", 70, "Upload failed, retrying...")
                     continue
                 else:
                     update_progress(
@@ -1780,54 +2123,82 @@ def create_instances_in_region_with_table(
     try:
         ec2 = boto3.client("ec2", region_name=region)
 
-        log_message(f"[{region}] Looking for VPC...")
-        vpcs = ec2.describe_vpcs(Filters=[{"Name": "is-default", "Values": ["true"]}])
-        if not vpcs["Vpcs"]:
-            for key in instance_keys:
-                update_status_func(key, "Finding any VPC")
-            log_message(f"[{region}] No default VPC, checking all VPCs...")
-            all_vpcs = ec2.describe_vpcs()
-            if all_vpcs["Vpcs"]:
-                vpc_id = all_vpcs["Vpcs"][0]["VpcId"]
+        # Check cache first
+        vpc_id = None
+        with CACHE_LOCK:
+            if region in VPC_CACHE:
+                vpc_id = VPC_CACHE[region]
+                log_message(f"[{region}] Using cached VPC {vpc_id}")
                 for key in instance_keys:
-                    update_status_func(key, "Using VPC")
-                log_message(f"[{region}] Using VPC {vpc_id}")
+                    update_status_func(key, "Using cached VPC")
+        
+        if not vpc_id:
+            log_message(f"[{region}] Looking for VPC...")
+            vpcs = ec2.describe_vpcs(Filters=[{"Name": "is-default", "Values": ["true"]}])
+            if not vpcs["Vpcs"]:
+                for key in instance_keys:
+                    update_status_func(key, "Finding any VPC")
+                log_message(f"[{region}] No default VPC, checking all VPCs...")
+                all_vpcs = ec2.describe_vpcs()
+                if all_vpcs["Vpcs"]:
+                    vpc_id = all_vpcs["Vpcs"][0]["VpcId"]
+                    for key in instance_keys:
+                        update_status_func(key, "Using VPC")
+                    log_message(f"[{region}] Using VPC {vpc_id}")
+                else:
+                    for key in instance_keys:
+                        update_status_func(key, "ERROR: No VPCs found", is_final=True)
+                    return []
             else:
+                vpc_id = vpcs["Vpcs"][0]["VpcId"]
                 for key in instance_keys:
-                    update_status_func(key, "ERROR: No VPCs found", is_final=True)
-                return []
-        else:
-            vpc_id = vpcs["Vpcs"][0]["VpcId"]
-            for key in instance_keys:
-                update_status_func(key, "Using default VPC")
-            log_message(f"[{region}] Using default VPC {vpc_id}")
+                    update_status_func(key, "Using default VPC")
+                log_message(f"[{region}] Using default VPC {vpc_id}")
+            
+            # Cache the VPC
+            with CACHE_LOCK:
+                VPC_CACHE[region] = vpc_id
 
-        for key in instance_keys:
-            update_status_func(key, "Finding subnet")
-        subnets = ec2.describe_subnets(
-            Filters=[
-                {"Name": "vpc-id", "Values": [vpc_id]},
-                {"Name": "default-for-az", "Values": ["true"]},
-            ]
-        )
-        if not subnets["Subnets"]:
+        # Check subnet cache
+        subnet_id = None
+        cache_key = f"{region}:{vpc_id}"
+        with CACHE_LOCK:
+            if cache_key in SUBNET_CACHE:
+                subnet_id = SUBNET_CACHE[cache_key]
+                for key in instance_keys:
+                    update_status_func(key, "Using cached subnet")
+        
+        if not subnet_id:
             for key in instance_keys:
-                update_status_func(key, "Finding any subnet")
-            all_subnets = ec2.describe_subnets(
-                Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+                update_status_func(key, "Finding subnet")
+            subnets = ec2.describe_subnets(
+                Filters=[
+                    {"Name": "vpc-id", "Values": [vpc_id]},
+                    {"Name": "default-for-az", "Values": ["true"]},
+                ]
             )
-            if all_subnets["Subnets"]:
-                subnet_id = all_subnets["Subnets"][0]["SubnetId"]
+            if not subnets["Subnets"]:
                 for key in instance_keys:
-                    update_status_func(key, "Using subnet")
+                    update_status_func(key, "Finding any subnet")
+                all_subnets = ec2.describe_subnets(
+                    Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+                )
+                if all_subnets["Subnets"]:
+                    subnet_id = all_subnets["Subnets"][0]["SubnetId"]
+                    for key in instance_keys:
+                        update_status_func(key, "Using subnet")
+                else:
+                    for key in instance_keys:
+                        update_status_func(key, "ERROR: No subnets found", is_final=True)
+                    return []
             else:
+                subnet_id = subnets["Subnets"][0]["SubnetId"]
                 for key in instance_keys:
-                    update_status_func(key, "ERROR: No subnets found", is_final=True)
-                return []
-        else:
-            subnet_id = subnets["Subnets"][0]["SubnetId"]
-            for key in instance_keys:
-                update_status_func(key, "Using default subnet")
+                    update_status_func(key, "Using default subnet")
+            
+            # Cache the subnet
+            with CACHE_LOCK:
+                SUBNET_CACHE[cache_key] = subnet_id
 
         for key in instance_keys:
             update_status_func(key, "Setting up SG")
@@ -1847,7 +2218,8 @@ def create_instances_in_region_with_table(
             for key in instance_keys:
                 creation_status[key]["type"] = instance_type
 
-        user_data = generate_minimal_cloud_init(config)
+        # Use full cloud-init for autonomous setup
+        user_data = generate_full_cloud_init(config)
 
         for key in instance_keys:
             update_status_func(key, "Requesting spot")
@@ -1996,473 +2368,83 @@ def create_instances_in_region_with_table(
         return []
 
 
-# =============================================================================
-# MAIN COMMANDS
-# =============================================================================
-
-
 def post_creation_setup(
-    instances, config, update_status_func, logger, progress_callback=None
-):
-    """Simplified hands-off setup - upload files, enable service, and disconnect."""
+    instances: List[Dict],
+    config: SimpleConfig,
+    update_status_func,
+    logger,
+    progress_callback=None,
+) -> None:
+    """Perform post-creation setup steps for instances (upload files, enable services)."""
+    rich_status("Starting post-creation setup for instances...")
 
     def setup_instance(instance):
-        key = instance["id"]
-        ip = instance.get("public_ip")
-        username = config.username()
+        instance_id = instance["id"]
+        region = instance["region"]
+        public_ip = instance.get("public_ip")
+        instance_key = f"{region}-{instance_id}"
+
+        if not public_ip:
+            update_status_func(instance_key, "ERROR: No public IP", is_final=True)
+            logger.error(f"[{instance_key}] No public IP found for instance.")
+            return
+
         private_key_path = os.path.expanduser(config.private_ssh_key_path())
+        username = config.username()
 
-        if not ip:
-            update_status_func(key, "ERROR: No public IP", is_final=True)
+        # Phase 1: Wait for instance to be ready (SSH + Cloud-init completion)
+        update_status_func(instance_key, "WAIT: Instance ready...")
+        if not wait_for_instance_ready(
+            public_ip, username, private_key_path, timeout=600, # Increased timeout
+            instance_key=instance_key, update_status_func=update_status_func,
+            progress_callback=progress_callback, config=config
+        ):
+            update_status_func(instance_key, "ERROR: Instance not ready", is_final=True)
+            logger.error(f"[{instance_key}] Instance not ready after timeout.")
             return
 
-        try:
-            # Phase 1: Wait for basic SSH (no cloud-init monitoring)
-            update_status_func(key, "SSH: Waiting for connection...")
-            logger.info(f"Waiting for SSH on {key} at {ip}")
+        update_status_func(instance_key, "SUCCESS: Instance ready")
+        logger.info(f"[{instance_key}] Instance is ready for setup.")
 
-            if not wait_for_ssh_only(ip, username, private_key_path, timeout=30):
-                update_status_func(key, "ERROR: SSH timeout", is_final=True)
-                logger.error(f"SSH timeout for {key}")
-                return
-
-            update_status_func(key, "SSH: Connected")
-            logger.info(f"SSH available for {key}")
-
-            # Phase 2: Create directories (separate from upload)
-            update_status_func(key, "SETUP: Creating directories...")
-            logger.info(f"Creating remote directories on {key}")
-
-            if not ensure_remote_directories(ip, username, private_key_path, logger):
-                update_status_func(
-                    key, "ERROR: Directory creation failed", is_final=True
-                )
-                logger.error(f"Directory creation failed for {key}")
-                return
-
-            update_status_func(key, "SETUP: Directories ready")
-            logger.info(f"Directories created successfully on {key}")
-
-            # Phase 3: Upload files
-            update_status_func(key, "UPLOAD: Transferring files...")
-            logger.info(
-                f"Starting file upload to {key} at {ip} with key {private_key_path}"
-            )
-
-            # Pass the update_status_func to upload_files_to_instance
-            upload_files_to_instance.update_status_func = update_status_func
-            
-            if not upload_files_to_instance(
-                ip,
-                username,
-                private_key_path,
-                config,
-                logger,
-                progress_callback=None,  # No detailed progress in hands-off mode
-                instance_key=key,
-            ):
-                update_status_func(key, "ERROR: File upload failed", is_final=True)
-                logger.error(
-                    f"File upload failed for {key} - check permissions and SSH key"
-                )
-                return
-
-            update_status_func(key, "UPLOAD: Files transferred")
-            logger.info(f"Files uploaded to {key}")
-
-            # Phase 4: Configure and start services
-            update_status_func(key, "SETUP: Configuring services...")
-            if not enable_startup_service(ip, username, private_key_path, logger):
-                update_status_func(key, "ERROR: Service configuration failed", is_final=True)
-                logger.error(f"Service configuration failed for {key}")
-                return
-
-            # Phase 5: Setup complete
-            update_status_func(
-                key,
-                "SUCCESS: Setup complete - services starting",
-                is_final=True,
-            )
-            logger.info(
-                f"Setup complete for {key} - services are starting"
-            )
-
-        except Exception as e:
-            logger.error(f"Error setting up instance {key}: {e}")
-            update_status_func(key, f"ERROR: {e}", is_final=True)
-
-    threads = []
-    for instance in instances:
-        thread = threading.Thread(
-            target=setup_instance, args=(instance,), name=f"Setup-{instance['id']}"
-        )
-        thread.daemon = False  # Changed to non-daemon so main thread waits
-        threads.append(thread)
-        thread.start()
-
-    # Wait for setup threads - shorter timeout since we're not waiting for cloud-init
-    # This ensures all file uploads complete before we return
-    for thread in threads:
-        thread.join(timeout=180)  # 3 minute timeout
-
-    # Log completion
-    if logger:
-        logger.info("All post-creation setup tasks completed")
-
-
-def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
-    """Create spot instances across configured regions with enhanced real-time progress tracking."""
-    if not check_aws_auth():
-        return
-
-    # Show helpful info about the deployment process
-    console.print("\n[bold cyan]🚀 Starting AWS Spot Instance Deployment[/bold cyan]")
-    console.print("\n[bold]Hands-off Deployment Process:[/bold]")
-    console.print(
-        "1. [yellow]Create Instances[/yellow] - Request spot instances from AWS"
-    )
-    console.print("2. [blue]Wait for SSH[/blue] - Basic connectivity check")
-    console.print("3. [green]Upload Files[/green] - Transfer scripts and configuration")
-    console.print("4. [magenta]Enable Service[/magenta] - Set up systemd service")
-    console.print("5. [cyan]Disconnect[/cyan] - Let cloud-init complete autonomously")
-    console.print(
-        "\n[dim]After ~5 minutes, instances will be fully configured and running.[/dim]\n"
-    )
-
-    # Setup local logging
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = f"spot_creation_{timestamp}.log"
-    logger = logging.getLogger("spot_creator")
-    logger.setLevel(logging.INFO)
-
-    if not logger.handlers:
-        # File handler
-        file_handler = logging.FileHandler(log_filename)
-        file_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(asctime)s - %(threadName)s - %(message)s")
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-        
-        # Console handler to capture thread output with instance context
-        # Note: We'll update the IP map as instances are created
-        console_handler = ConsoleLogger(console, {})
-        console_formatter = logging.Formatter("%(message)s")
-        console_handler.setFormatter(console_formatter)
-        logger.addHandler(console_handler)
-        
-        # Store reference to console handler for updating IP map
-        logger.console_handler = console_handler
-
-    rich_status(f"Logging to local file: {log_filename}")
-    logger.info(
-        f"Using column widths: REGION={ColumnWidths.REGION}, INSTANCE_ID={ColumnWidths.INSTANCE_ID}, "
-        f"STATUS={ColumnWidths.STATUS}, TYPE={ColumnWidths.TYPE}, PUBLIC_IP={ColumnWidths.PUBLIC_IP}, "
-        f"CREATED={ColumnWidths.CREATED}, TOTAL={ColumnWidths.get_total_width()}"
-    )
-
-    # Check for SSH key
-    private_key_path = config.private_ssh_key_path()
-    if private_key_path:
-        expanded_path = os.path.expanduser(private_key_path)
-        if not os.path.exists(expanded_path):
-            rich_error(f"Private SSH key not found at '{private_key_path}'")
-            rich_status(
-                "Please check your config.yaml or generate a new key, e.g.: ssh-keygen -t rsa -b 2048"
-            )
+        # Phase 2: Ensure remote directories exist
+        update_status_func(instance_key, "SETUP: Creating remote dirs...")
+        if not ensure_remote_directories(public_ip, username, private_key_path, logger):
+            update_status_func(instance_key, "ERROR: Dir creation failed", is_final=True)
+            logger.error(f"[{instance_key}] Failed to create remote directories.")
             return
-    else:
-        rich_warning(
-            "Private SSH key path is not set in config.yaml. SSH-based operations will fail."
-        )
+        update_status_func(instance_key, "SETUP: Remote dirs created")
+        logger.info(f"[{instance_key}] Remote directories ensured.")
 
-    regions = config.regions()
+        # Phase 3: Upload files (if not already done by bundle)
+        # This step is largely replaced by the bundle upload in wait_for_instance_ready
+        # but keeping it for robustness or if specific files need separate upload
+        update_status_func(instance_key, "SETUP: Uploading remaining files...")
+        if not upload_files_to_instance(public_ip, username, private_key_path, config, logger):
+            update_status_func(instance_key, "ERROR: File upload failed", is_final=True)
+            logger.error(f"[{instance_key}] Failed to upload remaining files.")
+            return
+        update_status_func(instance_key, "SETUP: Files uploaded")
+        logger.info(f"[{instance_key}] Remaining files uploaded.")
 
-    if not regions:
-        rich_error("No regions configured. Run 'setup' first.")
-        return
+        # Phase 4: Enable startup service and reboot
+        update_status_func(instance_key, "SETUP: Enabling services & rebooting...")
+        if not setup_reboot_service(public_ip, username, private_key_path, logger):
+            update_status_func(instance_key, "ERROR: Service setup failed", is_final=True)
+            logger.error(f"[{instance_key}] Failed to enable startup service and reboot.")
+            return
+        update_status_func(instance_key, "SUCCESS: Reboot initiated")
+        logger.info(f"[{instance_key}] Startup service enabled and reboot initiated.")
 
-    # Get instance counts per region
-    region_instance_map = {}
-    total_instances_to_create = 0
-    for region in regions:
-        region_cfg = config.region_config(region)
-        count = region_cfg.get("instances_per_region", 1)
-        region_instance_map[region] = count
-        total_instances_to_create += count
+        # Final status update (instance will be rebooting)
+        update_status_func(instance_key, "SUCCESS: Deployment complete", is_final=True)
+        logger.info(f"[{instance_key}] Deployment process completed.")
 
-    if total_instances_to_create == 0:
-        rich_warning("No instances configured to be created.")
-        return
+    with ThreadPoolExecutor(max_workers=len(instances)) as executor:
+        futures = [executor.submit(setup_instance, inst) for inst in instances]
+        for future in futures:
+            future.result()  # Wait for each instance's setup to complete
 
-    total_created = 0
-    if RICH_AVAILABLE and console:
-        # --- Enhanced Centralized State and UI Management with Progress Tracking ---
-        creation_status = {}
-        all_instances = []
-        active_threads = []
-        lock = threading.Lock()
-
-        # Initialize ProgressTracker
-        progress_tracker = ProgressTracker()
-        overall_task = progress_tracker.create_overall_progress(
-            total_instances_to_create
-        )
-
-        # Initialize status for each instance
-        for region, count in region_instance_map.items():
-            region_cfg = config.region_config(region)
-            instance_type = region_cfg.get("machine_type", "t3.medium")
-            for i in range(count):
-                key = f"{region}-{i + 1}"
-                creation_status[key] = {
-                    "region": region,
-                    "instance_id": "pending...",
-                    "status": "WAIT: Starting...",
-                    "type": instance_type,
-                    "public_ip": "pending...",
-                    "created": "pending...",
-                }
-                # Create individual progress bars for detailed tracking
-                progress_tracker.create_instance_progress(
-                    key, f"{key} - Initializing..."
-                )
-
-        def generate_layout():
-            # Create the table with fixed widths from constants
-            table = Table(
-                title=f"Creating {total_instances_to_create} instances across {len(regions)} regions",
-                show_header=True,
-                width=ColumnWidths.get_total_width(),
-            )
-            table.add_column(
-                "Region", style="magenta", width=ColumnWidths.REGION, no_wrap=True
-            )
-            table.add_column(
-                "Instance ID",
-                style="cyan",
-                width=ColumnWidths.INSTANCE_ID,
-                no_wrap=True,
-            )
-            table.add_column(
-                "Status", style="yellow", width=ColumnWidths.STATUS, no_wrap=True
-            )
-            table.add_column(
-                "Type", style="green", width=ColumnWidths.TYPE, no_wrap=True
-            )
-            table.add_column(
-                "Public IP", style="blue", width=ColumnWidths.PUBLIC_IP, no_wrap=True
-            )
-            table.add_column(
-                "Created", style="dim", width=ColumnWidths.CREATED, no_wrap=True
-            )
-
-            sorted_items = sorted(creation_status.items(), key=lambda x: x[0])
-
-            for key, item in sorted_items:
-                status = item["status"]
-                max_len = ColumnWidths.STATUS - 1
-                if len(status) > max_len:
-                    status = status[: max_len - 3] + "..."
-
-                if status.startswith("SUCCESS"):
-                    status_style = "[bold green]" + status + "[/bold green]"
-                elif status.startswith("ERROR"):
-                    status_style = "[bold red]" + status + "[/bold red]"
-                else:
-                    status_style = status
-
-                table.add_row(
-                    item["region"],
-                    item["instance_id"],
-                    status_style,
-                    item["type"],
-                    item["public_ip"],
-                    item["created"],
-                )
-
-            # Read last 10 lines from the log file
-            try:
-                with open(log_filename, 'r') as f:
-                    # Read all lines and get the last 10
-                    lines = f.readlines()
-                    last_lines = lines[-10:] if len(lines) >= 10 else lines
-                    # Strip newlines and format
-                    formatted_messages = [line.strip() for line in last_lines if line.strip()]
-                    log_content = "\n".join(formatted_messages)
-            except (FileNotFoundError, IOError):
-                log_content = "Waiting for log entries..."
-            
-            log_panel = Panel(
-                log_content, title="On-Screen Log", border_style="blue", height=12
-            )
-
-            layout = Layout()
-            layout.split_column(
-                Layout(table, name="table", ratio=2),
-                Layout(log_panel, name="logs", ratio=1),
-            )
-            return layout
-
-        def update_progress_callback(instance_key, phase, progress, status=""):
-            """Callback function to update progress tracking."""
-            progress_tracker.update_instance_progress(
-                instance_key, phase, progress, status
-            )
-
-            # Update overall progress
-            if progress_tracker.overall_progress:
-                completed_instances = 0
-                for key in creation_status:
-                    if creation_status[key]["status"].startswith("SUCCESS"):
-                        completed_instances += 1
-
-                # Each instance contributes 6 phases to overall progress
-                phases_per_instance = 6
-                current_phase = (completed_instances * phases_per_instance) + (
-                    progress / 100.0
-                )
-                progress_tracker.overall_progress.update(
-                    overall_task, completed=current_phase
-                )
-
-        with Live(
-            generate_layout(),
-            refresh_per_second=3.33,
-            console=console,
-            screen=False,
-            transient=True,
-        ) as live:
-
-            def update_status(
-                instance_key: str,
-                status: str,
-                instance_id: str = None,
-                ip: str = None,
-                created: str = None,
-                is_final=False,
-            ):
-                """Centralized function to update UI and log full messages."""
-                with lock:
-                    full_status = status.replace("\n", " ").replace("\r", " ").strip()
-                    
-                    # Create the log message with instance ID and IP if available
-                    if instance_id and ip and "SUCCESS:" in status:
-                        # Update the console logger's IP map if available
-                        if hasattr(logger, 'console_handler'):
-                            logger.console_handler.instance_ip_map[instance_id] = ip
-                        # Log with instance ID and IP in the message
-                        logger.info(f"[{instance_id} @ {ip}] {full_status}")
-                    elif "ERROR:" in status and instance_id and ip:
-                        # Also include instance ID and IP for errors
-                        if hasattr(logger, 'console_handler'):
-                            logger.console_handler.instance_ip_map[instance_id] = ip
-                        logger.info(f"[{instance_id} @ {ip}] {full_status}")
-                    else:
-                        logger.info(f"[{instance_key}] Status: '{full_status}'")
-
-                    if instance_key in creation_status:
-                        creation_status[instance_key]["status"] = full_status
-                        if instance_id:
-                            creation_status[instance_key]["instance_id"] = instance_id
-                        if ip:
-                            creation_status[instance_key]["public_ip"] = ip
-                        if created:
-                            creation_status[instance_key]["created"] = created
-
-            def create_region_instances(region, instances_count, logger):
-                try:
-                    logger.info(f"Starting creation for {region}...")
-                    instances = create_instances_in_region_with_table(
-                        config,
-                        region,
-                        instances_count,
-                        creation_status,
-                        lock,
-                        logger,
-                        update_status,
-                    )
-                    with lock:
-                        all_instances.extend(instances)
-                    if instances and config.private_ssh_key_path():
-                        post_creation_setup(
-                            instances,
-                            config,
-                            update_status,
-                            logger,
-                            progress_callback=update_progress_callback,
-                        )
-                except Exception:
-                    logger.error(f"Error in thread for {region}", exc_info=True)
-
-            for region, count in region_instance_map.items():
-                thread = threading.Thread(
-                    target=create_region_instances,
-                    args=(region, count, logger),
-                    name=f"Region-{region}",
-                )
-                thread.daemon = False  # Changed to non-daemon so we wait for completion
-                active_threads.append(thread)
-                thread.start()
-
-            # Periodically update the display while threads are running
-            while any(t.is_alive() for t in active_threads):
-                live.update(generate_layout())
-                time.sleep(0.3)
-
-            # Final update
-            live.update(generate_layout())
-
-            with lock:
-                logger.info("All tasks complete.")
-
-        # Save all instances to state and count them
-        for instance in all_instances:
-            state.add_instance(instance)
-            total_created += 1
-
-        console.print("\n")
-        rich_success(f"Successfully created {total_created} instances!")
-
-        if total_created > 0:
-            # Show current state
-            console.print("\n")
-            cmd_list(state)
-
-            # Wait a moment to ensure all setup threads have finished
-            console.print(
-                "\n[bold yellow]⏳ Waiting for file uploads to complete...[/bold yellow]"
-            )
-            console.print("[dim]Setup status is shown in the table above.[/dim]")
-
-            # Show a spinner while waiting
-            with console.status(
-                "[cyan]Finishing setup tasks...[/cyan]", spinner="dots"
-            ):
-                # Wait for any remaining threads
-                start_wait = time.time()
-                for thread in active_threads:
-                    if thread.is_alive():
-                        remaining_timeout = max(1, 30 - (time.time() - start_wait))
-                        thread.join(timeout=remaining_timeout)
-
-            # Final completion message
-            console.print("\n[bold green]✅ Deployment Complete![/bold green]")
-            console.print("\n[yellow]What happens next:[/yellow]")
-            console.print("• Cloud-init is installing packages and Docker")
-            console.print("• System will reboot automatically when ready")
-            console.print("• Startup services will begin after reboot")
-            console.print(
-                "\n[dim]Check back in ~5 minutes. Your instances are configuring themselves.[/dim]\n"
-            )
-    else:
-        # Fallback without table
-        for region, count in region_instance_map.items():
-            instances = create_instances_in_region(config, region, count)
-            for instance in instances:
-                state.add_instance(instance)
-                total_created += 1
-                rich_success(f"Created {instance['id']} in {region}")
-        rich_success(f"Successfully created {total_created} instances")
+    rich_success("All instances processed for post-creation setup.")
 
 
 def cmd_list(state: SimpleStateManager) -> None:
@@ -2813,6 +2795,114 @@ echo "=== END DEBUG LOG COLLECTION ==="
         rich_error(f"Error fetching debug info: {e}")
 
 
+def cleanup_bacalhau_nodes() -> None:
+    """Clean up disconnected Bacalhau nodes after instance destruction."""
+    console.print("\n[bold cyan]Bacalhau Cluster Cleanup[/bold cyan]")
+    console.print("─" * 50)
+    
+    # Get credentials from environment
+    api_host = os.environ.get('BACALHAU_API_HOST')
+    api_key = os.environ.get('BACALHAU_API_KEY')
+    
+    if not api_host or not api_key:
+        console.print("⚠️  [yellow]Skipping Bacalhau node cleanup[/yellow]")
+        if not api_host:
+            console.print("   • BACALHAU_API_HOST environment variable not set", style="dim")
+        if not api_key:
+            console.print("   • BACALHAU_API_KEY environment variable not set", style="dim")
+        console.print("   To enable: export BACALHAU_API_HOST=<host> BACALHAU_API_KEY=<key>", style="dim")
+        return
+    
+    console.print(f"🔍 Checking for disconnected nodes on [bold]{api_host}[/bold]...")
+    
+    # Ensure API key is available for subprocess
+    env = os.environ.copy()
+    env['BACALHAU_API_KEY'] = api_key
+    
+    try:
+        # Check if bacalhau CLI is installed
+        result = subprocess.run(["which", "bacalhau"], capture_output=True)
+        if result.returncode != 0:
+            console.print("⚠️  [yellow]Bacalhau CLI not found[/yellow]")
+            console.print("   Install with: curl -sL https://get.bacalhau.org/install.sh | bash", style="dim")
+            return
+        
+        # Get list of nodes
+        cmd = [
+            "bacalhau", "node", "list",
+            "--output", "json",
+            "--api-host", api_host
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
+        if result.returncode != 0:
+            console.print("❌ [red]Failed to connect to Bacalhau cluster[/red]")
+            console.print(f"   {result.stderr.strip()}", style="dim red")
+            return
+        
+        nodes = json.loads(result.stdout)
+        
+        # Filter disconnected compute nodes
+        disconnected_nodes = [
+            node for node in nodes
+            if node.get("Connection") == "DISCONNECTED" 
+            and node.get("Info", {}).get("NodeType") == "Compute"
+        ]
+        
+        if not disconnected_nodes:
+            console.print("✅ [green]No disconnected nodes found in cluster[/green]")
+            return
+        
+        console.print(f"\n📋 Found [bold red]{len(disconnected_nodes)}[/bold red] disconnected compute nodes:")
+        for node in disconnected_nodes:
+            node_id = node["Info"]["NodeID"]
+            console.print(f"   • {node_id}", style="dim")
+        
+        console.print("\n🗑️  Removing disconnected nodes from cluster...")
+        
+        # Delete each node
+        deleted_count = 0
+        failed_count = 0
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            console=console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task("Deleting nodes...", total=len(disconnected_nodes))
+            
+            for node in disconnected_nodes:
+                node_id = node["Info"]["NodeID"]
+                cmd = [
+                    "bacalhau", "node", "delete", node_id,
+                    "--api-host", api_host
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, env=env)
+                if result.returncode == 0:
+                    deleted_count += 1
+                else:
+                    failed_count += 1
+                    console.print(f"   ❌ Failed to delete {node_id}: {result.stderr.strip()}", style="dim red")
+                
+                progress.update(task, advance=1)
+        
+        if deleted_count > 0:
+            console.print(f"✅ [green]Successfully removed {deleted_count} node(s) from cluster[/green]")
+        if failed_count > 0:
+            console.print(f"⚠️  [yellow]Failed to remove {failed_count} node(s)[/yellow]")
+        
+    except subprocess.TimeoutExpired:
+        console.print("⚠️  [yellow]Bacalhau API request timed out[/yellow]")
+    except json.JSONDecodeError as e:
+        console.print(f"⚠️  [yellow]Failed to parse Bacalhau response: {e}[/yellow]")
+    except Exception as e:
+        console.print(f"⚠️  [yellow]Error during node cleanup: {e}[/yellow]")
+
+
 def cmd_destroy(state: SimpleStateManager) -> None:
     """Destroy all managed instances and clean up all created resources with enhanced progress tracking."""
     if not check_aws_auth():
@@ -2822,7 +2912,8 @@ def cmd_destroy(state: SimpleStateManager) -> None:
 
     if not instances:
         rich_status("No instances to destroy")
-        # Still try to clean up any orphaned VPCs
+        # Still try to clean up Bacalhau nodes and orphaned VPCs
+        cleanup_bacalhau_nodes()
         _cleanup_vpcs()
         return
 
@@ -3098,6 +3189,9 @@ def cmd_destroy(state: SimpleStateManager) -> None:
 
     rich_success(f"Successfully terminated {total_terminated} instances")
 
+    # Clean up disconnected Bacalhau nodes
+    cleanup_bacalhau_nodes()
+    
     # Clean up VPCs and other resources
     _cleanup_vpcs()
 
@@ -3272,7 +3366,7 @@ def cmd_nuke(state: SimpleStateManager) -> None:
     else:
         # Fallback without fancy display
         terminate_threads = []
-        for region, ids in by_region.items():
+        for region in all_regions:
             thread = threading.Thread(target=terminate_region_instances, args=(region, ids))
             thread.daemon = True
             terminate_threads.append(thread)
@@ -3298,6 +3392,7 @@ def cmd_nuke(state: SimpleStateManager) -> None:
 
     # Comprehensive cleanup
     rich_status("🧹 Running comprehensive resource cleanup...")
+    cleanup_bacalhau_nodes()
     _cleanup_vpcs()
 
     # Final verification
@@ -3693,7 +3788,8 @@ def print_help() -> None:
     """Show help information."""
     if RICH_AVAILABLE and console:
         # Create beautiful Rich panel
-        help_content = """[bold cyan]Commands:[/bold cyan]
+        help_content = """
+[bold cyan]Commands:[/bold cyan]
   [bold green]setup[/bold green]           Create basic configuration
   [bold green]node-config[/bold green]     Generate sample configuration for N nodes
   [bold green]create[/bold green]          Create spot instances in configured regions
@@ -3788,7 +3884,7 @@ def main():
     state = SimpleStateManager()
 
     if command == "setup":
-        cmd_setup()
+        cmd_setup(config)
     elif command == "create":
         cmd_create(config, state)
     elif command == "list":
@@ -3800,7 +3896,7 @@ def main():
     elif command == "debug-log":
         cmd_debug_log(state, config)
     elif command == "destroy":
-        cmd_destroy(state)
+        cmd_destroy(config, state)
     elif command == "nuke":
         cmd_nuke(state)
     elif command == "node-config":

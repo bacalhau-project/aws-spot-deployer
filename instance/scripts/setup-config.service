@@ -17,8 +17,8 @@ StandardError=append:/opt/startup.log
 ExecStartPre=/bin/bash -c 'sudo mkdir -p /bacalhau_node /bacalhau_data /opt/sensor/{config,data,logs,exports}'
 ExecStartPre=/bin/bash -c 'sudo chown -R ubuntu:ubuntu /bacalhau_node /bacalhau_data /opt/sensor'
 
-# Copy configuration files
-ExecStart=/bin/bash -c 'if [ -f /opt/uploaded_files/config/bacalhau-config.yaml ]; then sudo cp /opt/uploaded_files/config/bacalhau-config.yaml /bacalhau_node/config.yaml && sudo chown ubuntu:ubuntu /bacalhau_node/config.yaml; fi'
+# Generate Bacalhau configuration with credentials
+ExecStart=/bin/bash -c 'if [ -f /opt/uploaded_files/scripts/generate_bacalhau_config.sh ]; then sudo /opt/uploaded_files/scripts/generate_bacalhau_config.sh && sudo chown ubuntu:ubuntu /bacalhau_node/config.yaml; fi'
 ExecStart=/bin/bash -c 'if [ -f /opt/uploaded_files/config/sensor-config.yaml ]; then cp /opt/uploaded_files/config/sensor-config.yaml /opt/sensor/config/; fi'
 
 # Generate node identity if it doesn't exist

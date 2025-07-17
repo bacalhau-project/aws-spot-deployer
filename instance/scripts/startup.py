@@ -12,15 +12,12 @@
 import os
 import subprocess
 import time
-import yaml
-import json
-import hashlib
 import boto3
 import sys
 import logging
 from rich.console import Console
 from rich.logging import RichHandler
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Setup logging
 logging.basicConfig(
@@ -56,20 +53,9 @@ def check_docker():
     # Check if docker compose plugin is available
     result = run_command(["docker", "compose", "version"])
     if result[0] != 0:
-        console.print("Docker Compose plugin not found, installing...", style="yellow")
-        # Try to install it if missing
-        install_commands = [
-            ["sudo", "apt-get", "update"],
-            ["sudo", "apt-get", "install", "-y", "docker-compose-plugin"]
-        ]
-        for cmd in install_commands:
-            run_command(cmd)
-        
-        # Check again
-        result = run_command(["docker", "compose", "version"])
-        if result[0] != 0:
-            console.print("Failed to install Docker Compose plugin", style="bold red")
-            raise Exception("Docker Compose plugin installation failed")
+        console.print("Docker Compose plugin not found!", style="bold red")
+        console.print("This should have been installed from Docker's official repository", style="red")
+        raise Exception("Docker Compose plugin not available")
     
     console.print("Docker is ready", style="bold green")
 
@@ -96,7 +82,7 @@ def get_instance_tags():
             'curl', '-X', 'PUT', '-H', 'X-aws-ec2-metadata-token-ttl-seconds: 21600',
             'http://169.254.169.254/latest/api/token'
         ], timeout=2)
-        token = token_response.decode('utf-8').strip()
+        _ = token_response.decode('utf-8').strip()
         
         # Try to use EC2 credentials from instance profile
         session = boto3.Session(region_name=region)
@@ -111,6 +97,13 @@ def get_instance_tags():
 
 def run_command(command, critical=False, timeout=300):
     """Run a shell command and print its output."""
+    # Add quiet flags for apt commands
+    if len(command) >= 2 and command[0] == "sudo" and command[1] == "apt-get":
+        if "update" in command:
+            command = command[:2] + ["-qq"] + command[2:]
+        elif "install" in command and "-qq" not in command:
+            command = command[:2] + ["-qq"] + command[2:]
+    
     cmd_str = ' '.join(command)
     logger.info(f"Running command: {cmd_str}")
     console.print(f"Running command: {cmd_str}", style="bold cyan")
@@ -208,7 +201,7 @@ def main():
         console.print("\nDocker Compose configuration:", style="dim")
         run_command(['cat', docker_compose_path])
         
-        compose_result = run_command(['docker', 'compose', '-f', docker_compose_path, 'up', '-d'], critical=True)
+        compose_result = run_command(['docker', 'compose', '--ansi', 'never', '-f', docker_compose_path, 'up', '-d'], critical=True)
         if compose_result[0] == 0:
             console.print("Bacalhau started successfully", style="bold green")
             # Wait for containers to be ready
@@ -217,11 +210,11 @@ def main():
             
             # Show container status
             console.print("\nContainer status:", style="bold blue")
-            run_command(['docker', 'compose', '-f', docker_compose_path, 'ps'])
+            run_command(['docker', 'compose', '--ansi', 'never', '-f', docker_compose_path, 'ps'])
             
             # Show container logs
             console.print("\nContainer logs:", style="bold blue")
-            run_command(['docker', 'compose', '-f', docker_compose_path, 'logs', '--tail=20'])
+            run_command(['docker', 'compose', '--ansi', 'never', '-f', docker_compose_path, 'logs', '--tail=20'])
         else:
             console.print("Failed to start Bacalhau", style="bold red")
     else:
@@ -353,7 +346,7 @@ if __name__ == "__main__":
         console.print("="*50 + "\n", style="bold cyan")
         
         logger.info("Scheduling reboot to ensure container restart")
-        run_command(["sudo", "shutdown", "-r", "+0.2", "Startup complete, rebooting to ensure containers restart"])
+        run_command(["sudo", "shutdown", "-r", "+1", "Startup complete, rebooting to ensure containers restart"])
         
         sys.exit(0)
     except Exception as e:

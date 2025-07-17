@@ -1,6 +1,6 @@
 [Unit]
 Description=Initial System Setup
-After=network-online.target cloud-init.target
+After=network-online.target
 Before=setup-config.service bacalhau.service sensor-generator.service
 Wants=network-online.target setup-config.service
 # Removed dependency on configure-services.service
@@ -10,9 +10,10 @@ Type=oneshot
 User=ubuntu
 WorkingDirectory=/home/ubuntu
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-ExecStartPre=/bin/bash -c 'test -f /opt/uploaded_files/scripts/simple-startup.py || (echo "ERROR: simple-startup.py not found" >> /opt/startup.log && exit 1)'
+ExecStartPre=/bin/bash -c 'test -f /opt/uploaded_files/scripts/startup.py || (echo "ERROR: startup.py not found" >> /opt/startup.log && exit 1)'
 ExecStartPre=/bin/bash -c 'echo "[$(date)] Starting initial setup" >> /opt/startup.log'
-ExecStart=/usr/bin/python3 /opt/uploaded_files/scripts/simple-startup.py
+ExecStartPre=/bin/bash -c 'which uv || (echo "ERROR: uv not found in PATH" >> /opt/startup.log && exit 1)'
+ExecStart=/bin/bash -c 'cd /opt/uploaded_files/scripts && uv run -s startup.py'
 ExecStartPost=/bin/bash -c 'echo "[$(date)] Initial setup completed with exit code $?" >> /opt/startup.log'
 RemainAfterExit=yes
 StandardOutput=append:/opt/startup.log
