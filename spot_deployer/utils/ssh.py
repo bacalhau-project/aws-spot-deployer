@@ -5,6 +5,7 @@ import time
 from typing import Optional, Callable
 
 from ..core.constants import DEFAULT_SSH_TIMEOUT
+from .bacalhau_config import generate_bacalhau_config_with_credentials
 
 
 def wait_for_ssh_only(
@@ -25,19 +26,19 @@ def wait_for_ssh_only(
                     "-o",
                     "UserKnownHostsFile=/dev/null",
                     "-o",
-                    "ConnectTimeout=5",
+                    "ConnectTimeout=3",
                     f"{username}@{hostname}",
                     'echo "SSH ready"',
                 ],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=5,
             )
             if result.returncode == 0:
                 return True
         except Exception:
             pass
-        time.sleep(5)
+        time.sleep(2)  # Check more frequently
     
     return False
 
@@ -69,7 +70,7 @@ def transfer_files_scp(
     try:
         update_progress("SCP: Starting", 10, "Beginning file transfer")
         
-        # Create remote directories
+        # Create SSH base command
         ssh_base = [
             "ssh",
             "-i", private_key_path,
@@ -78,6 +79,7 @@ def transfer_files_scp(
             f"{username}@{hostname}",
         ]
         
+        # Create directories in /tmp (where ubuntu user has permissions)
         mkdir_cmd = ssh_base + [
             "mkdir -p /tmp/uploaded_files/scripts /tmp/uploaded_files/config"
         ]
@@ -142,8 +144,38 @@ def transfer_files_scp(
         
         # Transfer config files
         if os.path.exists(config_directory):
-            update_progress("SCP: Config", 90, "Uploading configuration...")
+            update_progress("SCP: Config", 90, "Preparing configuration...")
             
+            # First, generate Bacalhau config with injected credentials
+            bacalhau_template = os.path.join(config_directory, "config-template.yaml")
+            generated_config = generate_bacalhau_config_with_credentials(
+                bacalhau_template,
+                files_directory=files_directory
+            )
+            
+            # Upload the generated config as bacalhau-config.yaml
+            result = subprocess.run(
+                scp_base + [
+                    generated_config,
+                    f"{username}@{hostname}:/tmp/uploaded_files/config/bacalhau-config.yaml",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            
+            if result.returncode != 0:
+                log_error(f"Failed to upload Bacalhau config: {result.stderr}")
+            else:
+                log_message("Bacalhau config with credentials uploaded")
+            
+            # Clean up temp file
+            try:
+                os.unlink(generated_config)
+            except Exception:
+                pass
+            
+            # Upload other config files
             result = subprocess.run(
                 scp_base + [
                     f"{config_directory}/.",
@@ -156,7 +188,44 @@ def transfer_files_scp(
             
             update_progress("SCP: Config Upload", 95, "Config files uploaded")
         
-        update_progress("SCP: Complete", 100, "All files uploaded successfully")
+        # Verify files were uploaded
+        update_progress("SCP: Verifying", 95, "Verifying upload...")
+        
+        verify_cmd = ssh_base + [
+            "ls -la /tmp/uploaded_files/scripts/deploy_services.py && echo 'Files verified'"
+        ]
+        
+        result = subprocess.run(verify_cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            log_error("Failed to verify uploaded files")
+            update_progress("SCP: Error", 0, "Upload verification failed")
+            return False
+        
+        # Count uploaded files
+        count_cmd = ssh_base + [
+            "find /tmp/uploaded_files -type f | wc -l"
+        ]
+        
+        result = subprocess.run(count_cmd, capture_output=True, text=True, timeout=10)
+        file_count = result.stdout.strip() if result.returncode == 0 else "unknown"
+        log_message(f"Uploaded {file_count} files to /tmp/uploaded_files")
+        
+        # Run deployment script directly after upload
+        update_progress("SCP: Deploying", 98, f"Starting deployment ({file_count} files)...")
+        
+        deploy_cmd = ssh_base + [
+            "cd /tmp/uploaded_files/scripts && python3 deploy_services.py > /home/ubuntu/deployment.log 2>&1 &"
+        ]
+        
+        result = subprocess.run(deploy_cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode != 0:
+            log_error(f"Failed to start deployment: {result.stderr}")
+            update_progress("SCP: Error", 0, "Failed to start deployment")
+            return False
+        else:
+            log_message("Deployment started - check ~/deployment.log on instance")
+        
+        update_progress("SCP: Complete", 100, f"Uploaded {file_count} files, deployment started")
         return True
     
     except Exception as e:
@@ -165,78 +234,4 @@ def transfer_files_scp(
         return False
 
 
-def enable_startup_service(
-    hostname: str, username: str, private_key_path: str, logger=None
-) -> bool:
-    """Execute the deployment script to configure services."""
-    try:
-        # First, upload the deploy_services.py script
-        deploy_script_path = "instance/scripts/deploy_services.py"
-        
-        if os.path.exists(deploy_script_path):
-            # Upload the deployment script
-            scp_command = [
-                "scp",
-                "-i", private_key_path,
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                deploy_script_path,
-                f"{username}@{hostname}:/tmp/deploy_services.py"
-            ]
-            
-            result = subprocess.run(scp_command, capture_output=True, text=True)
-            if result.returncode != 0:
-                if logger:
-                    logger.info(f"Failed to upload deployment script: {result.stderr}")
-                return False
-        
-        # Execute the deployment script
-        commands = [
-            # Make the script executable
-            "chmod +x /tmp/deploy_services.py",
-            # Run the deployment script with sudo
-            "sudo python3 /tmp/deploy_services.py",
-        ]
-        
-        full_command = " && ".join(commands)
-        
-        result = subprocess.run(
-            [
-                "ssh",
-                "-i",
-                private_key_path,
-                "-o",
-                "StrictHostKeyChecking=no",
-                "-o",
-                "UserKnownHostsFile=/dev/null",
-                f"{username}@{hostname}",
-                full_command,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        
-        if logger:
-            logger.info(f"Service configuration stdout: {result.stdout}")
-            if result.stderr:
-                logger.info(f"Service configuration stderr: {result.stderr}")
-            logger.info(f"Service configuration return code: {result.returncode}")
-        
-        # More flexible success check
-        success = (
-            result.returncode == 0 
-            or "Services installed successfully" in result.stdout
-            or "Configuration attempt complete" in result.stdout
-        )
-        
-        return success
-    
-    except subprocess.TimeoutExpired:
-        if logger:
-            logger.warning("Service configuration timed out - this may be normal")
-        return True  # Don't fail on timeout
-    except Exception as e:
-        if logger:
-            logger.error(f"Error configuring services: {e}")
-        return False
+# Note: enable_startup_service has been removed - cloud-init handles deployment

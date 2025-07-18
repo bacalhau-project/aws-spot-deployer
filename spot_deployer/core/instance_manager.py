@@ -85,16 +85,16 @@ def create_instances_in_region(
             "SpotOptions": {"SpotInstanceType": "one-time"},
         }
         
-        result = ec2.run_instances(
-            ImageId=ami_id,
-            MinCount=instances_per_region,
-            MaxCount=instances_per_region,
-            InstanceType=machine_type,
-            KeyName=config.ssh_key_name(),
-            SecurityGroupIds=[sg_id],
-            SubnetId=subnet_id,
-            InstanceMarketOptions=market_options,
-            BlockDeviceMappings=[
+        # Build run_instances parameters
+        run_params = {
+            "ImageId": ami_id,
+            "MinCount": instances_per_region,
+            "MaxCount": instances_per_region,
+            "InstanceType": machine_type,
+            "SecurityGroupIds": [sg_id],
+            "SubnetId": subnet_id,
+            "InstanceMarketOptions": market_options,
+            "BlockDeviceMappings": [
                 {
                     "DeviceName": "/dev/sda1",
                     "Ebs": {
@@ -104,18 +104,21 @@ def create_instances_in_region(
                     },
                 }
             ],
-            TagSpecifications=[
+            "TagSpecifications": [
                 {
                     "ResourceType": "instance",
                     "Tags": [
                         {"Key": "Name", "Value": f"spot-{region}"},
                         {"Key": "ManagedBy", "Value": "SpotDeployer"},
                     ]
-                    + [{"Key": k, "Value": v} for k, v in config.tags().items()],
+                    + [{"Key": k, "Value": v} for k, v in config.tags().items() if k != "ManagedBy"],
                 }
             ],
-            UserData=config.cloud_init_script if hasattr(config, 'cloud_init_script') else "",
-        )
+            "UserData": config.cloud_init_script if hasattr(config, 'cloud_init_script') else "",
+        }
+        
+        # We don't use AWS KeyName - SSH key is injected via cloud-init
+        result = ec2.run_instances(**run_params)
         
         # Process created instances
         created_instances = []

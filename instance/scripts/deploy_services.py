@@ -5,25 +5,35 @@ This script is executed via SSH after files are uploaded to the instance.
 """
 
 import os
-import sys
-import time
+import re
 import shutil
 import subprocess
+import sys
+import time
 from pathlib import Path
-import re
+
 
 def log(message):
     """Log with timestamp"""
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}")
-    with open("/opt/deployment.log", "a") as f:
-        f.write(f"[{timestamp}] {message}\n")
+    # Write to /opt/deployment.log for compatibility and to home dir for access
+    log_paths = ["/opt/deployment.log", "/home/ubuntu/deployment.log"]
+    for log_path in log_paths:
+        try:
+            with open(log_path, "a") as f:
+                f.write(f"[{timestamp}] {message}\n")
+        except Exception:
+            pass  # Ignore permission errors
+
 
 def run_command(cmd, check=True):
     """Run shell command and return result"""
     log(f"Running: {cmd}")
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=check)
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, check=check
+        )
         if result.stdout:
             log(f"Output: {result.stdout.strip()}")
         return result
@@ -35,53 +45,71 @@ def run_command(cmd, check=True):
             raise
         return e
 
+
 def wait_for_cloud_init():
     """Wait for cloud-init to complete"""
     log("Waiting for cloud-init to complete...")
-    result = run_command("cloud-init status --wait", check=False)
+    run_command("cloud-init status --wait", check=False)
     log("Cloud-init completed")
 
+
 def create_directories():
-    """Create all required directories"""
+    """Create all required directories with sudo"""
     directories = [
         "/opt/uploaded_files/scripts",
-        "/opt/uploaded_files/config", 
+        "/opt/uploaded_files/config",
         "/bacalhau_node",
         "/bacalhau_data",
         "/opt/sensor/config",
-        "/opt/sensor/data"
+        "/opt/sensor/data",
+        "/opt/sensor/logs",
+        "/opt/sensor/exports",
     ]
-    
+
     for directory in directories:
-        Path(directory).mkdir(parents=True, exist_ok=True)
-        os.chown(directory, 1000, 1000)  # ubuntu user
-        log(f"Created directory: {directory}")
+        try:
+            # Create directory with sudo
+            run_command(f"sudo mkdir -p {directory}")
+            # Set ownership to ubuntu user
+            run_command(f"sudo chown ubuntu:ubuntu {directory}")
+            log(f"Created directory: {directory}")
+        except Exception as e:
+            log(f"Error creating {directory}: {e}")
+
 
 def move_files():
-    """Move files from upload locations to final destinations"""
-    # Define file movements
-    movements = [
-        # Scripts from temporary locations to final location
-        ("/tmp/uploaded_files/scripts", "/opt/uploaded_files/scripts"),
-        ("/tmp/exs", "/opt/uploaded_files/scripts"),
-        
-        # Config files
-        ("/tmp/uploaded_files/config", "/opt/uploaded_files/config"),
-        
-        # Service files to systemd
-        ("/tmp/exs/*.service", "/etc/systemd/system/"),
-        ("/tmp/uploaded_files/scripts/*.service", "/etc/systemd/system/"),
-    ]
+    """Move files from /tmp upload location to final destinations"""
+    # First, move everything from /tmp to /opt
+    if os.path.exists("/tmp/uploaded_files"):
+        log("Moving files from /tmp/uploaded_files to /opt/uploaded_files")
+        try:
+            # Use sudo to move files to /opt
+            run_command("sudo mv /tmp/uploaded_files/* /opt/uploaded_files/")
+            run_command("sudo chown -R ubuntu:ubuntu /opt/uploaded_files")
+            log("Files moved successfully to /opt/uploaded_files")
+        except Exception as e:
+            log(f"Error moving files: {e}")
+            # Try copying if move fails
+            run_command("sudo cp -r /tmp/uploaded_files/* /opt/uploaded_files/")
+            run_command("sudo chown -R ubuntu:ubuntu /opt/uploaded_files")
     
+    # Then copy service files to systemd
+    movements = [
+        # Service files to systemd
+        ("/opt/uploaded_files/scripts/*.service", "/etc/systemd/system/"),
+    ]
+
     for source, dest in movements:
         if "*" in source:
             # Handle glob patterns
             import glob
+
             for file in glob.glob(source):
                 if os.path.exists(file):
                     filename = os.path.basename(file)
                     dest_file = os.path.join(dest, filename)
-                    shutil.copy2(file, dest_file)
+                    # Use sudo for system directories
+                    run_command(f"sudo cp {file} {dest_file}")
                     log(f"Copied {file} to {dest_file}")
         else:
             # Handle directories
@@ -95,54 +123,67 @@ def move_files():
                             shutil.copy2(src_path, dst_path)
                             log(f"Copied {src_path} to {dst_path}")
 
+
 def setup_services():
     """Install and enable systemd services"""
     # Reload systemd
     run_command("systemctl daemon-reload")
-    
+
     # Define services to enable
     services = [
         "bacalhau-startup.service",
-        "setup-config.service", 
+        "setup-config.service",
         "bacalhau.service",
-        "sensor-generator.service"
+        "sensor-generator.service",
     ]
-    
+
     for service in services:
         service_file = f"/etc/systemd/system/{service}"
         if os.path.exists(service_file):
             # Set proper permissions
             os.chmod(service_file, 0o644)
-            
+
             # Fix any dependency issues in the service file
             fix_service_dependencies(service_file)
-            
+
             # Enable the service
             run_command(f"systemctl enable {service}")
             log(f"Enabled {service}")
-            
+
             # Start services that should run immediately
             if service in ["setup-config.service", "bacalhau-startup.service"]:
                 result = run_command(f"systemctl start {service}", check=False)
                 if result.returncode == 0:
                     log(f"Started {service}")
                 else:
-                    log(f"Warning: Could not start {service} immediately, will start on reboot")
+                    log(
+                        f"Warning: Could not start {service} immediately, will start on reboot"
+                    )
+
 
 def copy_configuration_files():
     """Copy configuration files to their final locations"""
-    config_copies = [
-        ("/opt/uploaded_files/config/bacalhau-config.yaml", "/bacalhau_node/config.yaml"),
-        ("/opt/uploaded_files/config/sensor-config.yaml", "/opt/sensor/config/sensor-config.yaml"),
-    ]
-    
-    for source, dest in config_copies:
-        if os.path.exists(source):
-            dest_dir = os.path.dirname(dest)
-            Path(dest_dir).mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, dest)
-            os.chown(dest, 1000, 1000)  # ubuntu user
-            log(f"Copied config: {source} to {dest}")
+    # Copy pre-generated Bacalhau config (already has credentials injected)
+    bacalhau_config_source = "/opt/uploaded_files/config/bacalhau-config.yaml"
+    bacalhau_config_dest = "/bacalhau_node/config.yaml"
+
+    if os.path.exists(bacalhau_config_source):
+        Path("/bacalhau_node").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(bacalhau_config_source, bacalhau_config_dest)
+        os.chown(bacalhau_config_dest, 1000, 1000)  # ubuntu user
+        log(f"Installed Bacalhau config at {bacalhau_config_dest}")
+    else:
+        log("ERROR: Bacalhau config not found in uploaded files")
+
+    # Copy sensor config
+    sensor_config_source = "/opt/uploaded_files/config/sensor-config.yaml"
+    sensor_config_dest = "/opt/sensor/config/sensor-config.yaml"
+    if os.path.exists(sensor_config_source):
+        dest_dir = os.path.dirname(sensor_config_dest)
+        Path(dest_dir).mkdir(parents=True, exist_ok=True)
+        shutil.copy2(sensor_config_source, sensor_config_dest)
+        os.chown(sensor_config_dest, 1000, 1000)  # ubuntu user
+        log(f"Copied sensor config to {sensor_config_dest}")
 
 
 def run_startup_script():
@@ -153,24 +194,28 @@ def run_startup_script():
         os.chmod(startup_script, 0o755)
         run_command(f"python3 {startup_script}", check=False)
 
+
 def fix_service_dependencies(service_file):
     """Remove dependencies on configure-services.service from service files"""
     try:
-        with open(service_file, 'r') as f:
+        with open(service_file, "r") as f:
             content = f.read()
-        
+
         # Remove configure-services.service from After= and Requires= lines
         original_content = content
-        content = re.sub(r'(After=.*?)\s*configure-services\.service', r'\1', content)
-        content = re.sub(r'(Requires=.*?)\s*configure-services\.service', r'\1', content)
-        content = re.sub(r'^Requires=\s*$', '', content, flags=re.MULTILINE)
-        
+        content = re.sub(r"(After=.*?)\s*configure-services\.service", r"\1", content)
+        content = re.sub(
+            r"(Requires=.*?)\s*configure-services\.service", r"\1", content
+        )
+        content = re.sub(r"^Requires=\s*$", "", content, flags=re.MULTILINE)
+
         if content != original_content:
-            with open(service_file, 'w') as f:
+            with open(service_file, "w") as f:
                 f.write(content)
             log(f"Fixed dependencies in {service_file}")
     except Exception as e:
         log(f"Warning: Could not fix dependencies in {service_file}: {e}")
+
 
 def create_completion_marker():
     """Create a marker file to indicate deployment is complete"""
@@ -179,48 +224,100 @@ def create_completion_marker():
         f.write(f"Deployment completed at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
     log(f"Created completion marker: {marker_file}")
 
+
 def schedule_reboot():
-    """Schedule a reboot in 30 seconds"""
-    log("Scheduling system reboot in 30 seconds...")
-    run_command("shutdown -r +1 'Deployment complete, rebooting system'")
+    """Schedule a reboot in 3 seconds"""
+    log("Scheduling system reboot in 3 seconds...")
+    run_command("shutdown -r +3 'Deployment complete, rebooting system'")
+
+
+def ensure_uv_installed():
+    """Ensure uv is installed and available"""
+    log("Checking for uv installation...")
+
+    # Check if uv is already available
+    result = run_command("which uv", check=False)
+    if result.returncode == 0:
+        log(f"uv found at: {result.stdout.strip()}")
+        return True
+
+    log("uv not found, installing...")
+
+    # Install uv
+    install_cmd = "curl -LsSf https://astral.sh/uv/install.sh | sh"
+    result = run_command(install_cmd, check=False)
+    if result.returncode != 0:
+        log("Failed to install uv via curl")
+        return False
+
+    # Move uv to system location
+    commands = [
+        "mv /root/.cargo/bin/uv /usr/local/bin/uv 2>/dev/null || true",
+        "mv ~/.cargo/bin/uv /usr/local/bin/uv 2>/dev/null || true",
+        "chmod +x /usr/local/bin/uv",
+        "ln -sf /usr/local/bin/uv /usr/bin/uv",
+    ]
+
+    for cmd in commands:
+        run_command(cmd, check=False)
+
+    # Verify installation
+    result = run_command("uv --version", check=False)
+    if result.returncode == 0:
+        log(f"uv successfully installed: {result.stdout.strip()}")
+        return True
+    else:
+        log("Failed to install uv")
+        return False
+
 
 def main():
     """Main deployment logic"""
     try:
-        log("=== Starting deployment script ===")
+        # Create log file first
+        run_command("sudo touch /opt/startup.log")
+        run_command("sudo chmod 666 /opt/startup.log")
         
+        log("=== Starting deployment script ===")
+
         # Wait for cloud-init
         wait_for_cloud_init()
-        
+
+        # Ensure uv is installed
+        if not ensure_uv_installed():
+            log("ERROR: Failed to install uv, but continuing anyway...")
+
         # Create directories
         create_directories()
-        
+
         # Move files to correct locations
         move_files()
-        
+
         # Copy configuration files
         copy_configuration_files()
-        
+
         # Setup systemd services
         setup_services()
-        
+
         # Run the startup script
         run_startup_script()
-        
+
         # Create completion marker
         create_completion_marker()
-        
+
         # Schedule reboot
         schedule_reboot()
-        
+
         log("=== Deployment script completed successfully ===")
         return 0
-        
+
     except Exception as e:
         log(f"ERROR: Deployment failed: {e}")
         import traceback
+
         log(traceback.format_exc())
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

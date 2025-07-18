@@ -167,12 +167,11 @@ Create these files in the `files/` directory before deployment:
 #### How It Works
 
 1. During `deploy_spot.py create`, the credential files are uploaded to `/opt/uploaded_files/`
-2. The `bacalhau.service` runs `set_bacalhau_env.sh` which:
+2. The `bacalhau.service` runs `generate_bacalhau_config.sh` which:
    - Reads the credential files
-   - Creates a `.bacalhau.env` file with environment variables
-3. Docker Compose loads these environment variables:
-   - `BACALHAU_COMPUTE_ORCHESTRATORS` - The orchestrator endpoint
-   - `BACALHAU_COMPUTE_AUTH_TOKEN` - The authentication token
+   - Generates a complete `/bacalhau_node/config.yaml` with orchestrator endpoint and token injected
+3. Docker Compose mounts the generated config.yaml directly into the container
+   - No environment variables needed - all configuration is in the YAML file
 
 ## Key Design Patterns
 

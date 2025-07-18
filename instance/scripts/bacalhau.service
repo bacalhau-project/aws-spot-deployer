@@ -16,12 +16,9 @@ StandardError=append:/opt/startup.log
 # Wait for Docker to be ready
 ExecStartPre=/bin/bash -c 'until docker version > /dev/null 2>&1; do echo "Waiting for Docker..."; sleep 2; done'
 
-# Ensure configuration is up to date (in case credentials changed)
-ExecStartPre=/bin/bash -c 'if [ -f /opt/uploaded_files/scripts/generate_bacalhau_config.sh ]; then sudo /opt/uploaded_files/scripts/generate_bacalhau_config.sh && sudo chown ubuntu:ubuntu /bacalhau_node/config.yaml; fi'
-
 # Start Bacalhau using docker compose in foreground mode
-ExecStart=/usr/bin/docker compose --ansi never -f /opt/uploaded_files/scripts/docker-compose-bacalhau.yaml up
-ExecStop=/usr/bin/docker compose --ansi never -f /opt/uploaded_files/scripts/docker-compose-bacalhau.yaml down
+ExecStart=/usr/bin/docker compose --ansi never --quiet-pull -f /opt/uploaded_files/scripts/docker-compose-bacalhau.yaml up
+ExecStop=/usr/bin/docker compose --ansi never --quiet-pull -f /opt/uploaded_files/scripts/docker-compose-bacalhau.yaml down
 
 [Install]
 WantedBy=multi-user.target default.target

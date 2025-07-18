@@ -2,7 +2,6 @@
 import os
 import time
 import threading
-import subprocess
 from datetime import datetime
 from typing import List
 from concurrent.futures import ThreadPoolExecutor
@@ -18,7 +17,7 @@ from ..utils.display import (
     console, Table, Layout, Live
 )
 from ..utils.logging import ConsoleLogger, setup_logger
-from ..utils.ssh import transfer_files_scp, enable_startup_service, wait_for_ssh_only
+from ..utils.ssh import transfer_files_scp, wait_for_ssh_only
 from ..utils.cloud_init import generate_minimal_cloud_init
 
 
@@ -71,7 +70,8 @@ def post_creation_setup(instances, config, update_status_func, logger):
             update_status_func(instance_key, "Uploading files...")
             
             def progress_callback(phase, progress, status):
-                update_status_func(instance_key, f"{phase}: {status}")
+                # Show detailed progress
+                update_status_func(instance_key, f"{phase} ({progress}%): {status}")
             
             success = transfer_files_scp(
                 instance_ip,
@@ -88,43 +88,18 @@ def post_creation_setup(instances, config, update_status_func, logger):
                 update_status_func(instance_key, "ERROR: File upload failed", is_final=True)
                 return
             
-            logger.info(f"[{instance_id} @ {instance_ip}] SUCCESS: Files uploaded")
-            update_status_func(instance_key, "Files uploaded")
+            logger.info(f"[{instance_id} @ {instance_ip}] SUCCESS: Files uploaded and deployment started")
+            update_status_func(instance_key, "SUCCESS: Deployment started", is_final=True)
             
-            # Enable startup service
-            logger.info(f"[{instance_id} @ {instance_ip}] Configuring services...")
-            update_status_func(instance_key, "Configuring services...")
-            
-            if enable_startup_service(instance_ip, username, expanded_key_path, logger):
-                logger.info(f"[{instance_id} @ {instance_ip}] SUCCESS: Services configured")
-                update_status_func(instance_key, "SUCCESS: Setup complete - rebooting to start services", is_final=True)
-                
-                # Schedule reboot
-                reboot_cmd = [
-                    "ssh",
-                    "-i", expanded_key_path,
-                    "-o", "StrictHostKeyChecking=no",
-                    "-o", "UserKnownHostsFile=/dev/null",
-                    f"{username}@{instance_ip}",
-                    "sudo shutdown -r +1 'Rebooting to start services' && echo 'Reboot scheduled'"
-                ]
-                
-                try:
-                    result = subprocess.run(reboot_cmd, capture_output=True, text=True, timeout=10)
-                    if result.returncode == 0:
-                        logger.info(f"[{instance_id} @ {instance_ip}] Reboot scheduled")
-                    else:
-                        logger.warning(f"[{instance_id} @ {instance_ip}] Could not schedule reboot: {result.stderr}")
-                except Exception as e:
-                    logger.warning(f"[{instance_id} @ {instance_ip}] Reboot scheduling failed: {e}")
-                
-            else:
-                logger.error(f"[{instance_id} @ {instance_ip}] Service configuration failed")
-                update_status_func(instance_key, "ERROR: Service config failed", is_final=True)
+            # Deployment script is now running in background
+            logger.info(f"[{instance_id} @ {instance_ip}] Deployment running in background - check ~/deployment.log")
         
         except Exception as e:
             logger.error(f"[{instance_id} @ {instance_ip}] Setup failed: {e}")
-            update_status_func(instance_key, f"ERROR: {str(e)[:30]}", is_final=True)
+            error_msg = str(e)
+            if len(error_msg) > 40:
+                error_msg = f"{error_msg[:37]}..."
+            update_status_func(instance_key, f"ERROR: {error_msg}", is_final=True)
     
     # Process instances in parallel
     with ThreadPoolExecutor(max_workers=len(instances), thread_name_prefix="Setup") as executor:
@@ -162,37 +137,69 @@ def create_instances_in_region_with_table(
         update_status_func(key, "Finding VPC")
     
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        from botocore.config import Config as BotoConfig
         
-        # Get default VPC
-        vpcs = ec2.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
-        if not vpcs["Vpcs"]:
-            log_message(f"No default VPC found in {region}")
-            for key in instance_keys:
-                update_status_func(key, "ERROR: No default VPC", is_final=True)
-            return []
-        
-        vpc_id = vpcs["Vpcs"][0]["VpcId"]
-        log_message(f"Found VPC in {region}: {vpc_id}")
-        
-        for key in instance_keys:
-            update_status_func(key, "Finding subnet")
-        
-        # Get subnet
-        subnets = ec2.describe_subnets(
-            Filters=[
-                {"Name": "vpc-id", "Values": [vpc_id]},
-                {"Name": "default-for-az", "Values": ["true"]},
-            ]
+        # Configure boto3 to not retry capacity errors
+        boto_config = BotoConfig(
+            retries={
+                'max_attempts': 1,  # No retries, fail fast
+                'mode': 'standard'
+            }
         )
-        if not subnets["Subnets"]:
-            log_message(f"No default subnets found in {region}")
-            for key in instance_keys:
-                update_status_func(key, "ERROR: No subnets", is_final=True)
-            return []
         
-        subnet_id = subnets["Subnets"][0]["SubnetId"]
-        log_message(f"Using subnet in {region}: {subnet_id}")
+        ec2 = boto3.client("ec2", region_name=region, config=boto_config)
+        
+        # Check if we should use dedicated VPC
+        if config.use_dedicated_vpc():
+            for key in instance_keys:
+                update_status_func(key, "Creating dedicated VPC")
+            
+            # Create dedicated VPC for this deployment
+            from ..utils.aws import create_deployment_vpc
+            
+            # Generate a deployment ID that's shared across all regions
+            if not hasattr(config, '_deployment_id'):
+                config._deployment_id = f"spot-{int(time.time())}"
+            
+            try:
+                vpc_id, subnet_id, igw_id = create_deployment_vpc(ec2, region, config._deployment_id)
+                log_message(f"Created dedicated VPC in {region}: {vpc_id}")
+                log_message(f"Created subnet: {subnet_id}, IGW: {igw_id}")
+            except Exception as e:
+                log_message(f"Failed to create VPC in {region}: {e}")
+                for key in instance_keys:
+                    update_status_func(key, "ERROR: VPC creation failed", is_final=True)
+                return []
+        else:
+            # Use default VPC (old behavior)
+            vpcs = ec2.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
+            if not vpcs["Vpcs"]:
+                log_message(f"No default VPC found in {region}")
+                for key in instance_keys:
+                    update_status_func(key, "ERROR: No default VPC", is_final=True)
+                return []
+            
+            vpc_id = vpcs["Vpcs"][0]["VpcId"]
+            log_message(f"Found VPC in {region}: {vpc_id}")
+            
+            for key in instance_keys:
+                update_status_func(key, "Finding subnet")
+            
+            # Get subnet
+            subnets = ec2.describe_subnets(
+                Filters=[
+                    {"Name": "vpc-id", "Values": [vpc_id]},
+                    {"Name": "default-for-az", "Values": ["true"]},
+                ]
+            )
+            if not subnets["Subnets"]:
+                log_message(f"No default subnets found in {region}")
+                for key in instance_keys:
+                    update_status_func(key, "ERROR: No subnets", is_final=True)
+                return []
+            
+            subnet_id = subnets["Subnets"][0]["SubnetId"]
+            log_message(f"Using subnet in {region}: {subnet_id}")
         
         for key in instance_keys:
             update_status_func(key, "Creating security group")
@@ -237,16 +244,16 @@ def create_instances_in_region_with_table(
             "SpotOptions": {"SpotInstanceType": "one-time"},
         }
         
-        result = ec2.run_instances(
-            ImageId=ami_id,
-            MinCount=count,
-            MaxCount=count,
-            InstanceType=machine_type,
-            KeyName=config.ssh_key_name(),
-            SecurityGroupIds=[sg_id],
-            SubnetId=subnet_id,
-            InstanceMarketOptions=market_options,
-            BlockDeviceMappings=[
+        # Build run_instances parameters
+        run_params = {
+            "ImageId": ami_id,
+            "MinCount": count,
+            "MaxCount": count,
+            "InstanceType": machine_type,
+            "SecurityGroupIds": [sg_id],
+            "SubnetId": subnet_id,
+            "InstanceMarketOptions": market_options,
+            "BlockDeviceMappings": [
                 {
                     "DeviceName": "/dev/sda1",
                     "Ebs": {
@@ -256,18 +263,21 @@ def create_instances_in_region_with_table(
                     },
                 }
             ],
-            TagSpecifications=[
+            "TagSpecifications": [
                 {
                     "ResourceType": "instance",
                     "Tags": [
                         {"Key": "Name", "Value": f"spot-{region}"},
                         {"Key": "ManagedBy", "Value": "SpotDeployer"},
                     ]
-                    + [{"Key": k, "Value": v} for k, v in config.tags().items()],
+                    + [{"Key": k, "Value": v} for k, v in config.tags().items() if k != "ManagedBy"],
                 }
             ],
-            UserData=cloud_init_script,
-        )
+            "UserData": cloud_init_script,
+        }
+        
+        # We don't use AWS KeyName - SSH key is injected via cloud-init
+        result = ec2.run_instances(**run_params)
         
         # Wait for instances to get public IPs
         created_instances = []
@@ -311,7 +321,6 @@ def create_instances_in_region_with_table(
                             # Check if we already added this instance
                             if not any(ci["id"] == inst_id for ci in created_instances):
                                 created_instances.append(instance_data)
-                                log_message(f"[{inst_id} @ {public_ip}] SUCCESS: Created")
                                 update_status_func(
                                     key,
                                     "SUCCESS: Created",
@@ -342,9 +351,33 @@ def create_instances_in_region_with_table(
         return created_instances
     
     except Exception as e:
-        log_message(f"Error creating instances in {region}: {e}")
+        error_msg = str(e)
+        log_message(f"Error creating instances in {region}: {error_msg}")
+        
+        # Handle capacity errors specially - just skip this region
+        if "InsufficientInstanceCapacity" in error_msg:
+            log_message(f"No capacity in {region}, skipping")
+            for key in instance_keys:
+                update_status_func(key, "SKIPPED: No capacity", is_final=True)
+            return []  # Return empty list, no instances created
+        elif "Parameter validation failed" in error_msg:
+            # AWS parameter validation errors often have the details after a colon
+            if "Invalid" in error_msg:
+                # Try to extract the specific validation error
+                parts = error_msg.split("Invalid")
+                if len(parts) > 1:
+                    short_error = f"Invalid{parts[1][:40]}..."
+                else:
+                    short_error = error_msg[:50]
+            else:
+                short_error = "Parameter validation failed"
+        elif len(error_msg) > 50:
+            short_error = f"{error_msg[:47]}..."
+        else:
+            short_error = error_msg
+            
         for key in instance_keys:
-            update_status_func(key, f"ERROR: {str(e)[:30]}", is_final=True)
+            update_status_func(key, f"ERROR: {short_error}", is_final=True)
         return []
 
 
@@ -355,13 +388,13 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     
     # Show helpful info about the deployment process
     console.print("\n[bold cyan]🚀 Starting AWS Spot Instance Deployment[/bold cyan]")
-    console.print("\n[bold]Hands-off Deployment Process:[/bold]")
+    console.print("\n[bold]Simplified Deployment Process:[/bold]")
     console.print("1. [yellow]Create Instances[/yellow] - Request spot instances from AWS")
-    console.print("2. [blue]Wait for SSH[/blue] - Basic connectivity check")
-    console.print("3. [green]Upload Files[/green] - Transfer scripts and configuration")
-    console.print("4. [magenta]Enable Service[/magenta] - Set up systemd service")
-    console.print("5. [cyan]Disconnect[/cyan] - Let cloud-init complete autonomously")
-    console.print("\n[dim]After ~5 minutes, instances will be fully configured and running.[/dim]\n")
+    console.print("2. [blue]Cloud-init Setup[/blue] - Install Docker, uv, create directories")
+    console.print("3. [green]SSH Available[/green] - Wait for connectivity")
+    console.print("4. [magenta]Upload & Deploy[/magenta] - Transfer files and start deployment")
+    console.print("5. [cyan]Background Setup[/cyan] - Services configure and reboot automatically")
+    console.print("\n[dim]Check deployment progress: ssh ubuntu@<ip> 'tail -f ~/deployment.log'[/dim]\n")
     
     # Setup local logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -376,11 +409,25 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     
     rich_status(f"Logging to local file: {log_filename}")
     
-    # Check for SSH key
+    # Check for SSH key configuration
+    public_key_path = config.public_ssh_key_path()
     private_key_path = config.private_ssh_key_path()
+    
+    if not public_key_path:
+        rich_error("❌ No 'public_ssh_key_path' configured in config.yaml")
+        rich_error("   This is required to inject your SSH key into instances.")
+        return
+    
+    # Check if public key exists
+    expanded_public_path = os.path.expanduser(public_key_path)
+    if not os.path.exists(expanded_public_path):
+        rich_error(f"Public SSH key not found at '{public_key_path}'")
+        return
+    
+    # Check private key for SSH operations
     if private_key_path:
-        expanded_path = os.path.expanduser(private_key_path)
-        if not os.path.exists(expanded_path):
+        expanded_private_path = os.path.expanduser(private_key_path)
+        if not os.path.exists(expanded_private_path):
             rich_error(f"Private SSH key not found at '{private_key_path}'")
             return
     else:
@@ -409,6 +456,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         rich_warning("No instances configured to be created.")
         return
     
+    # Track regions that were skipped due to capacity
+    skipped_regions = set()
+    
     creation_status = {}
     all_instances = []
     lock = threading.Lock()
@@ -429,8 +479,10 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             }
     
     def generate_layout():
+        # Count active (non-skipped) instances
+        active_count = sum(1 for item in creation_status.values() if "SKIPPED" not in item["status"])
         table = Table(
-            title=f"Creating {total_instances_to_create} instances",
+            title=f"Creating instances ({active_count} active)",
             show_header=True,
             width=ColumnWidths.get_total_width(),
         )
@@ -444,6 +496,10 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         sorted_items = sorted(creation_status.items(), key=lambda x: x[0])
         for key, item in sorted_items:
             status = item["status"]
+            # Don't show skipped instances in the table
+            if "SKIPPED" in status:
+                continue
+                
             if "SUCCESS" in status:
                 status_style = f"[bold green]{status}[/bold green]"
             elif "ERROR" in status:
@@ -462,7 +518,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         
         try:
             with open(log_filename, 'r') as f:
-                log_content = "\n".join(f.readlines()[-10:])
+                # Read last 10 lines and strip trailing newlines
+                lines = [line.rstrip() for line in f.readlines()[-10:]]
+                log_content = "\n".join(lines)
         except (FileNotFoundError, IOError):
             log_content = "Waiting for log entries..."
         
@@ -510,15 +568,30 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         live.update(generate_layout())  # Final update after creation phase
         
         if all_instances:
-            rich_status("All instances created. Starting post-creation setup...")
+            rich_status(f"Created {len(all_instances)} instances. Starting file upload and deployment...")
             live.update(generate_layout())
             
+            # Always run post-creation setup to upload files
             post_creation_setup(all_instances, config, update_status, logger)
             
             # Keep the live display running during setup
             live.update(generate_layout())
+        else:
+            rich_error("No instances were successfully created.")
     
+    # Show summary
     rich_success(f"Deployment process complete for {len(all_instances)} instances.")
+    
+    # Count skipped regions
+    skipped_count = sum(1 for item in creation_status.values() if "SKIPPED" in item["status"])
+    if skipped_count > 0:
+        skipped_regions = set()
+        for key, item in creation_status.items():
+            if "SKIPPED" in item["status"]:
+                skipped_regions.add(item["region"])
+        if skipped_regions:
+            rich_warning(f"Skipped {len(skipped_regions)} region(s) due to no capacity: {', '.join(sorted(skipped_regions))}")
+    
     state.save_instances(all_instances)
     
     # Import and call cmd_list to show final state

@@ -47,7 +47,7 @@ def generate_minimal_cloud_init(config: SimpleConfig) -> str:
         rich_warning("No public SSH key found - SSH access may not work")
         public_key = ""
     
-    # Create minimal cloud-init script
+    # Create minimal cloud-init script - NO REBOOT, NO COMPLEX SERVICES
     cloud_init_script = f"""#cloud-config
 
 users:
@@ -73,77 +73,33 @@ packages:
   - lsb-release
 
 runcmd:
-  - echo "Package updates starting" > /tmp/cloud-init-status
-  - echo "[$(date)] Cloud-init starting" >> /var/log/startup-progress.log
+  # Just create a basic log file in /tmp for cloud-init status
+  - touch /tmp/cloud-init-status.log
+  - chmod 666 /tmp/cloud-init-status.log
   
-  # Create directories for uploaded files immediately
-  - mkdir -p /opt/uploaded_files/scripts /opt/uploaded_files/config
-  - mkdir -p /tmp/uploaded_files/scripts /tmp/uploaded_files/config
-  - mkdir -p /tmp/exs  # Temporary location for service files
-  - chown -R {config.username()}:{config.username()} /opt/uploaded_files
-  - chown -R {config.username()}:{config.username()} /tmp/uploaded_files
-  - chown -R {config.username()}:{config.username()} /tmp/exs
-  - chmod -R 755 /opt/uploaded_files /tmp/uploaded_files /tmp/exs
-  - echo "Upload directories created" > /tmp/cloud-init-status
-  
-  # Create startup log with proper permissions
-  - touch /opt/startup.log
-  - chown {config.username()}:{config.username()} /opt/startup.log
-  - chmod 666 /opt/startup.log
-  
-  # Install Docker from official repository
-  - echo "Installing Docker" > /tmp/cloud-init-status
-  - mkdir -p /etc/apt/keyrings
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-  - apt-get update
-  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  - systemctl enable docker
-  - systemctl start docker
-  - usermod -aG docker {config.username()}
-  - docker --version
-  - docker compose version
-  
-  - echo "SSH key setup" > /tmp/cloud-init-status
-  # Ensure SSH directory is properly set up
-  - mkdir -p /home/{config.username()}/.ssh
-  - echo "{public_key}" > /home/{config.username()}/.ssh/authorized_keys
-  - chown -R {config.username()}:{config.username()} /home/{config.username()}/.ssh
-  - chmod 700 /home/{config.username()}/.ssh
-  - chmod 600 /home/{config.username()}/.ssh/authorized_keys
-  
-  
-  - echo "Finalizing setup" > /tmp/cloud-init-status
-  
-  # Signal that instance is ready
-  - echo "Cloud-init finalizing" > /tmp/cloud-init-status
-  - echo "[$(date)] All configurations complete" >> /var/log/startup-progress.log
-  - echo "Instance setup complete" > /tmp/setup_complete
-  - chown {config.username()}:{config.username()} /tmp/setup_complete
-  - echo "Ready for connections" > /tmp/cloud-init-status
-  
-  # Create a marker file to signal cloud-init completion
-  - echo "[$(date)] Cloud-init base setup complete" > /tmp/cloud-init-complete
-  - echo "Base setup complete" > /tmp/cloud-init-status
-  
-  # Ensure Docker is fully installed and running
+  # Install uv
   - |
-    echo "Verifying Docker installation..." >> /var/log/startup-progress.log
-    for i in {{1..30}}; do
-      if systemctl is-active --quiet docker && docker --version && docker compose version; then
-        echo "Docker verified as working" >> /var/log/startup-progress.log
-        break
-      else
-        echo "Waiting for Docker to be ready... (attempt $i/30)" >> /var/log/startup-progress.log
-        sleep 2
-      fi
-    done
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    if [ -f /root/.local/bin/uv ]; then
+      mv /root/.local/bin/uv /usr/local/bin/uv
+      chmod +x /usr/local/bin/uv
+      ln -sf /usr/local/bin/uv /usr/bin/uv
+    fi
   
-  # Signal completion
-  - echo "[$(date)] Cloud-init initial setup complete" >> /var/log/startup-progress.log
-  - echo "[$(date)] Waiting for file upload and service configuration" >> /opt/startup.log
+  # Install Docker
+  - |
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    apt-get update
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    systemctl enable docker
+    systemctl start docker
+    usermod -aG docker {config.username()}
   
-  # Note: We do NOT reboot here. Services will start naturally after files are uploaded.
+  # Mark cloud-init complete
+  - echo "[$(date)] Cloud-init complete - ready for deployment" > /tmp/cloud-init-complete
+  - echo "[$(date)] Ready for file upload and deployment" >> /opt/startup.log
 """
     
     return cloud_init_script

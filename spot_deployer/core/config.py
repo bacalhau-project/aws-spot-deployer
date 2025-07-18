@@ -36,7 +36,7 @@ class SimpleConfig:
         return self.data.get("aws", {}).get("username", "ubuntu")
 
     def ssh_key_name(self) -> Optional[str]:
-        """Get SSH key name if configured."""
+        """Get SSH key name if configured. (Deprecated - we use local SSH keys via cloud-init)"""
         return self.data.get("aws", {}).get("ssh_key_name")
 
     def public_ssh_key_path(self) -> Optional[str]:
@@ -127,6 +127,14 @@ class SimpleConfig:
     def tags(self) -> Dict[str, str]:
         """Get additional tags for instances."""
         return self.data.get("aws", {}).get("tags", {})
+    
+    def use_dedicated_vpc(self) -> bool:
+        """Whether to create dedicated VPCs for each deployment."""
+        return self.data.get("aws", {}).get("use_dedicated_vpc", False)
+    
+    def ensure_default_vpc(self) -> bool:
+        """Whether to create default VPCs if they don't exist."""
+        return self.data.get("aws", {}).get("ensure_default_vpc", True)
 
     def region_config(self, region: str) -> Dict:
         """Get config for specific region."""

@@ -3,7 +3,7 @@ import logging
 import re
 from typing import Optional
 
-from .display import RICH_AVAILABLE, console
+from .display import console
 
 
 class ConsoleLogger(logging.Handler):
@@ -63,19 +63,10 @@ class ConsoleLogger(logging.Handler):
                 if not msg.startswith(prefix) and not msg.startswith(f"[{instance_key}"):
                     msg = f"{prefix} {msg}"
             
-            # Only print SUCCESS and ERROR messages to console
-            if "SUCCESS:" in msg or "ERROR:" in msg:
-                # Print with appropriate styling
-                if "SUCCESS:" in msg:
-                    if self.console and RICH_AVAILABLE:
-                        self.console.print(f"[bold green]{msg}[/bold green]")
-                    else:
-                        print(msg)
-                elif "ERROR:" in msg:
-                    if self.console and RICH_AVAILABLE:
-                        self.console.print(f"[bold red]{msg}[/bold red]")
-                    else:
-                        print(msg)
+            # During instance creation, we don't want console output
+            # as it interferes with the live table display
+            # Messages are still logged to the file
+            pass
         
         except Exception:
             self.handleError(record)

@@ -3,7 +3,7 @@ import os
 import json
 import time
 import threading
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 from datetime import datetime
 
 import boto3
@@ -194,3 +194,230 @@ def create_simple_security_group(ec2, vpc_id: str, group_name: str = "spot-deplo
     except Exception as e:
         print(f"Error creating security group: {e}")
         raise
+
+
+def create_deployment_vpc(ec2_client, region: str, deployment_id: str = None) -> Tuple[str, str, str]:
+    """
+    Create a dedicated VPC for spot deployment with all necessary components.
+    
+    Returns: (vpc_id, subnet_id, internet_gateway_id)
+    """
+    if not deployment_id:
+        deployment_id = f"spot-deploy-{int(time.time())}"
+    
+    try:
+        # Create VPC with a /16 CIDR block
+        vpc_response = ec2_client.create_vpc(CidrBlock="10.0.0.0/16")
+        vpc_id = vpc_response["Vpc"]["VpcId"]
+        
+        # Wait for VPC to be available
+        waiter = ec2_client.get_waiter("vpc_available")
+        waiter.wait(VpcIds=[vpc_id])
+        
+        # Enable DNS hostnames for the VPC
+        ec2_client.modify_vpc_attribute(
+            VpcId=vpc_id,
+            EnableDnsHostnames={"Value": True}
+        )
+        
+        # Tag the VPC
+        ec2_client.create_tags(
+            Resources=[vpc_id],
+            Tags=[
+                {"Key": "Name", "Value": f"spot-deployer-{region}"},
+                {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                {"Key": "DeploymentId", "Value": deployment_id},
+            ]
+        )
+        
+        # Create subnet in the first availability zone
+        azs = ec2_client.describe_availability_zones(
+            Filters=[{"Name": "state", "Values": ["available"]}]
+        )
+        first_az = azs["AvailabilityZones"][0]["ZoneName"]
+        
+        subnet_response = ec2_client.create_subnet(
+            VpcId=vpc_id,
+            CidrBlock="10.0.1.0/24",
+            AvailabilityZone=first_az
+        )
+        subnet_id = subnet_response["Subnet"]["SubnetId"]
+        
+        # Enable auto-assign public IP on subnet
+        ec2_client.modify_subnet_attribute(
+            SubnetId=subnet_id,
+            MapPublicIpOnLaunch={"Value": True}
+        )
+        
+        # Tag the subnet
+        ec2_client.create_tags(
+            Resources=[subnet_id],
+            Tags=[
+                {"Key": "Name", "Value": f"spot-deployer-subnet-{region}"},
+                {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                {"Key": "DeploymentId", "Value": deployment_id},
+            ]
+        )
+        
+        # Create Internet Gateway
+        igw_response = ec2_client.create_internet_gateway()
+        igw_id = igw_response["InternetGateway"]["InternetGatewayId"]
+        
+        # Tag the Internet Gateway
+        ec2_client.create_tags(
+            Resources=[igw_id],
+            Tags=[
+                {"Key": "Name", "Value": f"spot-deployer-igw-{region}"},
+                {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                {"Key": "DeploymentId", "Value": deployment_id},
+            ]
+        )
+        
+        # Attach Internet Gateway to VPC
+        ec2_client.attach_internet_gateway(
+            InternetGatewayId=igw_id,
+            VpcId=vpc_id
+        )
+        
+        # Get the main route table for the VPC
+        route_tables = ec2_client.describe_route_tables(
+            Filters=[
+                {"Name": "vpc-id", "Values": [vpc_id]},
+                {"Name": "association.main", "Values": ["true"]}
+            ]
+        )
+        main_route_table_id = route_tables["RouteTables"][0]["RouteTableId"]
+        
+        # Add route to Internet Gateway
+        ec2_client.create_route(
+            RouteTableId=main_route_table_id,
+            DestinationCidrBlock="0.0.0.0/0",
+            GatewayId=igw_id
+        )
+        
+        # Tag the route table
+        ec2_client.create_tags(
+            Resources=[main_route_table_id],
+            Tags=[
+                {"Key": "Name", "Value": f"spot-deployer-rt-{region}"},
+                {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                {"Key": "DeploymentId", "Value": deployment_id},
+            ]
+        )
+        
+        return vpc_id, subnet_id, igw_id
+        
+    except Exception as e:
+        print(f"Error creating VPC in {region}: {e}")
+        # Clean up any resources that were created
+        try:
+            if 'vpc_id' in locals():
+                delete_deployment_vpc(ec2_client, vpc_id)
+        except Exception:
+            pass
+        raise
+
+
+def delete_deployment_vpc(ec2_client, vpc_id: str) -> bool:
+    """
+    Delete a VPC and all its associated resources.
+    This handles dependencies in the correct order.
+    """
+    try:
+        # First, delete all instances in the VPC
+        instances = ec2_client.describe_instances(
+            Filters=[
+                {"Name": "vpc-id", "Values": [vpc_id]},
+                {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}
+            ]
+        )
+        
+        instance_ids = []
+        for reservation in instances["Reservations"]:
+            for instance in reservation["Instances"]:
+                instance_ids.append(instance["InstanceId"])
+        
+        if instance_ids:
+            ec2_client.terminate_instances(InstanceIds=instance_ids)
+            # Don't wait for termination
+        
+        # Delete security groups (except default)
+        security_groups = ec2_client.describe_security_groups(
+            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+        )
+        
+        for sg in security_groups["SecurityGroups"]:
+            if sg["GroupName"] != "default":
+                try:
+                    ec2_client.delete_security_group(GroupId=sg["GroupId"])
+                except Exception:
+                    pass  # Ignore errors and continue
+        
+        # Detach and delete Internet Gateways
+        igws = ec2_client.describe_internet_gateways(
+            Filters=[{"Name": "attachment.vpc-id", "Values": [vpc_id]}]
+        )
+        
+        for igw in igws["InternetGateways"]:
+            igw_id = igw["InternetGatewayId"]
+            ec2_client.detach_internet_gateway(InternetGatewayId=igw_id, VpcId=vpc_id)
+            ec2_client.delete_internet_gateway(InternetGatewayId=igw_id)
+        
+        # Delete subnets
+        subnets = ec2_client.describe_subnets(
+            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+        )
+        
+        for subnet in subnets["Subnets"]:
+            ec2_client.delete_subnet(SubnetId=subnet["SubnetId"])
+        
+        # Delete route tables (except main)
+        route_tables = ec2_client.describe_route_tables(
+            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+        )
+        
+        for rt in route_tables["RouteTables"]:
+            # Skip if it's the main route table
+            if not any(assoc.get("Main", False) for assoc in rt.get("Associations", [])):
+                try:
+                    ec2_client.delete_route_table(RouteTableId=rt["RouteTableId"])
+                except Exception as e:
+                    print(f"Warning: Could not delete route table {rt['RouteTableId']}: {e}")
+        
+        # Finally, delete the VPC
+        ec2_client.delete_vpc(VpcId=vpc_id)
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error deleting VPC {vpc_id}: {e}")
+        return False
+
+
+def ensure_default_vpc(ec2_client, region: str) -> Optional[str]:
+    """
+    Ensure a default VPC exists in the region. Create one if it doesn't.
+    Returns the VPC ID of the default VPC.
+    """
+    try:
+        # Check for existing default VPC
+        vpcs = ec2_client.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
+        
+        if vpcs["Vpcs"]:
+            return vpcs["Vpcs"][0]["VpcId"]
+        
+        # Create default VPC if it doesn't exist
+        print(f"No default VPC found in {region}, creating one...")
+        response = ec2_client.create_default_vpc()
+        vpc_id = response["Vpc"]["VpcId"]
+        
+        # Wait for VPC to be available
+        waiter = ec2_client.get_waiter("vpc_available")
+        waiter.wait(VpcIds=[vpc_id])
+        
+        print(f"Created default VPC {vpc_id} in {region}")
+        return vpc_id
+        
+    except Exception as e:
+        print(f"Error ensuring default VPC in {region}: {e}")
+        return None

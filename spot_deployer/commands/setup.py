@@ -18,7 +18,6 @@ def cmd_setup(config: SimpleConfig) -> None:
         "aws": {
             "total_instances": 3,
             "username": "ubuntu",
-            "ssh_key_name": "your-ssh-key-name",
             "public_ssh_key_path": "~/.ssh/id_rsa.pub",
             "private_ssh_key_path": "~/.ssh/id_rsa",
             "files_directory": "files",
@@ -27,6 +26,7 @@ def cmd_setup(config: SimpleConfig) -> None:
             "startup_script": "instance/scripts/startup.py",
             "instance_storage_gb": 50,
             "tags": {"Project": "SpotDeployer"},
+            "use_dedicated_vpc": True,  # Create isolated VPC per deployment
         },
         "regions": [
             {"us-west-2": {"image": "auto", "machine_type": "t3.medium"}},

@@ -44,3 +44,13 @@ class SimpleStateManager:
         instances = [i for i in instances if i.get("region") != region]
         self.save_instances(instances)
         return original_count - len(instances)
+
+    def remove_instance(self, instance_id: str) -> bool:
+        """Remove a specific instance by ID."""
+        instances = self.load_instances()
+        original_count = len(instances)
+        instances = [i for i in instances if i.get("id") != instance_id]
+        if len(instances) < original_count:
+            self.save_instances(instances)
+            return True
+        return False

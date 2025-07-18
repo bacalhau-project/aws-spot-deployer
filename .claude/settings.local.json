@@ -67,7 +67,12 @@
       "Bash(touch:*)",
       "Bash(SSH_KEY=/Users/daaronch/.ssh/id_ed25519 ./check_deployment.sh 18.116.87.213)",
       "Bash(git log:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(./test_deploy_watcher.sh:*)",
+      "Bash(./test_deploy_watcher_comprehensive.sh:*)",
+      "Bash(./test_upload_process.sh:*)",
+      "Bash(./test_systemd_services.sh:*)",
+      "Bash(./test_directory_permissions.sh:*)"
     ],
     "deny": []
   }
