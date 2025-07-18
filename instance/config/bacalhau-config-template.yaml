@@ -1,7 +1,6 @@
-# Bacalhau Compute Node Configuration
-# This file is copied to /bacalhau_node/config.yaml by the setup-config service
+# Bacalhau Compute Node Configuration Template
+# This template has credentials injected during deployment
 
-# Node name provider - uses hostname for unique identification
 NameProvider: hostname
 
 # Data directory for Bacalhau
@@ -15,7 +14,12 @@ API:
 # Compute node configuration
 Compute:
   Enabled: true
-  # Orchestrators are configured via BACALHAU_COMPUTE_ORCHESTRATORS environment variable
+  Orchestrators:
+    - {{ORCHESTRATOR_ENDPOINT}}
+  Auth:
+    Token: "{{ORCHESTRATOR_TOKEN}}"
+  TLS:
+    RequireTLS: true
   # Network port range for compute jobs
   Network:
     PortRangeStart: 20000

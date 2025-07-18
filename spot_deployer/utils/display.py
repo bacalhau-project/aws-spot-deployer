@@ -15,7 +15,7 @@ try:
         TimeElapsedColumn,
     )
     from rich.table import Table  # noqa: F401 - Re-exported for other modules
-    
+
     RICH_AVAILABLE = True
     console = Console()
 except ImportError:
@@ -59,11 +59,11 @@ def rich_warning(message: str) -> None:
     rich_print(f"⚠️  {message}", "yellow")
 
 
-def create_progress_bar(description: str, total: int = 100) -> Progress:
+def create_progress_bar(description: str, total: int = 100):
     """Create a Rich progress bar."""
     if not RICH_AVAILABLE:
         return None
-    
+
     progress = Progress(
         SpinnerColumn(),
         TextColumn("[bold blue]{task.description}"),
@@ -73,6 +73,6 @@ def create_progress_bar(description: str, total: int = 100) -> Progress:
         console=console,
         transient=True,
     )
-    
+
     task = progress.add_task(description, total=total)
     return progress, task

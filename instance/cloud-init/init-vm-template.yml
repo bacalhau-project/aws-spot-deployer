@@ -20,20 +20,8 @@ package_upgrade: true
 runcmd:
   - mkdir -p /tmp/exs
   - tar -xzf /tmp/scripts.tar.gz -C /tmp/exs
-  - |
-    # Remove minimal packages only if DNF is available (i.e., on Amazon Linux 2023).
-    all_packages="curl gnupg2 jq python3 python3-pip"
-    if command -v dnf >/dev/null 2>&1; then
-      dnf install --allowerasing -y $all_packages
-    elif command -v apt >/dev/null 2>&1; then
-      apt update
-      apt install -y $all_packages
-    elif command -v yum >/dev/null 2>&1; then
-      yum install -y $all_packages
-    else
-      echo "Unsupported package manager"
-      exit 1
-    fi
+  - apt update
+  - apt install -y $all_packages
 
   # Install Docker
   - mv /tmp/exs/install-docker.sh /root/install-docker.sh
@@ -58,9 +46,6 @@ runcmd:
   - mv /tmp/exs/docker-compose.yaml ${bacalhau_node_dir}/docker-compose.yaml
 
   # Set correct permissions
-  - chmod 0600 /etc/systemd/system/bacalhau-startup.service
-  - chmod 0755 /usr/local/bin/setup_orchestrator.py
-  - chmod 0700 /usr/local/bin/startup.py
   - chmod 0400 ${bacalhau_node_dir}/config.yaml
   - chmod 0400 ${bacalhau_node_dir}/docker-compose.yaml
   - chmod 0777 ${bacalhau_data_dir}
@@ -92,13 +77,16 @@ runcmd:
   - systemctl daemon-reload
   - systemctl enable docker
   - systemctl start docker
-  - systemctl enable bacalhau-startup.service
-  - systemctl start bacalhau-startup.service
+  - systemctl enable bacalhau.service
+  - systemctl start bacalhau.service
+  - systemctl enable sensor-generator.service
+  - systemctl start sensor-generator.service
+
+  - uv run /usr/local/bin/startup.py
 
   # Run additional commands if file exists
   - test -f /tmp/exs/additional_commands.sh && sh -c /tmp/exs/additional_commands.sh
 
 power_state:
   mode: reboot
-  timeout: 1800
   condition: True

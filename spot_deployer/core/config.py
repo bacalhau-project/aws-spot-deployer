@@ -1,7 +1,9 @@
 """Configuration management for spot deployer."""
+
 import os
-import yaml
 from typing import Dict, List, Optional
+
+import yaml
 
 
 class SimpleConfig:
@@ -95,7 +97,7 @@ class SimpleConfig:
     def bacalhau_config_template(self) -> str:
         """Get Bacalhau config template path."""
         return self.data.get("aws", {}).get(
-            "bacalhau_config_template", "instance/config/config-template.yaml"
+            "bacalhau_config_template", "instance/config/bacalhau-config-template.yaml"
         )
 
     def docker_compose_template(self) -> str:
@@ -127,11 +129,11 @@ class SimpleConfig:
     def tags(self) -> Dict[str, str]:
         """Get additional tags for instances."""
         return self.data.get("aws", {}).get("tags", {})
-    
+
     def use_dedicated_vpc(self) -> bool:
         """Whether to create dedicated VPCs for each deployment."""
         return self.data.get("aws", {}).get("use_dedicated_vpc", False)
-    
+
     def ensure_default_vpc(self) -> bool:
         """Whether to create default VPCs if they don't exist."""
         return self.data.get("aws", {}).get("ensure_default_vpc", True)

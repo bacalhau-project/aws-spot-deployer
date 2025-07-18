@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env uv run
 # /// script
 # requires-python = ">=3.9"
 # dependencies = [
@@ -28,4 +28,5 @@ Usage:
 
 if __name__ == "__main__":
     from spot_deployer.main import main
+
     main()

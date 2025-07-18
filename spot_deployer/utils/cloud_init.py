@@ -1,4 +1,5 @@
 """Cloud-init configuration generation."""
+
 import os
 import tarfile
 import tempfile
@@ -10,7 +11,7 @@ from .display import rich_warning
 def create_deployment_bundle(config: SimpleConfig) -> str:
     """Create a tar.gz bundle of all deployment files."""
     bundle_file = os.path.join(tempfile.gettempdir(), "deployment-bundle.tar.gz")
-    
+
     with tarfile.open(bundle_file, "w:gz") as tar:
         # Add scripts
         scripts_dir = config.scripts_directory()
@@ -19,7 +20,7 @@ def create_deployment_bundle(config: SimpleConfig) -> str:
                 filepath = os.path.join(scripts_dir, file)
                 if os.path.isfile(filepath):
                     tar.add(filepath, arcname=f"scripts/{file}")
-        
+
         # Add configs
         config_dir = "instance/config"
         if os.path.exists(config_dir):
@@ -27,7 +28,7 @@ def create_deployment_bundle(config: SimpleConfig) -> str:
                 filepath = os.path.join(config_dir, file)
                 if os.path.isfile(filepath):
                     tar.add(filepath, arcname=f"config/{file}")
-        
+
         # Add user files
         files_dir = config.files_directory()
         if os.path.exists(files_dir):
@@ -35,7 +36,7 @@ def create_deployment_bundle(config: SimpleConfig) -> str:
                 filepath = os.path.join(files_dir, file)
                 if os.path.isfile(filepath):
                     tar.add(filepath, arcname=f"{file}")
-    
+
     return bundle_file
 
 
@@ -46,7 +47,7 @@ def generate_minimal_cloud_init(config: SimpleConfig) -> str:
     if not public_key:
         rich_warning("No public SSH key found - SSH access may not work")
         public_key = ""
-    
+
     # Create minimal cloud-init script - NO REBOOT, NO COMPLEX SERVICES
     cloud_init_script = f"""#cloud-config
 
@@ -97,47 +98,45 @@ runcmd:
     systemctl start docker
     usermod -aG docker {config.username()}
   
+  # Create a watcher script that waits for files and runs deployment
+  - |
+    cat > /usr/local/bin/watch-for-deployment.sh << 'EOF'
+    #!/bin/bash
+    # Wait for uploaded files marker
+    while [ ! -f /tmp/uploaded_files_ready ]; do
+      sleep 2
+    done
+    
+    # Files are ready, run deployment
+    if [ -f /tmp/uploaded_files/scripts/deploy_services.py ]; then
+      echo "[$(date)] Starting deployment" >> /opt/startup.log
+      cd /tmp/uploaded_files/scripts && /usr/bin/uv run deploy_services.py >> /home/ubuntu/deployment.log 2>&1
+    else
+      echo "[$(date)] ERROR: deploy_services.py not found" >> /opt/startup.log
+    fi
+    EOF
+    chmod +x /usr/local/bin/watch-for-deployment.sh
+  
+  # Start the watcher in the background
+  - nohup /usr/local/bin/watch-for-deployment.sh > /tmp/watcher.log 2>&1 &
+  
   # Mark cloud-init complete
-  - echo "[$(date)] Cloud-init complete - ready for deployment" > /tmp/cloud-init-complete
+  - echo "[$(date)] Cloud-init complete - watcher started" > /tmp/cloud-init-complete
   - echo "[$(date)] Ready for file upload and deployment" >> /opt/startup.log
 """
-    
+
     return cloud_init_script
 
 
 def generate_full_cloud_init(config: SimpleConfig) -> str:
     """Generate minimal cloud-init that waits for deployment bundle."""
-    
+
     # Get public SSH key content
     public_key = config.public_ssh_key_content()
     if not public_key:
         rich_warning("No public SSH key found - SSH access may not work")
         public_key = ""
-    
-    # Read orchestrator credentials if they exist
-    orchestrator_endpoint = ""
-    orchestrator_token = ""
-    files_dir = config.files_directory()
-    
-    try:
-        endpoint_file = os.path.join(files_dir, "orchestrator_endpoint")
-        if os.path.exists(endpoint_file):
-            with open(endpoint_file, 'r') as f:
-                orchestrator_endpoint = f.read().strip()
-                # Ensure proper format
-                if orchestrator_endpoint and not orchestrator_endpoint.startswith("nats://"):
-                    if ":" not in orchestrator_endpoint:
-                        orchestrator_endpoint = f"nats://{orchestrator_endpoint}:4222"
-                    else:
-                        orchestrator_endpoint = f"nats://{orchestrator_endpoint}"
-        
-        token_file = os.path.join(files_dir, "orchestrator_token")
-        if os.path.exists(token_file):
-            with open(token_file, 'r') as f:
-                orchestrator_token = f.read().strip()
-    except Exception as e:
-        rich_warning(f"Could not read orchestrator credentials: {e}")
-    
+
     # Build minimal cloud-init that waits for files
     cloud_init = f"""#cloud-config
 
@@ -168,18 +167,6 @@ write_files:
       Cloud-init started
     owner: root:root
     permissions: '0666'
-  
-  - path: /opt/orchestrator_endpoint
-    content: |
-      {orchestrator_endpoint}
-    owner: root:root
-    permissions: '0644'
-  
-  - path: /opt/orchestrator_token
-    content: |
-      {orchestrator_token}
-    owner: root:root
-    permissions: '0600'
   
   - path: /opt/setup_deployment.sh
     content: |
@@ -263,6 +250,15 @@ runcmd:
   - mkdir -p /opt/uploaded_files /bacalhau_node /bacalhau_data /opt/sensor
   - chown -R {config.username()}:{config.username()} /opt/uploaded_files /bacalhau_node /bacalhau_data /opt/sensor
   
+  # Install uv
+  - |
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    if [ -f /root/.local/bin/uv ]; then
+      mv /root/.local/bin/uv /usr/local/bin/uv
+      chmod +x /usr/local/bin/uv
+      ln -sf /usr/local/bin/uv /usr/bin/uv
+    fi
+  
   # Install Docker
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
   - add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
@@ -275,5 +271,5 @@ runcmd:
   # Mark cloud-init as complete
   - echo "[$(date)] Cloud-init complete - waiting for deployment bundle" | tee -a /opt/startup.log
 """
-    
+
     return cloud_init

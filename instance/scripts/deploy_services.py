@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env uv run
 """
 Deployment script that handles all service setup after file upload.
 This script is executed via SSH after files are uploaded to the instance.
@@ -46,13 +46,6 @@ def run_command(cmd, check=True):
         return e
 
 
-def wait_for_cloud_init():
-    """Wait for cloud-init to complete"""
-    log("Waiting for cloud-init to complete...")
-    run_command("cloud-init status --wait", check=False)
-    log("Cloud-init completed")
-
-
 def create_directories():
     """Create all required directories with sudo"""
     directories = [
@@ -92,7 +85,7 @@ def move_files():
             # Try copying if move fails
             run_command("sudo cp -r /tmp/uploaded_files/* /opt/uploaded_files/")
             run_command("sudo chown -R ubuntu:ubuntu /opt/uploaded_files")
-    
+
     # Then copy service files to systemd
     movements = [
         # Service files to systemd
@@ -131,8 +124,6 @@ def setup_services():
 
     # Define services to enable
     services = [
-        "bacalhau-startup.service",
-        "setup-config.service",
         "bacalhau.service",
         "sensor-generator.service",
     ]
@@ -150,15 +141,7 @@ def setup_services():
             run_command(f"systemctl enable {service}")
             log(f"Enabled {service}")
 
-            # Start services that should run immediately
-            if service in ["setup-config.service", "bacalhau-startup.service"]:
-                result = run_command(f"systemctl start {service}", check=False)
-                if result.returncode == 0:
-                    log(f"Started {service}")
-                else:
-                    log(
-                        f"Warning: Could not start {service} immediately, will start on reboot"
-                    )
+            # Services will start on reboot after deployment completes
 
 
 def copy_configuration_files():
@@ -186,13 +169,20 @@ def copy_configuration_files():
         log(f"Copied sensor config to {sensor_config_dest}")
 
 
-def run_startup_script():
-    """Run the main startup script"""
-    startup_script = "/opt/uploaded_files/scripts/startup.py"
-    if os.path.exists(startup_script):
-        log("Running startup.py script...")
-        os.chmod(startup_script, 0o755)
-        run_command(f"python3 {startup_script}", check=False)
+def generate_node_identity():
+    """Generate node identity if it doesn't exist"""
+    identity_file = "/opt/sensor/config/node_identity.json"
+    identity_script = "/opt/uploaded_files/scripts/generate_node_identity.py"
+    
+    if not os.path.exists(identity_file) and os.path.exists(identity_script):
+        log("Generating node identity...")
+        result = run_command(f"/usr/bin/uv run {identity_script}", check=False)
+        if result.returncode == 0:
+            log("Node identity generated successfully")
+        else:
+            log("Warning: Failed to generate node identity")
+    elif os.path.exists(identity_file):
+        log("Node identity already exists")
 
 
 def fix_service_dependencies(service_file):
@@ -277,11 +267,8 @@ def main():
         # Create log file first
         run_command("sudo touch /opt/startup.log")
         run_command("sudo chmod 666 /opt/startup.log")
-        
-        log("=== Starting deployment script ===")
 
-        # Wait for cloud-init
-        wait_for_cloud_init()
+        log("=== Starting deployment script ===")
 
         # Ensure uv is installed
         if not ensure_uv_installed():
@@ -296,11 +283,11 @@ def main():
         # Copy configuration files
         copy_configuration_files()
 
+        # Generate node identity
+        generate_node_identity()
+
         # Setup systemd services
         setup_services()
-
-        # Run the startup script
-        run_startup_script()
 
         # Create completion marker
         create_completion_marker()

@@ -21,6 +21,7 @@ dist/
 uv.lock
 # SpecStory explanation file
 .specstory/.what-is-this.md
+.specstory/*
 
 # Orchestrator credentials (sensitive)
 files/orchestrator_endpoint

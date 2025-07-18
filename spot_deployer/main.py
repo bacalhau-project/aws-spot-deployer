@@ -1,14 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env uv run
 """
 AWS Spot Instance Deployer - Main Entry Point
 
 This tool deploys and manages AWS EC2 spot instances with a focus on simplicity.
 """
+
 import sys
 
+from .commands import cmd_create, cmd_destroy, cmd_help, cmd_list, cmd_setup
 from .core.config import SimpleConfig
 from .core.state import SimpleStateManager
-from .commands import cmd_create, cmd_destroy, cmd_list, cmd_setup, cmd_help
 
 
 def main() -> None:
@@ -16,11 +17,11 @@ def main() -> None:
     if len(sys.argv) < 2:
         cmd_help()
         return
-    
+
     command = sys.argv[1]
     config = SimpleConfig()
     state = SimpleStateManager()
-    
+
     if command == "setup":
         cmd_setup(config)
     elif command == "create":
