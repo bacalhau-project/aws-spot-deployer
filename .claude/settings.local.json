@@ -76,7 +76,8 @@
       "Bash(bash:*)",
       "Bash(./test-docker-build.sh:*)",
       "Bash(docker build:*)",
-      "Bash(docker run:*)"
+      "Bash(docker run:*)",
+      "Bash(./spot-sso-local:*)"
     ],
     "deny": []
   }
