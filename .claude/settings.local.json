@@ -77,7 +77,9 @@
       "Bash(./test-docker-build.sh:*)",
       "Bash(docker build:*)",
       "Bash(docker run:*)",
-      "Bash(./spot-sso-local:*)"
+      "Bash(./spot-sso-local:*)",
+      "Bash(uv sync:*)",
+      "Bash(/dev/null)"
     ],
     "deny": []
   }

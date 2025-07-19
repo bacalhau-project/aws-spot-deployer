@@ -8,27 +8,26 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
-
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install uv globally
+# Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     mv /root/.local/bin/uv /usr/local/bin/uv && \
     chmod +x /usr/local/bin/uv
 
-# Copy application code
-COPY spot_deployer/ ./spot_deployer/
-COPY instance/ ./instance/
-COPY run.py ./
+# Set working directory
+WORKDIR /app
 
-# Ensure Python can find our package
-ENV PYTHONPATH=/app
+# Copy package files
+COPY pyproject.toml ./
+COPY spot_deployer ./spot_deployer
+COPY instance ./instance
 
-# Copy and set up entrypoint
+# Create a dummy README.md for the package (required by pyproject.toml)
+RUN echo "# Spot Deployer\n\nSee documentation at https://github.com/bacalhau-project/aws-spot-deployer" > README.md
+
+# Install the package and dependencies
+RUN uv pip install --system -e .
+
+# Copy entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
@@ -39,9 +38,7 @@ RUN mkdir -p /app/config /app/files /app/output
 ENV SPOT_CONFIG_PATH=/app/config/config.yaml
 ENV SPOT_FILES_DIR=/app/files
 ENV SPOT_OUTPUT_DIR=/app/output
-
-# Ensure entrypoint is executable (double-check)
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENV PYTHONPATH=/app
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["help"]

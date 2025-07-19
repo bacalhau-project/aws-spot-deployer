@@ -41,7 +41,7 @@ if [[ "$1" == "setup" ]]; then
     mkdir -p "$SPOT_OUTPUT_DIR"
     # Create config in output directory by setting environment variable
     export SPOT_CONFIG_PATH="$SPOT_OUTPUT_DIR/config.yaml"
-    exec uv run /app/run.py setup
+    exec uv run spot-deployer setup
 fi
 
 # Default to help if no command
@@ -60,5 +60,5 @@ if [[ "$1" != "help" ]] && [[ "$1" != "setup" ]] && [[ "$1" != "--help" ]]; then
     fi
 fi
 
-# Execute spot deployer with uv
-exec uv run /app/run.py "$@"
+# Execute spot deployer using the installed package
+exec uv run spot-deployer "$@"
