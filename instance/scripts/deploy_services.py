@@ -53,10 +53,7 @@ def create_directories():
         "/opt/uploaded_files/config",
         "/bacalhau_node",
         "/bacalhau_data",
-        "/opt/sensor/config",
-        "/opt/sensor/data",
-        "/opt/sensor/logs",
-        "/opt/sensor/exports",
+        # Sensor directories are now created by additional_commands.sh
     ]
 
     for directory in directories:
@@ -122,10 +119,9 @@ def setup_services():
     # Reload systemd
     run_command("systemctl daemon-reload")
 
-    # Define services to enable
+    # Define services to enable (only bacalhau, sensor is handled by additional_commands.sh)
     services = [
         "bacalhau.service",
-        "sensor-generator.service",
     ]
 
     for service in services:
@@ -158,31 +154,25 @@ def copy_configuration_files():
     else:
         log("ERROR: Bacalhau config not found in uploaded files")
 
-    # Copy sensor config
-    sensor_config_source = "/opt/uploaded_files/config/sensor-config.yaml"
-    sensor_config_dest = "/opt/sensor/config/sensor-config.yaml"
-    if os.path.exists(sensor_config_source):
-        dest_dir = os.path.dirname(sensor_config_dest)
-        Path(dest_dir).mkdir(parents=True, exist_ok=True)
-        shutil.copy2(sensor_config_source, sensor_config_dest)
-        os.chown(sensor_config_dest, 1000, 1000)  # ubuntu user
-        log(f"Copied sensor config to {sensor_config_dest}")
+    # Sensor config is now handled by additional_commands.sh
 
 
-def generate_node_identity():
-    """Generate node identity if it doesn't exist"""
-    identity_file = "/opt/sensor/config/node_identity.json"
-    identity_script = "/opt/uploaded_files/scripts/generate_node_identity.py"
+def run_additional_commands():
+    """Run additional commands script if it exists"""
+    additional_script = "/opt/uploaded_files/scripts/additional_commands.sh"
     
-    if not os.path.exists(identity_file) and os.path.exists(identity_script):
-        log("Generating node identity...")
-        result = run_command(f"/usr/bin/uv run {identity_script}", check=False)
+    if os.path.exists(additional_script):
+        log("Running additional commands script...")
+        # Make it executable
+        run_command(f"chmod +x {additional_script}")
+        # Run the script
+        result = run_command(additional_script, check=False)
         if result.returncode == 0:
-            log("Node identity generated successfully")
+            log("Additional commands completed successfully")
         else:
-            log("Warning: Failed to generate node identity")
-    elif os.path.exists(identity_file):
-        log("Node identity already exists")
+            log("Warning: Additional commands script returned non-zero exit code")
+    else:
+        log("No additional commands script found")
 
 
 def fix_service_dependencies(service_file):
@@ -283,11 +273,11 @@ def main():
         # Copy configuration files
         copy_configuration_files()
 
-        # Generate node identity
-        generate_node_identity()
-
         # Setup systemd services
         setup_services()
+
+        # Run additional commands (includes sensor setup)
+        run_additional_commands()
 
         # Create completion marker
         create_completion_marker()

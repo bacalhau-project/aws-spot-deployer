@@ -26,3 +26,12 @@ uv.lock
 # Orchestrator credentials (sensitive)
 files/orchestrator_endpoint
 files/orchestrator_token
+
+# Docker build artifacts
+.dockerignore
+*.tar
+*.tar.gz
+
+# State files
+instances.json
+output/

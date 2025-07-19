@@ -72,7 +72,8 @@
       "Bash(./test_deploy_watcher_comprehensive.sh:*)",
       "Bash(./test_upload_process.sh:*)",
       "Bash(./test_systemd_services.sh:*)",
-      "Bash(./test_directory_permissions.sh:*)"
+      "Bash(./test_directory_permissions.sh:*)",
+      "Bash(bash:*)"
     ],
     "deny": []
   }

@@ -5,6 +5,7 @@ AWS Spot Instance Deployer - Main Entry Point
 This tool deploys and manages AWS EC2 spot instances with a focus on simplicity.
 """
 
+import os
 import sys
 
 from .commands import cmd_create, cmd_destroy, cmd_help, cmd_list, cmd_setup
@@ -19,8 +20,13 @@ def main() -> None:
         return
 
     command = sys.argv[1]
-    config = SimpleConfig()
-    state = SimpleStateManager()
+    
+    # Use paths from environment variables if set (for Docker)
+    config_path = os.environ.get("SPOT_CONFIG_PATH", "config.yaml")
+    state_path = os.environ.get("SPOT_STATE_PATH", "instances.json")
+    
+    config = SimpleConfig(config_path)
+    state = SimpleStateManager(state_path)
 
     if command == "setup":
         cmd_setup(config)
