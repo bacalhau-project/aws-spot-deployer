@@ -5,7 +5,6 @@ RUN apt-get update && apt-get install -y \
     curl \
     openssh-client \
     git \
-    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -15,7 +14,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install uv globally
+# Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     mv /root/.local/bin/uv /usr/local/bin/uv && \
     chmod +x /usr/local/bin/uv
@@ -23,13 +22,12 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
 # Copy application code
 COPY spot_deployer/ ./spot_deployer/
 COPY instance/ ./instance/
-COPY run.py ./
 
-# Ensure Python can find our package
-ENV PYTHONPATH=/app
+# Ensure Python package structure
+RUN touch spot_deployer/__init__.py
 
 # Copy and set up entrypoint
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create necessary directories
@@ -39,9 +37,7 @@ RUN mkdir -p /app/config /app/files /app/output
 ENV SPOT_CONFIG_PATH=/app/config/config.yaml
 ENV SPOT_FILES_DIR=/app/files
 ENV SPOT_OUTPUT_DIR=/app/output
-
-# Ensure entrypoint is executable (double-check)
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENV PYTHONPATH=/app
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["help"]

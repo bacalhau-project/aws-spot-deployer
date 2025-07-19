@@ -73,7 +73,10 @@
       "Bash(./test_upload_process.sh:*)",
       "Bash(./test_systemd_services.sh:*)",
       "Bash(./test_directory_permissions.sh:*)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(./test-docker-build.sh:*)",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)"
     ],
     "deny": []
   }

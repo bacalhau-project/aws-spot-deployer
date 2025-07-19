@@ -41,10 +41,17 @@ docker run --rm \
 
 ### AWS Authentication
 
-The container supports three authentication methods:
+The container supports multiple authentication methods:
 
-1. **Mounted AWS Directory** (Recommended):
+1. **AWS SSO** (Recommended for local development):
    ```bash
+   # Login with SSO
+   aws sso login
+   
+   # Use the SSO wrapper
+   ./spot-sso create
+   
+   # Or mount your AWS directory
    docker run --rm -v ~/.aws:/root/.aws:ro ...
    ```
 
@@ -57,6 +64,8 @@ The container supports three authentication methods:
    ```
 
 3. **IAM Role** (for EC2/ECS environments)
+
+See [AWS_SSO_DOCKER.md](AWS_SSO_DOCKER.md) for detailed SSO instructions.
 
 ### Configuration
 

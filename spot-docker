@@ -39,6 +39,17 @@ VOLUMES="$VOLUMES -v $(realpath $OUTPUT_DIR):/app/output"
 
 # Pass through environment variables
 ENV_VARS=""
+
+# Check if using AWS SSO and export credentials if available
+if [ -d "$HOME/.aws/sso" ] && command -v aws >/dev/null 2>&1; then
+    if aws sts get-caller-identity >/dev/null 2>&1; then
+        # Export SSO credentials as environment variables
+        echo "Detected AWS SSO session, exporting credentials..."
+        eval $(aws configure export-credentials --format env 2>/dev/null || true)
+    fi
+fi
+
+# Pass AWS environment variables if they exist
 if [ -n "$AWS_ACCESS_KEY_ID" ]; then
     ENV_VARS="$ENV_VARS -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY"
 fi
@@ -47,6 +58,9 @@ if [ -n "$AWS_SESSION_TOKEN" ]; then
 fi
 if [ -n "$AWS_DEFAULT_REGION" ]; then
     ENV_VARS="$ENV_VARS -e AWS_DEFAULT_REGION"
+fi
+if [ -n "$AWS_REGION" ]; then
+    ENV_VARS="$ENV_VARS -e AWS_REGION"
 fi
 
 # Run the container

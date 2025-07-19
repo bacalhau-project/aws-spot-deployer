@@ -2,11 +2,14 @@
 
 ## 1. Setup AWS Credentials
 
-Ensure you have AWS credentials configured:
+For AWS SSO (recommended):
+```bash
+aws sso login
+```
+
+For traditional credentials:
 ```bash
 aws configure
-# OR
-aws sso login
 ```
 
 ## 2. Pull the Docker Image
