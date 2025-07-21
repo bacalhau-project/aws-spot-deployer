@@ -2,6 +2,8 @@
 
 # Try to import Rich components
 try:
+    import os
+
     from rich.console import Console
     from rich.layout import Layout  # noqa: F401 - Re-exported for other modules
     from rich.live import Live  # noqa: F401 - Re-exported for other modules
@@ -15,16 +17,14 @@ try:
         TimeElapsedColumn,
     )
     from rich.table import Table  # noqa: F401 - Re-exported for other modules
-    import os
 
     RICH_AVAILABLE = True
-    # Configure console for better Docker compatibility
+    # Let Rich handle all terminal detection
     console = Console(
         force_terminal=True,
         force_interactive=True,
-        width=120 if os.environ.get("TERM") else None,
         legacy_windows=False,
-        color_system="auto"
+        color_system="auto",
     )
 except ImportError:
     RICH_AVAILABLE = False

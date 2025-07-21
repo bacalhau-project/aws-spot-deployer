@@ -19,6 +19,7 @@ from ..core.config import SimpleConfig
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth, delete_deployment_vpc
 from ..utils.logging import setup_logger
+from ..utils.tables import add_destroy_row, create_instance_table
 
 
 class DestroyManager:
@@ -59,16 +60,7 @@ class DestroyManager:
 
     def create_status_table(self) -> Table:
         """Create the status table for display."""
-        table = Table(
-            show_header=True,
-            header_style="bold red",
-            title="Instance Destruction Status",
-            expand=True,
-        )
-        table.add_column("Region", style="magenta", min_width=12, no_wrap=True)
-        table.add_column("Instance ID", style="cyan", min_width=20, no_wrap=True)
-        table.add_column("Status", min_width=20, no_wrap=True)
-        table.add_column("Details", style="dim", ratio=1)
+        table = create_instance_table(title="Instance Destruction Status", header_style="bold red")
 
         # Sort by region for consistent display
         sorted_instances = sorted(
@@ -95,7 +87,7 @@ class DestroyManager:
             elif len(detail) > 47:
                 detail = detail[:44] + "..."
 
-            table.add_row(info["region"], instance_id, status_display, detail)
+            add_destroy_row(table, info["region"], instance_id, status_display, detail)
 
         return table
 
@@ -131,7 +123,7 @@ Elapsed: {elapsed:.1f}s"""
 
             # Use bacalhau with the --api-host flag
             cmd = ["bacalhau", "node", "list", "--output", "json", "--api-host", api_host]
-            
+
             env = os.environ.copy()
             if api_key:
                 env["BACALHAU_API_KEY"] = api_key
@@ -173,7 +165,7 @@ Elapsed: {elapsed:.1f}s"""
 
             # Use bacalhau with the --api-host flag
             cmd = ["bacalhau", "node", "list", "--output", "json", "--api-host", api_host]
-            
+
             env = os.environ.copy()
             if api_key:
                 env["BACALHAU_API_KEY"] = api_key
@@ -181,16 +173,16 @@ Elapsed: {elapsed:.1f}s"""
             if self.logger:
                 self.logger.info(f"Running command: {' '.join(cmd)}")
                 self.logger.info(f"Using API host: {api_host}")
-                
+
             result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=30)
-            
+
             # Always print debug info
             print(f"[DEBUG] Command: {' '.join(cmd)}")
             print(f"[DEBUG] Exit code: {result.returncode}")
-            
+
             if result.returncode != 0:
-                print(f"[DEBUG] stderr: {result.stderr[:500]}")
-                print(f"[DEBUG] stdout: {result.stdout[:500]}")
+                print(f"[DEBUG] stderr: {result.stderr}")
+                print(f"[DEBUG] stdout: {result.stdout}")
                 if self.logger:
                     self.logger.error(f"Failed to list nodes: {result.stderr}")
                     self.logger.error(f"Command output: {result.stdout}")
@@ -198,20 +190,20 @@ Elapsed: {elapsed:.1f}s"""
                 return 0
 
             print(f"[DEBUG] stdout length: {len(result.stdout)}")
-            print(f"[DEBUG] stdout first 200 chars: {result.stdout[:200]}")
-            
+            print(f"[DEBUG] stdout: {result.stdout}")
+
             try:
                 nodes = json.loads(result.stdout)
             except json.JSONDecodeError as e:
                 if self.logger:
                     self.logger.error(f"Failed to parse node list JSON: {e}")
-                    self.logger.error(f"Output was: {result.stdout[:500]}")
+                    self.logger.error(f"Output was: {result.stdout}")
                 print(f"[DEBUG] Failed to parse JSON: {e}")
-                print(f"[DEBUG] Output: {result.stdout[:200]}")
+                print(f"[DEBUG] Output: {result.stdout}")
                 return 0
 
             print(f"[DEBUG] Successfully parsed {len(nodes)} nodes")
-            
+
             # Find disconnected compute nodes
             disconnected_nodes = [
                 node
@@ -221,7 +213,7 @@ Elapsed: {elapsed:.1f}s"""
                     and node.get("Info", {}).get("NodeType") == "Compute"
                 )
             ]
-            
+
             print(f"[DEBUG] Found {len(disconnected_nodes)} disconnected compute nodes")
 
             if self.logger:
@@ -479,11 +471,10 @@ def cmd_destroy(config: SimpleConfig, state: SimpleStateManager, verbose: bool =
     if not check_aws_auth():
         return
 
-    # Create console with proper width settings
+    # Create console and let Rich handle terminal detection
     console = Console(
         force_terminal=True,
         force_interactive=True,
-        width=120 if os.environ.get("TERM") else None,
         legacy_windows=False,
     )
     manager = DestroyManager(config, state, console)

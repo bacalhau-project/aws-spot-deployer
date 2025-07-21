@@ -1,23 +1,30 @@
 """Constants and configuration values."""
 
+
 # Column widths for Rich tables
 class ColumnWidths:
     """Defines the widths for the Rich status table columns."""
-    REGION = 15
+
+    REGION = 17
     INSTANCE_ID = 21
-    STATUS = 40
-    TYPE = 0  # Let Rich auto-size these smaller columns
-    PUBLIC_IP = 0
-    CREATED = 0
-    
+    STATUS = 19
+    TYPE = 10
+    PUBLIC_IP = 15
+    CREATED = 24
+
     @classmethod
     def get_total_width(cls):
         """Calculate total table width."""
         return (
-            cls.REGION + cls.INSTANCE_ID + cls.STATUS + 
-            cls.TYPE + cls.PUBLIC_IP + cls.CREATED + 
-            11  # Account for borders and padding
+            cls.REGION
+            + cls.INSTANCE_ID
+            + cls.STATUS
+            + cls.TYPE
+            + cls.PUBLIC_IP
+            + cls.CREATED
+            + 11  # Account for borders and padding
         )
+
 
 # Default values
 DEFAULT_TIMEOUT = 300  # 5 minutes

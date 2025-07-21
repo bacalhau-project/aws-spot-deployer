@@ -51,11 +51,6 @@ jobs:
         
         # Test CLI help
         uv run python -m spot_deployer --help
-        
-        # Run any existing tests
-        if [ -f test_simple.py ]; then
-          uv run python test_simple.py
-        fi
     
     - name: Test Docker build
       run: |

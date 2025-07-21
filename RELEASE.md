@@ -14,9 +14,6 @@ The version is automatically derived from git tags. When on a tagged release, it
 
 2. **Test Locally**
    ```bash
-   # Run tests
-   uv run python test_simple.py
-   
    # Test Docker build
    docker build -t spot-test:local .
    docker run --rm spot-test:local help

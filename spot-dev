@@ -72,10 +72,10 @@ VOLUMES="$VOLUMES -v $(realpath $OUTPUT_DIR):/app/output"
 # Check if we're in a terminal
 if [ -t 0 ] && [ -t 1 ]; then
     TTY_FLAGS="-it"
-    TERM_VARS="-e TERM=xterm-256color -e COLUMNS=$(tput cols 2>/dev/null || echo 120) -e LINES=$(tput lines 2>/dev/null || echo 40)"
+    TERM_VARS="-e TERM=xterm-256color"
 else
     TTY_FLAGS=""
-    TERM_VARS="-e TERM=dumb -e COLUMNS=120 -e LINES=40"
+    TERM_VARS="-e TERM=dumb"
 fi
 
 # Pass through Bacalhau environment variables if set

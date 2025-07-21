@@ -21,19 +21,19 @@ def main() -> None:
         return
 
     command = sys.argv[1]
-    
+
     # Handle version flag
     if command in ["--version", "-V", "version"]:
         print(f"spot-deployer {__version__}")
         return
-    
+
     # Check for verbose flag
     verbose = "-v" in sys.argv or "--verbose" in sys.argv
-    
+
     # Use paths from environment variables if set (for Docker)
     config_path = os.environ.get("SPOT_CONFIG_PATH", "config.yaml")
     state_path = os.environ.get("SPOT_STATE_PATH", "instances.json")
-    
+
     config = SimpleConfig(config_path)
     state = SimpleStateManager(state_path)
 
