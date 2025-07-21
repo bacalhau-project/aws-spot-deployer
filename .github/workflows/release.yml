@@ -10,7 +10,8 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  docker-release:
+  release:
+    name: Build and Release
     runs-on: ubuntu-latest
     permissions:
       contents: write

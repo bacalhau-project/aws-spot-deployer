@@ -4,15 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A **simplified AWS spot instance deployment tool** focused on simplicity and maintainability. Originally a 2400+ line enterprise codebase, now condensed to ~820 lines in a single file (`deploy_spot.py`) with beautiful Rich terminal output.
+A **modern AWS spot instance deployment tool** for deploying Bacalhau compute nodes and sensor simulations. Features a clean Python package structure with beautiful Rich terminal output.
 
 ## Key Architecture
 
-- **Single-file design**: All functionality in `deploy_spot.py`
-- **State management**: JSON-based (`instances.json`) rather than database
+- **Package structure**: Modular design in `spot_deployer/` package
+- **State management**: JSON-based (`instances.json`) for simplicity
 - **Configuration**: YAML-based (`config.yaml`) with sensible defaults
-- **Caching**: Simple file-based AMI caching (`.aws_cache/`)
-- **UI**: Rich library for beautiful terminal tables and progress
+- **Caching**: File-based AMI caching (`.aws_cache/`)
+- **UI**: Rich library for beautiful terminal tables and live progress
+- **Docker-first**: Distributed as Docker container via `spot-dev` script
 - **Node Identity**: Deterministic sensor identity generation for Bacalhau integration
 
 ## Deployment Philosophy
@@ -23,16 +24,16 @@ A **simplified AWS spot instance deployment tool** focused on simplicity and mai
 ```bash
 # 1. Make changes to deployment code
 # 2. Destroy ALL existing instances
-uv run -s deploy_spot.py destroy
+./spot-dev destroy
 
 # 3. Verify cleanup
-uv run -s deploy_spot.py list  # Should be empty
+./spot-dev list  # Should be empty
 
 # 4. Deploy fresh instances
-uv run -s deploy_spot.py create
+./spot-dev create
 
-# 5. Test deployment
-./debug_deployment.sh <new-instance-ip>
+# 5. Check deployment status
+./spot-dev list
 ```
 
 ## Development Commands
@@ -40,90 +41,76 @@ uv run -s deploy_spot.py create
 ### Basic Usage
 ```bash
 # Setup configuration
-uv run -s deploy_spot.py setup
+./spot-dev setup
 
 # Deploy instances (hands-off approach)
-uv run -s deploy_spot.py create
+./spot-dev create
 # Note: After creation, instances configure themselves autonomously
 # Check back in ~5 minutes for fully configured instances
 
 # List running instances
-uv run -s deploy_spot.py list
+./spot-dev list
 
 # Destroy all instances
-uv run -s deploy_spot.py destroy
+./spot-dev destroy
 
 # Get help
-uv run -s deploy_spot.py help
+./spot-dev help
 ```
+
 
 ### Advanced VPC Cleanup
 ```bash
 # Scan VPCs (dry run)
-uv run -s delete_vpcs.py --dry-run
+uv run delete_vpcs.py --dry-run
 
 # Full cleanup
-uv run -s delete_vpcs.py
+uv run delete_vpcs.py
 ```
 
-### Testing
-```bash
-# Run full test suite
-uv run python test_simple.py
-
-# Test node identity generation
-uv run python test_identity_generation.py
-
-# Test sensor integration
-uv run python test_sensor_integration.py
-```
 
 ### Code Quality
 ```bash
 # Linting - ALWAYS run before committing
-uv run ruff check deploy_spot.py
+uv run ruff check spot_deployer/
 
 # Auto-fix linting issues where possible
-uv run ruff check deploy_spot.py --fix
+uv run ruff check spot_deployer/ --fix
 
-# Type checking (uses full type annotations)
-python -m pyright deploy_spot.py
+# Format code
+uv run ruff format spot_deployer/
 ```
 
-**Important:** Always run `uv run ruff check deploy_spot.py` to verify syntax and code quality before committing changes. This is a project requirement.
+**Important:** Always run `uv run ruff check spot_deployer/` to verify syntax and code quality before committing changes.
 
 ## Core Components
 
 ### Main Entry Points
-- `deploy_spot.py` - Primary deployment tool (820 lines)
+- `spot_deployer/` - Main package directory
+- `spot-dev` - Docker-based CLI wrapper
 - `delete_vpcs.py` - Advanced VPC cleanup utility
-- `test_simple.py` - Test suite (17 tests)
-- `test_identity_generation.py` - Node identity tests
 
 ### Key Classes
 - `SimpleConfig` - YAML configuration management
 - `SimpleStateManager` - JSON-based instance state tracking
-- `DeploymentManager` - Main deployment orchestration
-- `NodeIdentityGenerator` - Deterministic sensor identity creation (in `generate_node_identity.py`)
+- `NodeIdentityGenerator` - Deterministic sensor identity creation
 
 ### File Layout
 ```
-├── deploy_spot.py              # Main deployment tool
+├── spot_deployer/              # Main package
+│   ├── commands/               # CLI commands (create, destroy, list, etc.)
+│   ├── core/                   # Core classes (config, state, constants)
+│   └── utils/                  # Utilities (AWS, SSH, display, etc.)
+├── instance/
+│   ├── scripts/                # Scripts deployed to instances
+│   └── config/                 # Configuration templates
+├── spot-dev                    # Docker CLI wrapper
 ├── delete_vpcs.py              # VPC cleanup utility
-├── test_*.py                   # Test suites
 ├── config.yaml                 # Runtime configuration
 ├── config.yaml.example         # Comprehensive example
 ├── instances.json              # Runtime state (auto-created)
-├── .aws_cache/                # AMI cache directory
-├── files/                     # Files to upload to instances
-├── instance/
-│   ├── scripts/
-│   │   ├── startup.py         # Main startup script
-│   │   ├── generate_node_identity.py  # Identity generator
-│   │   ├── generate_demo_identity.py  # Demo identity generator
-│   │   └── bacalhau-startup.service   # Systemd service
-│   └── config/                # Bacalhau configuration templates
-└── NODE_IDENTITY_SYSTEM.md    # Identity system documentation
+├── .aws_cache/                 # AMI cache directory
+└── files/                      # User files to upload
 ```
 
 ## Configuration Structure
@@ -231,30 +218,22 @@ Create these files in the `files/` directory before deployment:
 - Consistent error handling patterns
 - Single-file design for simplicity
 
-### Testing Strategy
-- Unit tests for all core components
-- Mock AWS services for offline testing
-- Performance benchmarks included
-- Integration tests for real AWS usage
-- Determinism tests for identity generation
 
 ## Common Development Tasks
 
 ### Adding New Features
-1. Follow single-file design pattern
-2. Add corresponding tests in appropriate test file
-3. Update configuration schema if needed
-4. Test with real AWS resources
+1. Follow modular package structure
+2. Update configuration schema if needed
+3. Test with real AWS resources using `./spot-dev`
 
 ### Debugging
 - **IMPORTANT**: Never debug by patching instances
-- Use `./debug_deployment.sh <ip>` to collect diagnostics
 - Fix issues in source code
-- Destroy all instances: `uv run -s deploy_spot.py destroy`
-- Deploy fresh: `uv run -s deploy_spot.py create`
+- Destroy all instances: `./spot-dev destroy`
+- Deploy fresh: `./spot-dev create`
 - Check `instances.json` for state issues
 - Use `--dry-run` with VPC cleanup for safety
-- Verify deployment log at `/opt/deployment.log`
+- Verify deployment log at `/opt/deployment.log` on instances
 
 ### Console Logging with Instance Context
 The deployment tool includes a custom `ConsoleLogger` that enhances log output with instance identification and IP addresses. During deployment, all SUCCESS and ERROR messages are automatically prefixed with:
@@ -280,8 +259,4 @@ Example output:
 - Identities are deterministic based on instance ID
 - Test with: `INSTANCE_ID=i-test python3 instance/scripts/generate_node_identity.py`
 - Check generated identity: `cat /opt/sensor/config/node_identity.json | jq .`
-- Add new cities/manufacturers in `generate_node_identity.py`/I want you to look through this codebase and develop a list of targeted things to ultimately debug what is going on right now. The deployment of the machines  │
-│   is working well, but every step along the way, we see we're running into a problem where the code is not ultimately working end-to-end.                        │
-│                                                                                                                                                                  │
-│   Right now, the machines are being provisioned and rebooted. The directories aren't being created, the startup script isn't working, individual line items in   │
-│   the startup script aren't working, and so on. I want you to create a specific test list to go through one-at-a-time to test it.
+- Add new cities/manufacturers in `generate_node_identity.py`

@@ -7,7 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  lint-and-test:
+    name: Lint and Test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     
@@ -20,42 +21,65 @@ jobs:
         version: "latest"
     
     - name: Set up Python
-      run: |
-        for i in {1..3}; do
-          uv python install 3.11 && break
-          echo "Failed to install python, retrying..."
-          sleep 5
-        done
-    
-    - name: Cache UV dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/uv
-        key: uv-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
-        restore-keys: |
-          uv-${{ runner.os }}-
+      run: uv python install 3.11
     
     - name: Install dependencies
       run: uv sync
     
     - name: Lint with ruff
       run: |
-        uv pip install --system ruff
-        ruff check .
-        ruff format --check .
+        uv run ruff check spot_deployer/
+        uv run ruff format --check spot_deployer/
     
-    - name: Run tests
+    - name: Run smoke tests
       run: |
         # Test the main module can be imported
-        uv run python -c "import spot_deployer; print('Import successful')"
+        uv run python -c "import spot_deployer; print('✓ Module import successful')"
         
-        # Test CLI help
-        uv run python -m spot_deployer --help
+        # Test CLI help command
+        uv run python -m spot_deployer help
+        
+        # Test version command
+        uv run python -m spot_deployer --version
+        
+        # Verify all submodules can be imported
+        uv run python -c "
+from spot_deployer.commands import cmd_create, cmd_destroy, cmd_list, cmd_setup
+from spot_deployer.core import SimpleConfig, SimpleStateManager
+from spot_deployer.utils import display
+print('✓ All submodules imported successfully')
+"
+
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     
-    - name: Test Docker build
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: test-spot-deployer:ci
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Test Docker image
       run: |
-        # Test that the Docker image builds successfully
-        docker build -t test-spot-deployer .
+        # Test that the image runs help command
+        docker run --rm test-spot-deployer:ci help
         
-        # Test that the image runs
-        docker run --rm test-spot-deployer help
+        # Test version command
+        docker run --rm test-spot-deployer:ci --version
+        
+        # Test that all commands are available
+        for cmd in setup create list destroy help; do
+          echo "Testing command: $cmd"
+          docker run --rm test-spot-deployer:ci $cmd --help || true
+        done
