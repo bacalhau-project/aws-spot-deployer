@@ -3,12 +3,12 @@
 # Column widths for Rich tables
 class ColumnWidths:
     """Defines the widths for the Rich status table columns."""
-    REGION = 15
-    INSTANCE_ID = 21
-    STATUS = 50
-    TYPE = 15
+    REGION = 18
+    INSTANCE_ID = 22
+    STATUS = 25
+    TYPE = 11
     PUBLIC_IP = 16
-    CREATED = 20
+    CREATED = 25
     
     @classmethod
     def get_total_width(cls):

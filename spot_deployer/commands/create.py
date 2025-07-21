@@ -12,10 +12,12 @@ from ..core.config import SimpleConfig
 from ..core.state import SimpleStateManager
 from ..core.constants import ColumnWidths
 from ..utils.aws import check_aws_auth
+from rich.console import Console
 from ..utils.display import (
     rich_status, rich_success, rich_error, rich_warning,
-    console, Table, Layout, Live
+    console, Layout, Live, Panel
 )
+from ..utils.tables import create_instance_table, add_instance_row
 from ..utils.logging import ConsoleLogger, setup_logger
 from ..utils.ssh import transfer_files_scp, wait_for_ssh_only
 from ..utils.cloud_init import generate_minimal_cloud_init
@@ -481,17 +483,11 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     def generate_layout():
         # Count active (non-skipped) instances
         active_count = sum(1 for item in creation_status.values() if "SKIPPED" not in item["status"])
-        table = Table(
+        table = create_instance_table(
             title=f"Creating instances ({active_count} active)",
-            show_header=True,
-            width=ColumnWidths.get_total_width(),
+            show_lines=False,
+            padding=(0, 1),
         )
-        table.add_column("Region", style="magenta", width=ColumnWidths.REGION)
-        table.add_column("Instance ID", style="cyan", width=ColumnWidths.INSTANCE_ID)
-        table.add_column("Status", style="yellow", width=ColumnWidths.STATUS)
-        table.add_column("Type", style="green", width=ColumnWidths.TYPE)
-        table.add_column("Public IP", style="blue", width=ColumnWidths.PUBLIC_IP)
-        table.add_column("Created", style="dim", width=ColumnWidths.CREATED)
         
         sorted_items = sorted(creation_status.items(), key=lambda x: x[0])
         for key, item in sorted_items:
@@ -507,7 +503,8 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             else:
                 status_style = status
             
-            table.add_row(
+            add_instance_row(
+                table,
                 item["region"],
                 item["instance_id"],
                 status_style,
@@ -524,7 +521,6 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         except (FileNotFoundError, IOError):
             log_content = "Waiting for log entries..."
         
-        from ..utils.display import Panel
         log_panel = Panel(log_content, title="On-Screen Log", border_style="blue", height=12)
         
         layout = Layout()
@@ -547,7 +543,15 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 log_id = instance_id if instance_id else key
                 logger.info(f"[{log_id} @ {log_ip}] {status}")
     
-    with Live(generate_layout(), refresh_per_second=4, console=console) as live:
+    # Create console with proper width settings for Docker compatibility
+    create_console = Console(
+        force_terminal=True,
+        force_interactive=True,
+        width=None,  # Let Rich auto-detect the terminal width
+        legacy_windows=False,
+    )
+    
+    with Live(generate_layout(), refresh_per_second=4, console=create_console, screen=True) as live:
         
         def create_region_instances(region, count):
             try:
