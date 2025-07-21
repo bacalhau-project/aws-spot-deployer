@@ -1,9 +1,9 @@
 """Display utilities for rich terminal output."""
 
+from typing import Optional
+
 # Try to import Rich components
 try:
-    import os
-
     from rich.console import Console
     from rich.layout import Layout  # noqa: F401 - Re-exported for other modules
     from rich.live import Live  # noqa: F401 - Re-exported for other modules
@@ -36,7 +36,7 @@ except ImportError:
     Table = None
 
 
-def rich_print(message: str, style: str = None) -> None:
+def rich_print(message: str, style: Optional[str] = None) -> None:
     """Print with Rich styling if available, fallback to regular print."""
     if RICH_AVAILABLE and console:
         if style:
