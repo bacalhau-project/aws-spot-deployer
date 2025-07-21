@@ -48,7 +48,7 @@ def generate_minimal_cloud_init(config: SimpleConfig) -> str:
         rich_warning("No public SSH key found - SSH access may not work")
         public_key = ""
 
-    # Create minimal cloud-init script - NO REBOOT, NO COMPLEX SERVICES
+    # Create minimal cloud-init script that waits for files then runs deployment
     cloud_init_script = f"""#cloud-config
 
 users:
@@ -74,12 +74,13 @@ packages:
   - lsb-release
 
 runcmd:
-  # Just create a basic log file in /tmp for cloud-init status
-  - touch /tmp/cloud-init-status.log
-  - chmod 666 /tmp/cloud-init-status.log
+  # Create log files
+  - touch /opt/startup.log /opt/deployment.log
+  - chmod 666 /opt/startup.log /opt/deployment.log
   
   # Install uv
   - |
+    echo "[$(date)] Installing uv..." >> /opt/startup.log
     curl -LsSf https://astral.sh/uv/install.sh | sh
     if [ -f /root/.local/bin/uv ]; then
       mv /root/.local/bin/uv /usr/local/bin/uv
@@ -89,6 +90,7 @@ runcmd:
   
   # Install Docker
   - |
+    echo "[$(date)] Installing Docker..." >> /opt/startup.log
     mkdir -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
@@ -98,31 +100,47 @@ runcmd:
     systemctl start docker
     usermod -aG docker {config.username()}
   
-  # Create a watcher script that waits for files and runs deployment
+  # Wait for files to be uploaded (SSH transfer happens after cloud-init)
   - |
-    cat > /usr/local/bin/watch-for-deployment.sh << 'EOF'
-    #!/bin/bash
-    # Wait for uploaded files marker
-    while [ ! -f /tmp/uploaded_files_ready ]; do
-      sleep 2
+    echo "[$(date)] Waiting for file upload..." >> /opt/startup.log
+    timeout=300
+    elapsed=0
+    while [ ! -f /tmp/uploaded_files_ready ] && [ $elapsed -lt $timeout ]; do
+      sleep 5
+      elapsed=$((elapsed + 5))
     done
     
-    # Files are ready, run deployment
+    if [ ! -f /tmp/uploaded_files_ready ]; then
+      echo "[$(date)] ERROR: File upload timeout" >> /opt/startup.log
+      exit 1
+    fi
+  
+  # Run deployment script
+  - |
+    echo "[$(date)] Running deployment script..." >> /opt/startup.log
     if [ -f /tmp/uploaded_files/scripts/deploy_services.py ]; then
-      echo "[$(date)] Starting deployment" >> /opt/startup.log
-      cd /tmp/uploaded_files/scripts && /usr/bin/uv run deploy_services.py >> /home/ubuntu/deployment.log 2>&1
+      cd /tmp/uploaded_files/scripts && /usr/bin/uv run deploy_services.py
     else
       echo "[$(date)] ERROR: deploy_services.py not found" >> /opt/startup.log
+      exit 1
     fi
-    EOF
-    chmod +x /usr/local/bin/watch-for-deployment.sh
   
-  # Start the watcher in the background
-  - nohup /usr/local/bin/watch-for-deployment.sh > /tmp/watcher.log 2>&1 &
+  # Run additional commands if they exist
+  - |
+    if [ -f /opt/uploaded_files/scripts/additional_commands.sh ]; then
+      echo "[$(date)] Running additional commands..." >> /opt/startup.log
+      chmod +x /opt/uploaded_files/scripts/additional_commands.sh
+      /opt/uploaded_files/scripts/additional_commands.sh
+    fi
   
-  # Mark cloud-init complete
-  - echo "[$(date)] Cloud-init complete - watcher started" > /tmp/cloud-init-complete
-  - echo "[$(date)] Ready for file upload and deployment" >> /opt/startup.log
+  # Cloud-init will handle the reboot
+  - echo "[$(date)] Cloud-init deployment complete" >> /opt/startup.log
+
+power_state:
+  mode: reboot
+  message: Rebooting after deployment
+  timeout: 1
+  condition: True
 """
 
     return cloud_init_script

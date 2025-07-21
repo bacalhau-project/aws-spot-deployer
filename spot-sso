@@ -47,6 +47,11 @@ OUTPUT_DIR="${SPOT_OUTPUT:-./output}"
 # Build volume mounts
 VOLUMES=""
 
+# Mount SSH directory for key access
+if [ -d "$HOME/.ssh" ]; then
+    VOLUMES="$VOLUMES -v $HOME/.ssh:/root/.ssh:ro"
+fi
+
 # Mount config file if it exists (not needed for setup/help)
 if [ -f "$CONFIG_FILE" ]; then
     VOLUMES="$VOLUMES -v $(realpath $CONFIG_FILE):/app/config/config.yaml:ro"
@@ -62,12 +67,15 @@ mkdir -p "$OUTPUT_DIR"
 VOLUMES="$VOLUMES -v $(realpath $OUTPUT_DIR):/app/output"
 
 # Run the container with SSO credentials
-exec docker run --rm \
+exec docker run --rm -it \
     -e AWS_ACCESS_KEY_ID \
     -e AWS_SECRET_ACCESS_KEY \
     -e AWS_SESSION_TOKEN \
     -e AWS_DEFAULT_REGION \
     -e AWS_REGION \
+    -e TERM=xterm-256color \
+    -e COLUMNS=$(tput cols) \
+    -e LINES=$(tput lines) \
     $VOLUMES \
     "$FULL_IMAGE" \
     "$@"

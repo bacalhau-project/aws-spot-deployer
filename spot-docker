@@ -23,6 +23,11 @@ else
     echo "⚠️  Warning: No AWS credentials found"
 fi
 
+# Mount SSH directory for key access
+if [ -d "$HOME/.ssh" ]; then
+    VOLUMES="$VOLUMES -v $HOME/.ssh:/root/.ssh:ro"
+fi
+
 # Mount config file if it exists (not needed for setup/help)
 if [ -f "$CONFIG_FILE" ]; then
     VOLUMES="$VOLUMES -v $(realpath $CONFIG_FILE):/app/config/config.yaml:ro"
@@ -64,8 +69,11 @@ if [ -n "$AWS_REGION" ]; then
 fi
 
 # Run the container
-exec docker run --rm \
+exec docker run --rm -it \
     $VOLUMES \
     $ENV_VARS \
+    -e TERM=xterm-256color \
+    -e COLUMNS=$(tput cols) \
+    -e LINES=$(tput lines) \
     "$FULL_IMAGE" \
     "$@"

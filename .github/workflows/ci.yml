@@ -38,15 +38,29 @@ jobs:
     - name: Install dependencies
       run: uv sync
     
-    - name: Run smoke tests
-      run: uv run -s test_smoke.py
-    
-    - name: Lint with ruff (if available)
+    - name: Lint with ruff
       run: |
-        if command -v ruff &> /dev/null; then
-          ruff check .
-          ruff format --check .
-        else
-          echo "Ruff not available, skipping lint"
+        uv pip install --system ruff
+        ruff check .
+        ruff format --check .
+    
+    - name: Run tests
+      run: |
+        # Test the main module can be imported
+        uv run python -c "import spot_deployer; print('Import successful')"
+        
+        # Test CLI help
+        uv run python -m spot_deployer --help
+        
+        # Run any existing tests
+        if [ -f test_simple.py ]; then
+          uv run python test_simple.py
         fi
-      continue-on-error: true
+    
+    - name: Test Docker build
+      run: |
+        # Test that the Docker image builds successfully
+        docker build -t test-spot-deployer .
+        
+        # Test that the image runs
+        docker run --rm test-spot-deployer help

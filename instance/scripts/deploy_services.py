@@ -206,9 +206,8 @@ def create_completion_marker():
 
 
 def schedule_reboot():
-    """Schedule a reboot in 3 seconds"""
-    log("Scheduling system reboot in 3 seconds...")
-    run_command("shutdown -r +3 'Deployment complete, rebooting system'")
+    """Mark deployment as complete (no reboot - let cloud-init handle it)"""
+    log("Deployment complete - cloud-init will handle reboot")
 
 
 def ensure_uv_installed():
@@ -282,7 +281,7 @@ def main():
         # Create completion marker
         create_completion_marker()
 
-        # Schedule reboot
+        # Mark deployment complete (cloud-init will handle reboot)
         schedule_reboot()
 
         log("=== Deployment script completed successfully ===")

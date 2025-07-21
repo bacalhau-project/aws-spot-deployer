@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Simple entrypoint for spot-deployer using uv
+# Simple entrypoint for spot-deployer
 
 # Function to check AWS credentials
 check_aws_credentials() {
@@ -41,7 +41,7 @@ if [[ "$1" == "setup" ]]; then
     mkdir -p "$SPOT_OUTPUT_DIR"
     # Create config in output directory by setting environment variable
     export SPOT_CONFIG_PATH="$SPOT_OUTPUT_DIR/config.yaml"
-    exec uv run spot-deployer setup
+    exec spot-deployer setup
 fi
 
 # Default to help if no command
@@ -60,5 +60,11 @@ if [[ "$1" != "help" ]] && [[ "$1" != "setup" ]] && [[ "$1" != "--help" ]]; then
     fi
 fi
 
-# Execute spot deployer using the installed package
-exec uv run spot-deployer "$@"
+# Check if the first argument looks like a command or script
+if [[ "$1" == "bash" ]] || [[ "$1" == "sh" ]] || [[ "$1" == "python" ]] || [[ -x "$1" ]]; then
+    # Execute the command directly
+    exec "$@"
+else
+    # Execute spot deployer (it's already installed)
+    exec spot-deployer "$@"
+fi

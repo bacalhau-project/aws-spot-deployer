@@ -1,7 +1,7 @@
 # Bacalhau Compute Node Configuration Template
 # This template has credentials injected during deployment
 
-NameProvider: hostname
+NameProvider: aws
 
 # Data directory for Bacalhau
 DataDir: /bacalhau_data

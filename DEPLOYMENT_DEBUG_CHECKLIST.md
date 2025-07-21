@@ -1,142 +1,249 @@
-# Deployment Debug Checklist
+# AWS Spot Instance Deployment Debug Checklist
 
-Based on the current deployment flow, here's a systematic checklist to debug deployment issues:
+This checklist helps systematically debug deployment issues when instances are created but services aren't running properly.
 
-## Current Deployment Flow
+## Quick Start
 
-1. **Cloud-init runs** (`generate_minimal_cloud_init`):
-   - Creates ubuntu user with SSH key
-   - Installs packages: curl, wget, git, python3, docker
-   - Installs uv to `/usr/bin/uv`
-   - Creates watcher script at `/usr/local/bin/watch-for-deployment.sh`
-   - Starts watcher in background that waits for `/tmp/uploaded_files_ready`
-
-2. **Files are uploaded via SSH** (`transfer_files_scp`):
-   - Creates `/tmp/uploaded_files/{scripts,config}` directories
-   - Uploads scripts, configs, and user files to `/tmp/uploaded_files/`
-   - Generates Bacalhau config with injected credentials
-   - Creates `/tmp/uploaded_files_ready` marker file
-
-3. **Watcher detects marker and runs deployment** (`deploy_services.py`):
-   - Creates directories under `/opt/` with sudo
-   - Moves files from `/tmp/uploaded_files/` to `/opt/uploaded_files/`
-   - Copies service files to `/etc/systemd/system/`
-   - Generates node identity
-   - Enables systemd services
-   - Schedules reboot in 3 seconds
-
-4. **After reboot**:
-   - Systemd services (bacalhau.service, sensor-generator.service) start
-   - Docker containers run
-
-## Manual Debug Steps
-
-### Stage 1: Verify Cloud-Init Completed
 ```bash
-ssh ubuntu@<IP> "sudo cloud-init status --wait"
-ssh ubuntu@<IP> "cat /var/log/cloud-init-output.log | grep -E 'error|fail|warn'"
-ssh ubuntu@<IP> "ls -la /usr/local/bin/watch-for-deployment.sh"
+# Run automated debug script
+./debug_deployment.sh <instance-ip> <ssh-key-path>
+
+# Example
+./debug_deployment.sh 52.34.56.78 ~/.ssh/my-key.pem
 ```
 
-### Stage 2: Check Watcher Script
+## Manual Debug Checklist
+
+### 1. SSH Connectivity Test
 ```bash
-# Is watcher running?
-ssh ubuntu@<IP> "ps aux | grep watch-for-deployment"
+ssh -i <key> ubuntu@<ip> "echo 'Connected'"
+```
+- ✅ **Pass**: Continue to next step
+- ❌ **Fail**: Check security groups, SSH key, instance state
+
+### 2. Cloud-Init Status
+```bash
+ssh -i <key> ubuntu@<ip> "sudo cloud-init status"
+```
+- ✅ **Expected**: `status: done`
+- ❌ **If running/error**: Check cloud-init logs:
+  ```bash
+  ssh -i <key> ubuntu@<ip> "sudo tail -100 /var/log/cloud-init-output.log"
+  ```
+
+### 3. Watcher Script Check
+```bash
+# Check if watcher script exists
+ssh -i <key> ubuntu@<ip> "ls -la /usr/local/bin/watch-for-deployment.sh"
+
+# Check if watcher is running
+ssh -i <key> ubuntu@<ip> "ps aux | grep watch-for-deployment"
 
 # Check watcher log
-ssh ubuntu@<IP> "cat /tmp/watcher.log"
-
-# Manually check what watcher is looking for
-ssh ubuntu@<IP> "ls -la /tmp/uploaded_files_ready"
+ssh -i <key> ubuntu@<ip> "cat /tmp/watcher.log"
 ```
 
-### Stage 3: Verify File Upload
+**Common Issues**:
+- ❌ **Script missing**: Cloud-init failed
+- ❌ **Not running**: Start manually:
+  ```bash
+  ssh -i <key> ubuntu@<ip> "nohup /usr/local/bin/watch-for-deployment.sh > /tmp/watcher.log 2>&1 &"
+  ```
+
+### 4. File Upload Verification
 ```bash
-# Check if files were uploaded
-ssh ubuntu@<IP> "ls -la /tmp/uploaded_files/"
+# Check upload directory
+ssh -i <key> ubuntu@<ip> "ls -la /tmp/uploaded_files/"
 
-# Check if files were moved to /opt
-ssh ubuntu@<IP> "ls -la /opt/uploaded_files/"
+# Check marker file
+ssh -i <key> ubuntu@<ip> "ls -la /tmp/uploaded_files/marker"
 
-# Check specific critical files
-ssh ubuntu@<IP> "ls -la /opt/uploaded_files/scripts/deploy_services.py"
-ssh ubuntu@<IP> "ls -la /opt/uploaded_files/config/bacalhau-config.yaml"
+# List all uploaded files
+ssh -i <key> ubuntu@<ip> "find /tmp/uploaded_files -type f"
 ```
 
-### Stage 4: Check Deployment Execution
-```bash
-# Check deployment logs
-ssh ubuntu@<IP> "cat ~/deployment.log"
-ssh ubuntu@<IP> "cat /opt/deployment.log"
+**Common Issues**:
+- ❌ **No files**: Upload failed, check deploy_spot.py logs
+- ❌ **No marker**: Create manually:
+  ```bash
+  ssh -i <key> ubuntu@<ip> "touch /tmp/uploaded_files/marker"
+  ```
 
-# Check if deployment completed
-ssh ubuntu@<IP> "cat /opt/deployment_complete"
+### 5. Deploy Services Script
+```bash
+# Check deployment log
+ssh -i <key> ubuntu@<ip> "cat ~/deployment.log"
+
+# Check if deploy_services.py exists
+ssh -i <key> ubuntu@<ip> "ls -la /tmp/uploaded_files/scripts/deploy_services.py"
 ```
 
-### Stage 5: Verify Services
+**If not run**, trigger manually:
 ```bash
-# Check service files
-ssh ubuntu@<IP> "ls -la /etc/systemd/system/ | grep -E 'bacalhau|sensor'"
+ssh -i <key> ubuntu@<ip> "cd /tmp/uploaded_files/scripts && sudo /usr/bin/uv run deploy_services.py"
+```
 
-# Check service status
-ssh ubuntu@<IP> "systemctl status bacalhau.service"
-ssh ubuntu@<IP> "journalctl -u bacalhau.service -n 50"
-
+### 6. Docker and UV Installation
+```bash
 # Check Docker
-ssh ubuntu@<IP> "docker ps -a"
+ssh -i <key> ubuntu@<ip> "docker --version"
+
+# Check UV
+ssh -i <key> ubuntu@<ip> "uv --version"
+ssh -i <key> ubuntu@<ip> "which uv"
 ```
 
-### Stage 6: Common Failure Points
+**Common Issues**:
+- ❌ **UV not in PATH**: Add to PATH:
+  ```bash
+  ssh -i <key> ubuntu@<ip> "echo 'export PATH=/usr/bin:$PATH' >> ~/.bashrc"
+  ```
 
-1. **Watcher not running**: Cloud-init might have failed to start it
-2. **Files not found**: Upload might have failed or paths are wrong
-3. **Permission errors**: `/opt` requires sudo, deployment script handles this
-4. **UV not in PATH**: Check `/usr/bin/uv` exists
-5. **Reboot didn't happen**: Check `uptime` to see if system rebooted
-
-## Quick Diagnostic Script
-
-Run the included `debug_deployment.sh` script:
+### 7. Directory Structure
 ```bash
-./debug_deployment.sh <instance-ip> [ssh-key-path]
+# Check all required directories
+ssh -i <key> ubuntu@<ip> "ls -la /opt/"
+ssh -i <key> ubuntu@<ip> "ls -la /opt/scripts/"
+ssh -i <key> ubuntu@<ip> "ls -la /opt/uploaded_files/"
+ssh -i <key> ubuntu@<ip> "ls -la /opt/sensor/config/"
 ```
 
-This will run all diagnostic commands and provide a summary.
+**If missing**, create manually:
+```bash
+ssh -i <key> ubuntu@<ip> "sudo mkdir -p /opt/{scripts,uploaded_files,sensor/config}"
+```
 
-## Manual Recovery Steps
+### 8. SystemD Services
+```bash
+# Check service status
+ssh -i <key> ubuntu@<ip> "systemctl status bacalhau-startup"
+ssh -i <key> ubuntu@<ip> "systemctl status bacalhau"
+ssh -i <key> ubuntu@<ip> "systemctl status sensor"
 
-If deployment failed at any stage:
+# Check if services are enabled
+ssh -i <key> ubuntu@<ip> "systemctl is-enabled bacalhau-startup"
+```
 
-1. **If watcher didn't run**:
-   ```bash
-   ssh ubuntu@<IP>
-   # Check if files are there
-   ls /tmp/uploaded_files/scripts/deploy_services.py
-   # Run deployment manually
-   cd /tmp/uploaded_files/scripts && /usr/bin/uv run deploy_services.py
-   ```
+**If not installed**:
+```bash
+# Copy service files
+ssh -i <key> ubuntu@<ip> "sudo cp /tmp/uploaded_files/scripts/*.service /etc/systemd/system/"
+ssh -i <key> ubuntu@<ip> "sudo systemctl daemon-reload"
+ssh -i <key> ubuntu@<ip> "sudo systemctl enable bacalhau-startup bacalhau sensor"
+```
 
-2. **If files weren't moved**:
-   ```bash
-   ssh ubuntu@<IP>
-   sudo mv /tmp/uploaded_files/* /opt/uploaded_files/
-   sudo chown -R ubuntu:ubuntu /opt/uploaded_files
-   ```
+### 9. Startup Script Output
+```bash
+# Check startup log
+ssh -i <key> ubuntu@<ip> "cat /opt/startup.log"
 
-3. **If services weren't installed**:
-   ```bash
-   ssh ubuntu@<IP>
-   sudo cp /opt/uploaded_files/scripts/*.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable bacalhau.service
-   sudo systemctl start bacalhau.service
-   ```
+# Run startup manually if needed
+ssh -i <key> ubuntu@<ip> "cd /opt/scripts && sudo /usr/bin/uv run startup.py"
+```
 
-## Expected State After Successful Deployment
+### 10. Node Identity
+```bash
+# Check if generated
+ssh -i <key> ubuntu@<ip> "cat /opt/sensor/config/node_identity.json | jq ."
+```
 
-- `/opt/deployment_complete` exists
-- `/opt/uploaded_files/` contains all scripts and configs
-- `/bacalhau_node/config.yaml` exists with injected credentials
-- `/opt/sensor/config/node_identity.json` exists
-- `docker ps` shows running bacalhau container
-- System has rebooted (check with `uptime`)
+**If missing**, generate manually:
+```bash
+ssh -i <key> ubuntu@<ip> "cd /opt/scripts && INSTANCE_ID=$(ec2-metadata --instance-id | cut -d' ' -f2) sudo /usr/bin/uv run generate_node_identity.py"
+```
+
+## Common Root Causes
+
+### 1. Timing Issue
+**Symptom**: Marker file created before all files uploaded
+**Fix**: 
+```bash
+# Remove marker and recreate after verifying files
+ssh -i <key> ubuntu@<ip> "rm /tmp/uploaded_files/marker"
+# Verify all files are present
+ssh -i <key> ubuntu@<ip> "ls -la /tmp/uploaded_files/scripts/"
+# Recreate marker
+ssh -i <key> ubuntu@<ip> "touch /tmp/uploaded_files/marker"
+```
+
+### 2. Permission Issues
+**Symptom**: Can't move files from /tmp to /opt
+**Fix**:
+```bash
+ssh -i <key> ubuntu@<ip> "sudo chown -R root:root /tmp/uploaded_files"
+ssh -i <key> ubuntu@<ip> "cd /tmp/uploaded_files/scripts && sudo /usr/bin/uv run deploy_services.py"
+```
+
+### 3. UV Path Issues
+**Symptom**: UV not found when running scripts
+**Fix**:
+```bash
+# Use full path
+ssh -i <key> ubuntu@<ip> "sudo /usr/bin/uv --version"
+# Or update PATH in scripts
+ssh -i <key> ubuntu@<ip> "sudo sed -i '1a export PATH=/usr/bin:$PATH' /opt/scripts/*.py"
+```
+
+### 4. Reboot Not Triggered
+**Symptom**: Services installed but not started
+**Fix**:
+```bash
+# Manually reboot
+ssh -i <key> ubuntu@<ip> "sudo reboot"
+# Wait 30 seconds, then check services
+ssh -i <key> ubuntu@<ip> "systemctl status bacalhau"
+```
+
+## Full Recovery Procedure
+
+If deployment is completely broken, run this sequence:
+
+```bash
+# 1. Set variables
+IP="<instance-ip>"
+KEY="<ssh-key-path>"
+
+# 2. Ensure watcher is running
+ssh -i $KEY ubuntu@$IP "nohup /usr/local/bin/watch-for-deployment.sh > /tmp/watcher.log 2>&1 &"
+
+# 3. Verify files are uploaded
+ssh -i $KEY ubuntu@$IP "ls -la /tmp/uploaded_files/scripts/"
+
+# 4. Create marker if missing
+ssh -i $KEY ubuntu@$IP "touch /tmp/uploaded_files/marker"
+
+# 5. Wait for watcher to trigger (or run manually)
+sleep 10
+ssh -i $KEY ubuntu@$IP "cat ~/deployment.log"
+
+# 6. If deployment didn't run, trigger manually
+ssh -i $KEY ubuntu@$IP "cd /tmp/uploaded_files/scripts && sudo /usr/bin/uv run deploy_services.py"
+
+# 7. Check if reboot is needed
+ssh -i $KEY ubuntu@$IP "systemctl is-active bacalhau || sudo reboot"
+```
+
+## Log Locations
+
+- **Cloud-init**: `/var/log/cloud-init-output.log`
+- **Watcher script**: `/tmp/watcher.log`
+- **Deployment**: `~/deployment.log`
+- **Startup script**: `/opt/startup.log`
+- **SystemD services**: `journalctl -u <service-name>`
+- **Docker compose**: `/opt/uploaded_files/docker-compose.log`
+
+## Quick Commands Reference
+
+```bash
+# View all error messages
+ssh -i <key> ubuntu@<ip> "grep -i error /tmp/watcher.log ~/deployment.log /opt/startup.log 2>/dev/null"
+
+# Check everything at once
+./debug_deployment.sh <ip> <key>
+
+# Force full deployment
+ssh -i <key> ubuntu@<ip> "cd /tmp/uploaded_files/scripts && sudo /usr/bin/uv run deploy_services.py && sudo reboot"
+
+# Monitor deployment in real-time
+ssh -i <key> ubuntu@<ip> "tail -f /tmp/watcher.log ~/deployment.log"
+```

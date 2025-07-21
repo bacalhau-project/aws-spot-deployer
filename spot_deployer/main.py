@@ -11,6 +11,7 @@ import sys
 from .commands import cmd_create, cmd_destroy, cmd_help, cmd_list, cmd_setup
 from .core.config import SimpleConfig
 from .core.state import SimpleStateManager
+from .version import __version__
 
 
 def main() -> None:
@@ -20,6 +21,14 @@ def main() -> None:
         return
 
     command = sys.argv[1]
+    
+    # Handle version flag
+    if command in ["--version", "-V", "version"]:
+        print(f"spot-deployer {__version__}")
+        return
+    
+    # Check for verbose flag
+    verbose = "-v" in sys.argv or "--verbose" in sys.argv
     
     # Use paths from environment variables if set (for Docker)
     config_path = os.environ.get("SPOT_CONFIG_PATH", "config.yaml")
@@ -35,7 +44,7 @@ def main() -> None:
     elif command == "list":
         cmd_list(state)
     elif command == "destroy":
-        cmd_destroy(config, state)
+        cmd_destroy(config, state, verbose=verbose)
     elif command == "help":
         cmd_help()
     else:

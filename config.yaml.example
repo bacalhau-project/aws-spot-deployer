@@ -7,7 +7,7 @@ aws:
   # =========================================================================
   
   # Total number of instances to create across all regions
-  total_instances: 3
+  total_instances: 20
   
   # SSH username for connecting to instances
   username: ubuntu

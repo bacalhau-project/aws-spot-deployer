@@ -54,13 +54,13 @@ def cmd_list(state: SimpleStateManager) -> None:
                 instance["state"] = "error"
     
     if RICH_AVAILABLE and console:
-        table = Table(title="Running Spot Instances")
-        table.add_column("Region", style="magenta")
-        table.add_column("Instance ID", style="cyan")
-        table.add_column("Type", style="green")
-        table.add_column("Public IP", style="blue")
-        table.add_column("State", style="yellow")
-        table.add_column("Created", style="dim")
+        table = Table(title="Running Spot Instances", expand=True)
+        table.add_column("Region", style="magenta", no_wrap=True)
+        table.add_column("Instance ID", style="cyan", no_wrap=True)
+        table.add_column("Type", style="green", no_wrap=True)
+        table.add_column("Public IP", style="blue", no_wrap=True)
+        table.add_column("State", style="yellow", no_wrap=True)
+        table.add_column("Created", style="dim", no_wrap=True)
         
         for inst in sorted(instances, key=lambda i: i.get("region", "")):
             state = inst.get("state", "unknown")

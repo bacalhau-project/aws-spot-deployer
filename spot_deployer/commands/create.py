@@ -14,7 +14,7 @@ from ..core.constants import ColumnWidths
 from ..utils.aws import check_aws_auth
 from ..utils.display import (
     rich_status, rich_success, rich_error, rich_warning,
-    console, Table, Layout, Live
+    console, Table, Layout, Live, Panel
 )
 from ..utils.logging import ConsoleLogger, setup_logger
 from ..utils.ssh import transfer_files_scp, wait_for_ssh_only
@@ -290,6 +290,7 @@ def create_instances_in_region_with_table(
             update_status_func(key, "Waiting for public IP", instance_id=inst_id)
         
         # Poll for public IPs
+        time.sleep(1)  # Give AWS a moment to register the instances
         max_attempts = 30
         for attempt in range(max_attempts):
             try:
@@ -340,6 +341,10 @@ def create_instances_in_region_with_table(
                 time.sleep(2)
             
             except Exception as e:
+                # Instances might not be ready yet, just continue
+                if attempt < 5:  # Only log after a few attempts
+                    time.sleep(2)
+                    continue
                 log_message(f"Error checking instance status: {e}")
         
         # Mark any instances without IPs as errors
@@ -386,15 +391,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     if not check_aws_auth():
         return
     
-    # Show helpful info about the deployment process
-    console.print("\n[bold cyan]🚀 Starting AWS Spot Instance Deployment[/bold cyan]")
-    console.print("\n[bold]Simplified Deployment Process:[/bold]")
-    console.print("1. [yellow]Create Instances[/yellow] - Request spot instances from AWS")
-    console.print("2. [blue]Cloud-init Setup[/blue] - Install Docker, uv, create directories")
-    console.print("3. [green]SSH Available[/green] - Wait for connectivity")
-    console.print("4. [magenta]Upload & Deploy[/magenta] - Transfer files and start deployment")
-    console.print("5. [cyan]Background Setup[/cyan] - Services configure and reboot automatically")
-    console.print("\n[dim]Check deployment progress: ssh ubuntu@<ip> 'tail -f ~/deployment.log'[/dim]\n")
+    # Initial header will be shown in the Live display
     
     # Setup local logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -406,8 +403,6 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     
     # Store reference to console handler for updating IP map
     logger.console_handler = console_handler
-    
-    rich_status(f"Logging to local file: {log_filename}")
     
     # Check for SSH key configuration
     public_key_path = config.public_ssh_key_path()
@@ -484,22 +479,50 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         table = Table(
             title=f"Creating instances ({active_count} active)",
             show_header=True,
-            width=ColumnWidths.get_total_width(),
+            expand=True,
+            show_lines=False,
+            padding=(0, 1),
         )
-        table.add_column("Region", style="magenta", width=ColumnWidths.REGION)
-        table.add_column("Instance ID", style="cyan", width=ColumnWidths.INSTANCE_ID)
-        table.add_column("Status", style="yellow", width=ColumnWidths.STATUS)
-        table.add_column("Type", style="green", width=ColumnWidths.TYPE)
-        table.add_column("Public IP", style="blue", width=ColumnWidths.PUBLIC_IP)
-        table.add_column("Created", style="dim", width=ColumnWidths.CREATED)
+        table.add_column("Region", style="magenta", no_wrap=True)
+        table.add_column("Instance ID", style="cyan", no_wrap=True)
+        table.add_column("Status", style="yellow")
+        table.add_column("Type", style="green", no_wrap=True)
+        table.add_column("Public IP", style="blue", no_wrap=True)
+        table.add_column("Created", style="dim", no_wrap=True)
         
         sorted_items = sorted(creation_status.items(), key=lambda x: x[0])
+        
+        # Limit table rows to prevent pushing log panel off screen
+        # Show priority: errors, then in-progress, then success
+        error_items = []
+        progress_items = []
+        success_items = []
+        
         for key, item in sorted_items:
             status = item["status"]
             # Don't show skipped instances in the table
             if "SKIPPED" in status:
                 continue
-                
+            
+            if "ERROR" in status:
+                error_items.append((key, item))
+            elif "SUCCESS" in status:
+                success_items.append((key, item))
+            else:
+                progress_items.append((key, item))
+        
+        # Combine in priority order: in-progress first, then errors, then success
+        all_items = progress_items + error_items + success_items
+        max_rows = 25  # Reasonable limit to keep log visible
+        
+        items_to_show = all_items[:max_rows]
+        if len(all_items) > max_rows:
+            # Add indicator that there are more items
+            table.caption = f"[dim]Showing {max_rows} of {len(all_items)} instances[/dim]"
+        
+        for key, item in items_to_show:
+            status = item["status"]
+            
             if "SUCCESS" in status:
                 status_style = f"[bold green]{status}[/bold green]"
             elif "ERROR" in status:
@@ -518,17 +541,19 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         
         try:
             with open(log_filename, 'r') as f:
-                # Read last 10 lines and strip trailing newlines
-                lines = [line.rstrip() for line in f.readlines()[-10:]]
+                # Read only last 5 lines for compact display
+                lines = [line.rstrip() for line in f.readlines()[-5:]]
                 log_content = "\n".join(lines)
         except (FileNotFoundError, IOError):
             log_content = "Waiting for log entries..."
         
-        from ..utils.display import Panel
-        log_panel = Panel(log_content, title="On-Screen Log", border_style="blue", height=12)
+        log_panel = Panel(log_content, title=f"Log: {log_filename}", border_style="blue", height=7)
         
         layout = Layout()
-        layout.split_column(Layout(table), Layout(log_panel))
+        layout.split_column(
+            Layout(table),  # Table takes available space
+            Layout(log_panel, size=7)  # Fixed log panel at bottom
+        )
         
         return layout
     
@@ -547,7 +572,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 log_id = instance_id if instance_id else key
                 logger.info(f"[{log_id} @ {log_ip}] {status}")
     
-    with Live(generate_layout(), refresh_per_second=4, console=console) as live:
+    with Live(generate_layout(), refresh_per_second=4, console=console, screen=True) as live:
         
         def create_region_instances(region, count):
             try:
@@ -568,7 +593,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         live.update(generate_layout())  # Final update after creation phase
         
         if all_instances:
-            rich_status(f"Created {len(all_instances)} instances. Starting file upload and deployment...")
+            # Status will be shown in the layout, not printed separately
             live.update(generate_layout())
             
             # Always run post-creation setup to upload files

@@ -43,23 +43,68 @@ class SimpleConfig:
 
     def public_ssh_key_path(self) -> Optional[str]:
         """Get public SSH key file path."""
-        return self.data.get("aws", {}).get("public_ssh_key_path")
+        path = self.data.get("aws", {}).get("public_ssh_key_path")
+        if path:
+            return self._resolve_ssh_path(path)
+        return None
 
     def private_ssh_key_path(self) -> Optional[str]:
         """Get private SSH key file path."""
-        return self.data.get("aws", {}).get("private_ssh_key_path")
+        path = self.data.get("aws", {}).get("private_ssh_key_path")
+        if path:
+            return self._resolve_ssh_path(path)
+        return None
+    
+    def _raw_public_ssh_key_path(self) -> Optional[str]:
+        """Get raw public SSH key path from config (unresolved)."""
+        return self.data.get("aws", {}).get("public_ssh_key_path")
+
+    def _resolve_ssh_path(self, path: str) -> str:
+        """Resolve SSH path for both local and container environments."""
+        # If running in Docker container (detected by SPOT_CONFIG_PATH env var)
+        if os.environ.get("SPOT_CONFIG_PATH"):
+            # First expand any ~ references
+            expanded_path = os.path.expanduser(path)
+            
+            # Extract just the .ssh part of the path
+            if "/.ssh/" in expanded_path:
+                ssh_part = expanded_path[expanded_path.index("/.ssh/"):]
+                return f"/root{ssh_part}"
+            elif expanded_path.endswith("/.ssh"):
+                return "/root/.ssh"
+            
+            # Fallback mapping for other paths
+            path_mappings = {
+                "/Users/": "/root/",  # macOS home to container root
+                "/home/": "/root/",   # Linux home to container root
+            }
+            
+            for local_prefix, container_prefix in path_mappings.items():
+                if expanded_path.startswith(local_prefix):
+                    # Extract username and rest of path
+                    remaining = expanded_path[len(local_prefix):]
+                    if "/" in remaining:
+                        # Skip the username part
+                        rest = remaining[remaining.index("/"):]
+                        return container_prefix + rest.lstrip("/")
+                    else:
+                        return container_prefix
+        
+        # For local execution, just expand user
+        return os.path.expanduser(path)
 
     def public_ssh_key_content(self) -> Optional[str]:
         """Get public SSH key content."""
-        key_path = self.public_ssh_key_path()
+        key_path = self.public_ssh_key_path()  # Already resolved
         if key_path:
-            expanded_path = os.path.expanduser(key_path)
-            if os.path.exists(expanded_path):
+            if os.path.exists(key_path):
                 try:
-                    with open(expanded_path, "r") as f:
+                    with open(key_path, "r") as f:
                         return f.read().strip()
                 except Exception as e:
-                    print(f"Error reading public key: {e}")
+                    print(f"Error reading public key from {key_path}: {e}")
+            else:
+                print(f"❌ Public SSH key not found at '{key_path}'")
         return None
 
     def files_directory(self) -> str:
