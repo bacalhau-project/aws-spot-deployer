@@ -10,14 +10,14 @@ curl -sSL https://bac.al/spot | bash -s -- create
 
 ## First Time Setup
 
-1. **Run initial setup**:
+1. **Run initial setup** (in your project directory):
    ```bash
    curl -sSL https://bac.al/spot | bash -s -- setup
    ```
 
 2. **Edit configuration**:
    ```bash
-   nano ~/.spot-deployer/config/config.yaml
+   nano config.yaml
    ```
 
 3. **Add your SSH key path and AWS settings**
@@ -29,10 +29,10 @@ curl -sSL https://bac.al/spot | bash -s -- create
 
 ## Configuration
 
-The installer creates a working directory at `~/.spot-deployer` with:
-- `config/config.yaml` - Main configuration file
-- `files/` - Files to upload to instances
-- `output/` - State files and logs
+The installer uses your current directory for all files:
+- `config.yaml` - Main configuration file (created by setup)
+- `files/` - Files to upload to instances (optional)
+- `output/` - State files and logs (created automatically)
 
 ## Prerequisites
 
@@ -61,8 +61,13 @@ curl -sSL https://bac.al/spot | bash -s -- create --version v1.0.0
 curl -sSL https://bac.al/spot | bash -s -- create --dry-run
 ```
 
-### Custom Working Directory
+### Custom File Locations
 ```bash
-export SPOT_WORK_DIR=/path/to/workdir
+# Use config from different location
+export SPOT_CONFIG_FILE=/path/to/config.yaml
 curl -sSL https://bac.al/spot | bash -s -- create
+
+# Use custom output directory
+export SPOT_OUTPUT_DIR=/path/to/output
+curl -sSL https://bac.al/spot | bash -s -- list
 ```

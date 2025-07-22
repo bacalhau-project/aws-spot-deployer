@@ -93,28 +93,33 @@ check_prerequisites() {
 }
 
 setup_directories() {
-    log_info "Setting up directories..."
+    # Use current directory for config and files
+    WORK_DIR="${SPOT_WORK_DIR:-$(pwd)}"
+    CONFIG_FILE="${SPOT_CONFIG_FILE:-$WORK_DIR/config.yaml}"
+    FILES_DIR="${SPOT_FILES_DIR:-$WORK_DIR/files}"
+    OUTPUT_DIR="${SPOT_OUTPUT_DIR:-$WORK_DIR/output}"
     
-    # Create working directory
-    WORK_DIR="${SPOT_WORK_DIR:-$HOME/.spot-deployer}"
-    mkdir -p "$WORK_DIR"/{config,files,output}
+    # Create output directory if it doesn't exist
+    mkdir -p "$OUTPUT_DIR"
     
-    # Create default config if it doesn't exist
-    if [[ ! -f "$WORK_DIR/config/config.yaml" ]]; then
-        cat > "$WORK_DIR/config/config.yaml" << 'EOF'
-aws:
-  total_instances: 3
-  username: ubuntu
-  tags:
-    Project: "SpotDeployment"
-    App: "SpotDeployer"
-regions:
-  - us-west-2:
-      machine_type: t3.medium
-      image: auto
-EOF
-        log_info "Created default config at $WORK_DIR/config/config.yaml"
-        log_warn "Please edit this file with your settings before running 'create'"
+    # Check if config file exists
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        if [[ "$COMMAND" == "setup" ]]; then
+            log_info "Creating example config.yaml in current directory..."
+            curl -sSL "https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/config.yaml.example" -o config.yaml.example
+            cp config.yaml.example config.yaml
+            log_info "Created config.yaml - please edit it with your settings"
+        else
+            log_error "No config.yaml found in current directory"
+            log_error "Run 'setup' first to create a configuration file:"
+            log_error "  curl -sSL https://bac.al/spot | bash -s -- setup"
+            exit 1
+        fi
+    fi
+    
+    # Create files directory if referenced in config
+    if [[ -f "$CONFIG_FILE" ]] && grep -q "files_directory:" "$CONFIG_FILE"; then
+        mkdir -p "$FILES_DIR"
     fi
 }
 
@@ -145,10 +150,14 @@ run_docker() {
     local docker_cmd=(
         "docker" "run" "--rm" "-it"
         "-v" "$HOME/.ssh:/root/.ssh:ro"
-        "-v" "$WORK_DIR/config/config.yaml:/app/config/config.yaml:ro"
-        "-v" "$WORK_DIR/files:/app/files:ro"
-        "-v" "$WORK_DIR/output:/app/output"
+        "-v" "$(realpath "$CONFIG_FILE"):/app/config/config.yaml:ro"
+        "-v" "$(realpath "$OUTPUT_DIR"):/app/output"
     )
+    
+    # Add files directory if it exists
+    if [[ -d "$FILES_DIR" ]]; then
+        docker_cmd+=("-v" "$(realpath "$FILES_DIR"):/app/files:ro")
+    fi
     
     # Add AWS credentials if available
     if [[ -n "$AWS_ACCESS_KEY_ID" ]]; then
@@ -218,16 +227,19 @@ Examples:
   curl -sSL https://yourdomain.com/install.sh | bash -s -- destroy
 
 Environment Variables:
-  SPOT_WORK_DIR     Working directory (default: ~/.spot-deployer)
-  AWS_ACCESS_KEY_ID AWS access key
+  SPOT_WORK_DIR      Working directory (default: current directory)
+  SPOT_CONFIG_FILE   Config file path (default: ./config.yaml)
+  SPOT_FILES_DIR     Files directory (default: ./files)
+  SPOT_OUTPUT_DIR    Output directory (default: ./output)
+  AWS_ACCESS_KEY_ID  AWS access key
   AWS_SECRET_ACCESS_KEY AWS secret key
-  AWS_SESSION_TOKEN AWS session token (optional)
+  AWS_SESSION_TOKEN  AWS session token (optional)
   AWS_DEFAULT_REGION AWS region (default: us-west-2)
 
 Files:
-  Config: $HOME/.spot-deployer/config/config.yaml
-  Files:  $HOME/.spot-deployer/files/
-  Output: $HOME/.spot-deployer/output/
+  Config: ./config.yaml
+  Files:  ./files/
+  Output: ./output/
 
 EOF
 }
