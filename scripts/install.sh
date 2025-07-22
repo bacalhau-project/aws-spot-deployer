@@ -127,11 +127,21 @@ get_latest_version() {
     if [[ "$VERSION" == "stable" ]]; then
         # Get latest stable release from GitHub API
         local latest_release
-        latest_release=$(curl -s "${GITHUB_API}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/' || echo "")
+        latest_release=$(curl -s "${GITHUB_API}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || echo "")
         
         if [[ -n "$latest_release" ]]; then
             VERSION="$latest_release"
             log_info "Using latest stable version: $VERSION"
+            
+            # Also show all available versions
+            local all_tags
+            all_tags=$(curl -s "${GITHUB_API}/tags" | grep '"name":' | sed -E 's/.*"([^"]+)".*/\1/' | head -5 || echo "")
+            if [[ -n "$all_tags" ]]; then
+                log_info "Recent versions available:"
+                echo "$all_tags" | while read -r tag; do
+                    echo "  - $tag"
+                done
+            fi
         else
             log_warn "Could not determine latest stable version, using 'latest' tag"
             VERSION="latest"
