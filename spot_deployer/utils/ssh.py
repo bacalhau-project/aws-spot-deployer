@@ -54,6 +54,7 @@ def transfer_files_scp(
     files_directory: str,
     scripts_directory: str,
     config_directory: str = "instance/config",
+    additional_commands_path: Optional[str] = None,
     progress_callback: Optional[Callable] = None,
     log_function: Optional[Callable] = None,
 ) -> bool:
@@ -235,7 +236,32 @@ def transfer_files_scp(
                 timeout=120,
             )
 
-            update_progress("SCP: Config Upload", 95, "Config files uploaded")
+            update_progress("SCP: Config Upload", 90, "Config files uploaded")
+
+        # Upload additional_commands.sh if provided
+        if additional_commands_path and os.path.exists(additional_commands_path):
+            update_progress("SCP: Additional Commands", 92, "Uploading custom commands...")
+            
+            result = subprocess.run(
+                scp_base
+                + [
+                    additional_commands_path,
+                    f"{username}@{hostname}:/tmp/uploaded_files/scripts/additional_commands.sh",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            
+            if result.returncode != 0:
+                log_error(f"Failed to upload additional_commands.sh: {result.stderr}")
+            else:
+                log_message("Custom additional_commands.sh uploaded successfully")
+                # Make it executable
+                chmod_cmd = ssh_base + ["chmod +x /tmp/uploaded_files/scripts/additional_commands.sh"]
+                subprocess.run(chmod_cmd, capture_output=True, text=True, timeout=10)
+        elif additional_commands_path:
+            log_message(f"Warning: additional_commands.sh not found at {additional_commands_path}")
 
         # Verify files were uploaded
         update_progress("SCP: Verifying", 95, "Verifying upload...")

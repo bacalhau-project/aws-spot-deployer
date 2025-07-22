@@ -69,6 +69,15 @@ fi
 mkdir -p "$OUTPUT_DIR"
 VOLUMES="$VOLUMES -v $(realpath $OUTPUT_DIR):/app/output"
 
+# Mount additional_commands.sh if it exists in current directory
+if [ -f "./additional_commands.sh" ]; then
+    echo -e "${GREEN}✓ Found additional_commands.sh - will be uploaded to instances${NC}"
+    VOLUMES="$VOLUMES -v $(realpath ./additional_commands.sh):/app/output/additional_commands.sh:ro"
+else
+    echo -e "${YELLOW}ℹ No additional_commands.sh found in current directory${NC}"
+    echo -e "${YELLOW}  To run custom commands on instances, create additional_commands.sh${NC}"
+fi
+
 # Check if we're in a terminal
 if [ -t 0 ] && [ -t 1 ]; then
     TTY_FLAGS="-it"

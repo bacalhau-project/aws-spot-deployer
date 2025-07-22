@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  spot-deployer:
+    image: ghcr.io/bacalhau-project/aws-spot-deployer:0.1.1
+    container_name: spot-deployer
+    environment:
+      # AWS Credentials - required
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-west-2}
+      - AWS_REGION=${AWS_REGION:-us-west-2}
+
+      # Optional Bacalhau configuration
+      - BACALHAU_API_HOST=${BACALHAU_API_HOST:-}
+      - BACALHAU_API_KEY=${BACALHAU_API_KEY:-}
+
+      # Terminal configuration
+      - TERM=${TERM:-xterm-256color}
+    volumes:
+      # SSH keys for instance access (read-only)
+      - ${HOME}/.ssh:/root/.ssh:ro
+
+      # Configuration file (read-only)
+      - ./config.yaml:/app/config/config.yaml:ro
+
+      # Files to upload to instances (read-only)
+      - ./files:/app/files:ro
+
+      # Output directory for state files (read-write)
+      - ./output:/app/output
+
+      # Optional: Additional commands script
+      - ./additional_commands.sh:/app/output/additional_commands.sh:ro
+
+    command: ${SPOT_COMMAND:-help}

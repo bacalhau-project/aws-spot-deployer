@@ -45,6 +45,17 @@ def post_creation_setup(instances, config, update_status_func, logger):
     username = config.username()
     files_directory = config.files_directory()
     scripts_directory = config.scripts_directory()
+    
+    # Check for additional_commands.sh in current directory
+    additional_commands_path = os.path.join(os.getcwd(), "additional_commands.sh")
+    if not os.path.exists(additional_commands_path):
+        # Check in output directory as fallback
+        output_dir = os.environ.get("SPOT_OUTPUT_DIR", ".")
+        additional_commands_path = os.path.join(output_dir, "additional_commands.sh")
+        if not os.path.exists(additional_commands_path):
+            logger.warning("No additional_commands.sh found in current directory. Deployment will continue without custom commands.")
+            logger.info("To add custom commands, create additional_commands.sh in the directory where you run spot-deployer.")
+            additional_commands_path = None
 
     def setup_instance(instance, instance_key):
         instance_id = instance["id"]
@@ -85,6 +96,7 @@ def post_creation_setup(instances, config, update_status_func, logger):
                 expanded_key_path,
                 files_directory,
                 scripts_directory,
+                additional_commands_path=additional_commands_path,
                 progress_callback=progress_callback,
                 log_function=lambda msg: logger.info(f"[{instance_id} @ {instance_ip}] {msg}"),
             )

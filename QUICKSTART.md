@@ -93,3 +93,4 @@ chmod +x spot-docker
 - You can run commands from any machine with the same config
 - Use `:ro` for read-only mounts to improve security
 - Check deployment status with the debug script if needed
+- Add custom setup commands by creating `additional_commands.sh` in your working directory

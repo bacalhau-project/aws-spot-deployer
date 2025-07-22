@@ -6,10 +6,10 @@ A production-ready tool for deploying AWS spot instances with Bacalhau compute n
 
 ```bash
 # Pull the Docker image
-docker pull ghcr.io/bacalhau-project/spot-deployer:latest
+docker pull ghcr.io/bacalhau-project/aws-spot-deployer:latest
 
 # Create configuration
-docker run --rm -v $(pwd):/app/output ghcr.io/bacalhau-project/spot-deployer setup
+docker run --rm -v $(pwd):/app/output ghcr.io/bacalhau-project/aws-spot-deployer setup
 
 # Deploy instances
 docker run --rm \
@@ -44,7 +44,8 @@ docker run --rm \
 The container supports multiple authentication methods:
 
 1. **AWS SSO** (Recommended for local development):
-   ```bash
+
+```bash
    # Login with SSO
    aws sso login
    
@@ -55,29 +56,32 @@ The container supports multiple authentication methods:
    docker run --rm -v ~/.aws:/root/.aws:ro ...
    ```
 
-2. **Environment Variables**:
-   ```bash
+1. **Environment Variables**:
+
+```bash
    docker run --rm \
      -e AWS_ACCESS_KEY_ID=xxx \
      -e AWS_SECRET_ACCESS_KEY=yyy \
      -e AWS_DEFAULT_REGION=us-west-2 ...
    ```
 
-3. **IAM Role** (for EC2/ECS environments)
+1. **IAM Role** (for EC2/ECS environments)
 
 See [AWS_SSO_DOCKER.md](AWS_SSO_DOCKER.md) for detailed SSO instructions.
 
 ### Configuration
 
 1. **Generate Config**:
-   ```bash
+
+```bash
    docker run --rm \
      -v $(pwd):/app/output \
-     ghcr.io/bacalhau-project/spot-deployer setup
-   ```
+     ghcr.io/bacalhau-project/aws-spot-deployer setup
+```
 
-2. **Edit `config.yaml`**:
-   ```yaml
+1. **Edit `config.yaml`**:
+
+```yaml
    aws:
      total_instances: 10
      username: ubuntu
@@ -86,7 +90,7 @@ See [AWS_SSO_DOCKER.md](AWS_SSO_DOCKER.md) for detailed SSO instructions.
      - us-west-2:
          machine_type: t3.medium
          image: auto
-   ```
+```
 
 ### Bacalhau Integration
 
@@ -103,8 +107,45 @@ docker run --rm \
   -v ~/.aws:/root/.aws:ro \
   -v $(pwd)/config.yaml:/app/config/config.yaml:ro \
   -v $(pwd)/files:/app/files:ro \
-  ghcr.io/bacalhau-project/spot-deployer create
+  ghcr.io/bacalhau-project/aws-spot-deployer create
 ```
+
+### Custom Commands
+
+Run custom setup commands on each instance by creating `additional_commands.sh`:
+
+```bash
+# Create custom commands script
+cat > additional_commands.sh << 'EOF'
+#!/bin/bash
+# Custom setup commands run after deployment
+
+echo "[$(date)] Running custom commands"
+
+# Example: Install additional software
+sudo apt-get update
+sudo apt-get install -y htop iotop
+
+# Example: Configure monitoring
+echo "custom-monitoring-config" > /opt/monitoring.conf
+
+# Example: Set up custom environment
+echo "export CUSTOM_VAR=value" >> /home/ubuntu/.bashrc
+
+echo "[$(date)] Custom commands completed"
+EOF
+
+chmod +x additional_commands.sh
+
+# Deploy with custom commands
+docker run --rm \
+  -v ~/.aws:/root/.aws:ro \
+  -v $(pwd)/config.yaml:/app/config/config.yaml:ro \
+  -v $(pwd)/additional_commands.sh:/app/output/additional_commands.sh:ro \
+  ghcr.io/bacalhau-project/aws-spot-deployer create
+```
+
+The `additional_commands.sh` script will be uploaded to each instance and executed during deployment.
 
 ### Convenience Wrapper
 
@@ -112,7 +153,7 @@ Use the included wrapper script for easier commands:
 
 ```bash
 # Download wrapper
-curl -O https://raw.githubusercontent.com/bacalhau-project/spot/main/spot-docker
+curl -O https://raw.githubusercontent.com/bacalhau-project/aws-spot-deployer/main/spot-docker
 chmod +x spot-docker
 
 # Use wrapper
@@ -130,6 +171,7 @@ chmod +x spot-docker
 - **Multi-Region** - Deploy across multiple AWS regions
 - **Dedicated VPCs** - Isolated network per deployment
 - **Bacalhau Ready** - Optional compute node deployment
+- **Custom Commands** - Run your own setup scripts on instances
 
 ## 📁 Configuration Options
 
@@ -140,7 +182,7 @@ See [config.yaml.example](config.yaml.example) for all available options:
 - VPC configuration
 - SSH key settings
 - Bacalhau integration
-- Custom scripts
+- Custom scripts and commands
 
 ## 🆘 Troubleshooting
 
