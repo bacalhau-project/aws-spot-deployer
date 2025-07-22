@@ -1,0 +1,59 @@
+name: Update GitHub Pages Branch
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  update-pages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Git
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+    - name: Update docs
+      run: |
+        # Update install script with repo info
+        sed -i "s|REPO_OWNER=\".*\"|REPO_OWNER=\"${GITHUB_REPOSITORY_OWNER}\"|g" docs/install.sh
+        sed -i "s|REPO_NAME=\".*\"|REPO_NAME=\"${GITHUB_REPOSITORY#*/}\"|g" docs/install.sh
+        
+        # Update URLs in HTML
+        PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+        sed -i "s|https://yourdomain.com|${PAGES_URL}|g" docs/index.html
+        
+        # Add version info
+        TAG="${GITHUB_REF_NAME}"
+        echo "${TAG}" > docs/VERSION
+        echo "Updated: $(date -u)" >> docs/VERSION
+
+    - name: Deploy to gh-pages
+      run: |
+        # Create temporary directory
+        mkdir -p /tmp/gh-pages
+        cp -r docs/* /tmp/gh-pages/
+        
+        # Switch to gh-pages branch
+        git checkout gh-pages 2>/dev/null || git checkout -b gh-pages
+        
+        # Clear existing content
+        git rm -rf . 2>/dev/null || true
+        
+        # Copy new content
+        cp -r /tmp/gh-pages/* .
+        
+        # Commit and push
+        git add -A
+        git commit -m "Deploy ${GITHUB_REF_NAME} to GitHub Pages" || echo "No changes"
+        git push origin gh-pages --force
