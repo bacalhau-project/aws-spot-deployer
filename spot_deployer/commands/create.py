@@ -3,6 +3,7 @@
 import os
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import List
@@ -45,7 +46,7 @@ def post_creation_setup(instances, config, update_status_func, logger):
     username = config.username()
     files_directory = config.files_directory()
     scripts_directory = config.scripts_directory()
-    
+
     # Check for additional_commands.sh in current directory
     additional_commands_path = os.path.join(os.getcwd(), "additional_commands.sh")
     if not os.path.exists(additional_commands_path):
@@ -145,6 +146,9 @@ def create_instances_in_region_with_table(
     logger,
     update_status_func,
     instance_ip_map: dict,
+    deployment_id: str,
+    created_at: str,
+    creator: str,
 ) -> List[dict]:
     """Create spot instances in a specific region with live table updates."""
     if count <= 0:
@@ -291,11 +295,17 @@ def create_instances_in_region_with_table(
                 {
                     "ResourceType": "instance",
                     "Tags": [
-                        {"Key": "Name", "Value": f"spot-{region}"},
+                        {"Key": "Name", "Value": f"spot-{region}-{created_at}"},
                         {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                        {"Key": "DeploymentId", "Value": deployment_id},
+                        {"Key": "CreatedAt", "Value": datetime.now().isoformat()},
+                        {"Key": "CreatedBy", "Value": creator},
+                        {"Key": "Region", "Value": region},
+                        {"Key": "SpotDeployerVersion", "Value": "0.1.1"},
+                        {"Key": "App", "Value": "SpotDeployer"},
                     ]
                     + [
-                        {"Key": k, "Value": v} for k, v in config.tags().items() if k != "ManagedBy"
+                        {"Key": k, "Value": v} for k, v in config.tags().items() if k not in ["Name", "ManagedBy", "DeploymentId", "CreatedAt", "CreatedBy", "Region", "SpotDeployerVersion"]
                     ],
                 }
             ],
@@ -421,6 +431,17 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     # Setup local logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_filename = f"spot_creation_{timestamp}.log"
+
+    # Generate unique deployment ID for this batch
+    deployment_id = f"spot-{timestamp}-{str(uuid.uuid4())[:8]}"
+
+    # Get AWS caller identity for creator tag
+    try:
+        sts = boto3.client("sts")
+        caller_identity = sts.get_caller_identity()
+        creator = caller_identity.get("Arn", "unknown").split("/")[-1]  # Get username from ARN
+    except Exception:
+        creator = "unknown"
 
     # Create console handler with instance IP map
     instance_ip_map = {}
@@ -605,6 +626,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                     logger,
                     update_status,
                     instance_ip_map,
+                    deployment_id,
+                    timestamp,
+                    creator,
                 )
                 with lock:
                     all_instances.extend(instances)

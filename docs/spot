@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Minimal Spot Deployer launcher
+# Usage: curl -sSL https://bac.al/spot | bash -s -- [COMMAND]
+curl -sSL https://bacalhau-project.github.io/aws-spot-deployer/install.sh | bash -s -- "$@"

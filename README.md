@@ -4,6 +4,46 @@ A production-ready tool for deploying AWS spot instances with Bacalhau compute n
 
 ## 🚀 Quick Start
 
+### One-liner Installation (Recommended)
+
+```bash
+# Deploy spot instances with a single command!
+curl -sSL https://bacalhau-project.github.io/aws-spot-deployer/install.sh | bash -s -- create
+
+# Or use the short URL (if configured)
+curl -sSL https://bac.al/spot | bash -s -- create
+```
+
+The installer will:
+- Check prerequisites (Docker, AWS credentials)
+- Set up configuration directory at `~/.spot-deployer`
+- Pull the latest Docker image
+- Run the deployment
+
+#### Available Commands
+
+```bash
+# Initial setup - creates default configuration
+curl -sSL https://bac.al/spot | bash -s -- setup
+
+# Create spot instances
+curl -sSL https://bac.al/spot | bash -s -- create
+
+# List running instances
+curl -sSL https://bac.al/spot | bash -s -- list
+
+# Destroy all instances
+curl -sSL https://bac.al/spot | bash -s -- destroy
+
+# Use specific version
+curl -sSL https://bac.al/spot | bash -s -- create --version 1.0.0
+
+# Dry run - see what would happen
+curl -sSL https://bac.al/spot | bash -s -- create --dry-run
+```
+
+### Manual Docker Usage
+
 ```bash
 # Pull the Docker image
 docker pull ghcr.io/bacalhau-project/aws-spot-deployer:latest

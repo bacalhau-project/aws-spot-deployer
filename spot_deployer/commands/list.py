@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 import boto3
 
-from ..core.constants import ColumnWidths
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth
 from ..utils.display import RICH_AVAILABLE, console, rich_print

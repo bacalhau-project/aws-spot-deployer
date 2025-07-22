@@ -241,7 +241,7 @@ def transfer_files_scp(
         # Upload additional_commands.sh if provided
         if additional_commands_path and os.path.exists(additional_commands_path):
             update_progress("SCP: Additional Commands", 92, "Uploading custom commands...")
-            
+
             result = subprocess.run(
                 scp_base
                 + [
@@ -252,7 +252,7 @@ def transfer_files_scp(
                 text=True,
                 timeout=30,
             )
-            
+
             if result.returncode != 0:
                 log_error(f"Failed to upload additional_commands.sh: {result.stderr}")
             else:

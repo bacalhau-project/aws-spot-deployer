@@ -1,0 +1,115 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  update-gh-pages:
+    name: Update gh-pages branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Git
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+    - name: Determine tag
+      id: get_tag
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          TAG="${{ github.event.inputs.tag }}"
+        else
+          TAG="${{ github.ref_name }}"
+        fi
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "Deploying tag: ${TAG}"
+
+    - name: Checkout tag
+      run: |
+        git checkout ${{ steps.get_tag.outputs.tag }}
+
+    - name: Update install script
+      run: |
+        # Update the install script with the correct repository information
+        sed -i "s|REPO_OWNER=\".*\"|REPO_OWNER=\"${GITHUB_REPOSITORY_OWNER}\"|g" docs/install.sh
+        sed -i "s|REPO_NAME=\".*\"|REPO_NAME=\"${GITHUB_REPOSITORY#*/}\"|g" docs/install.sh
+        
+        # Update the HTML with the correct domain
+        PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+        sed -i "s|https://yourdomain.com|${PAGES_URL}|g" docs/index.html
+        
+        # Update version in install script to use this specific tag
+        sed -i "s|VERSION=\"latest\"|VERSION=\"${{ steps.get_tag.outputs.tag }}\"|g" docs/install.sh
+        
+        # Add version info to the HTML
+        sed -i "s|<h1>🚀 Spot Deployer</h1>|<h1>🚀 Spot Deployer</h1>\n        <p><small>Version: ${{ steps.get_tag.outputs.tag }}</small></p>|g" docs/index.html
+
+    - name: Create version file
+      run: |
+        echo "${{ steps.get_tag.outputs.tag }}" > docs/VERSION
+        echo "Updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> docs/VERSION
+
+    - name: Copy files to temp directory
+      run: |
+        mkdir -p /tmp/gh-pages
+        cp -r docs/* /tmp/gh-pages/
+        
+    - name: Checkout gh-pages branch
+      run: |
+        git checkout gh-pages || git checkout -b gh-pages
+        git rm -rf . || true
+        
+    - name: Copy files from temp
+      run: |
+        cp -r /tmp/gh-pages/* .
+        
+    - name: Commit and push
+      run: |
+        git add -A
+        git commit -m "Deploy version ${{ steps.get_tag.outputs.tag }} to GitHub Pages" || echo "No changes to commit"
+        git push origin gh-pages --force
+
+  deploy-pages:
+    needs: update-gh-pages
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Checkout gh-pages branch
+      uses: actions/checkout@v4
+      with:
+        ref: gh-pages
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: '.'
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

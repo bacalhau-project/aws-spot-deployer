@@ -91,11 +91,25 @@ aws:
   # =========================================================================
   
   # Additional tags to apply to all instances
+  # Note: The following tags are automatically added by SpotDeployer:
+  # - Name: "spot-{region}-{timestamp}" (e.g., "spot-us-west-2-20250122_143052")
+  # - ManagedBy: "SpotDeployer"
+  # - DeploymentId: Unique ID for this deployment batch (e.g., "spot-20250122_143052-a1b2c3d4")
+  # - CreatedAt: ISO timestamp when instance was created
+  # - CreatedBy: AWS username/role that created the instance
+  # - Region: AWS region where instance is deployed
+  # - SpotDeployerVersion: Version of SpotDeployer used
+  # - App: "SpotDeployer" (default, can be overridden in tags section)
+  #
+  # You can add your own custom tags here:
   tags:
     Project: "MyProject"
+    App: "MyApplication"  # Override default "SpotDeployer" app name
     Environment: "Development"
     Owner: "YourName"
     Purpose: "SpotInstanceDeployment"
+    Team: "DevOps"
+    CostCenter: "Engineering"
 
 # =========================================================================
 # REGIONAL CONFIGURATION

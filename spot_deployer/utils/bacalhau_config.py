@@ -49,5 +49,5 @@ def generate_bacalhau_config_with_credentials(
     temp_config = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
     temp_config.write(config_content)
     temp_config.close()
-    
+
     return temp_config.name

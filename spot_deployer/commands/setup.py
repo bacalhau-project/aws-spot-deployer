@@ -1,9 +1,10 @@
 """Setup command implementation."""
 import os
+
 import yaml
 
 from ..core.config import SimpleConfig
-from ..utils.display import rich_warning, rich_success, rich_error, console
+from ..utils.display import console, rich_error, rich_success, rich_warning
 
 
 def cmd_setup(config: SimpleConfig) -> None:
@@ -12,7 +13,7 @@ def cmd_setup(config: SimpleConfig) -> None:
         rich_warning(f"'{config.config_file}' already exists.")
         if input("Overwrite? (y/n): ").lower() != "y":
             return
-    
+
     # Default configuration
     default_config = {
         "aws": {
@@ -34,7 +35,7 @@ def cmd_setup(config: SimpleConfig) -> None:
             {"eu-west-1": {"image": "auto", "machine_type": "t3.medium"}},
         ],
     }
-    
+
     try:
         with open(config.config_file, "w") as f:
             yaml.dump(default_config, f, default_flow_style=False, sort_keys=False)

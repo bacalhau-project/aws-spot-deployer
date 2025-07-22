@@ -89,7 +89,10 @@
       "Bash(./test_docker_env.sh:*)",
       "Bash(BACALHAU_API_HOST=\"hch03d1vtvqqur.us1.cloud.expanso.io:1234\" ./spot-dev bash -c \"\necho ''=== Debug Bacalhau node list ===''\necho ''API_HOST: $BACALHAU_API_HOST''\necho ''API_KEY set: $BACALHAU_API_KEY:+YES''\necho ''''\necho ''Running: bacalhau node list --output json''\nbacalhau node list --output json > /tmp/nodes.json 2>&1\necho ''Exit code: $?'\necho ''''\necho ''Output:''\ncat /tmp/nodes.json | head -1000\n\")",
       "Bash(./test_bacalhau_auth.sh:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(shellcheck:*)",
+      "Bash(/opt/homebrew/bin/shellcheck /Users/daaronch/code/spot/scripts/install.sh)",
+      "Bash(/opt/homebrew/bin/shellcheck /Users/daaronch/code/spot/docs/spot)"
     ],
     "deny": []
   }

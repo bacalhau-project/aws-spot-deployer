@@ -1,5 +1,5 @@
 """Help command implementation."""
-from ..utils.display import RICH_AVAILABLE, console, Panel
+from ..utils.display import RICH_AVAILABLE, Panel, console
 
 
 def cmd_help() -> None:
