@@ -30,8 +30,20 @@ dev-dependencies = [
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
-ignore = ["E501"]  # Line too long
+ignore = [
+    "E501",  # Line too long
+    "W293",  # Blank line with whitespace (common in YAML strings)
+    "W291",  # Trailing whitespace (common in YAML strings)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# cloud_init.py contains YAML content with specific whitespace requirements
+"spot_deployer/utils/cloud_init.py" = ["W293", "W291"]
+# AWS multiline docstrings
+"spot_deployer/utils/aws.py" = ["W293"]
 
 [tool.pyright]
 pythonVersion = "3.9"
