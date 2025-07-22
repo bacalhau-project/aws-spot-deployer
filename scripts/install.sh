@@ -195,7 +195,16 @@ run_docker() {
         log_info "Would run: ${docker_cmd[*]}"
     else
         log_info "Pulling Docker image..."
-        docker pull "$docker_image"
+        if ! docker pull "$docker_image" 2>/dev/null; then
+            log_error "Failed to pull $docker_image"
+            if [[ "$VERSION" != "latest" ]]; then
+                log_warn "Version $VERSION might not be available yet. Try using 'latest' instead:"
+                log_warn "  curl -sSL $0 | bash -s -- $COMMAND --version latest"
+            fi
+            log_info "Available versions can be found at:"
+            log_info "  https://github.com/${REPO_OWNER}/${REPO_NAME}/releases"
+            exit 1
+        fi
         
         log_info "Running: spot-deployer $COMMAND"
         "${docker_cmd[@]}"

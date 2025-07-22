@@ -95,7 +95,9 @@
       "Bash(/opt/homebrew/bin/shellcheck /Users/daaronch/code/spot/docs/spot)",
       "Bash(git branch:*)",
       "Bash(git push:*)",
-      "Bash(./scripts/next-version.sh:*)"
+      "Bash(./scripts/next-version.sh:*)",
+      "Bash(git tag:*)",
+      "Bash(docker pull:*)"
     ],
     "deny": []
   }

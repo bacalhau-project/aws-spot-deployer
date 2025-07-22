@@ -2,84 +2,75 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   lint-and-test:
     name: Lint and Test
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up UV
-      uses: astral-sh/setup-uv@v4
-      with:
-        version: "latest"
-    
-    - name: Set up Python
-      run: uv python install 3.11
-    
-    - name: Install dependencies
-      run: uv sync
-    
-    - name: Lint with ruff
-      run: |
-        uv run ruff check spot_deployer/
-        uv run ruff format --check spot_deployer/
-    
-    - name: Run smoke tests
-      run: |
-        # Test the main module can be imported
-        uv run python -c "import spot_deployer; print('✓ Module import successful')"
-        
-        # Test CLI help command
-        uv run python -m spot_deployer help
-        
-        # Test version command
-        uv run python -m spot_deployer --version
-        
-        # Verify all submodules can be imported
-        uv run python -c "
-from spot_deployer.commands import cmd_create, cmd_destroy, cmd_list, cmd_setup
-from spot_deployer.core import SimpleConfig, SimpleStateManager
-from spot_deployer.utils import display
-print('✓ All submodules imported successfully')
-"
 
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint with ruff
+        run: |
+          uv run ruff check spot_deployer/
+          uv run ruff format --check spot_deployer/
+
+      - name: Run smoke tests
+        run: |
+          # Test the main module can be imported
+          uv run python -c "import spot_deployer; print('✓ Module import successful')"
+
+          # Test CLI help command
+          uv run python -m spot_deployer help
+
+          # Test version command
+          uv run python -m spot_deployer --version
   docker-build:
     name: Build Docker Image
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Build Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        load: true
-        tags: test-spot-deployer:ci
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-    
-    - name: Test Docker image
-      run: |
-        # Test that the image runs help command
-        docker run --rm test-spot-deployer:ci help
-        
-        # Test version command
-        docker run --rm test-spot-deployer:ci --version
-        
-        # Test that all commands are available
-        for cmd in setup create list destroy help; do
-          echo "Testing command: $cmd"
-          docker run --rm test-spot-deployer:ci $cmd --help || true
-        done
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: test-spot-deployer:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          # Test that the image runs help command
+          docker run --rm test-spot-deployer:ci help
+
+          # Test version command
+          docker run --rm test-spot-deployer:ci --version
+
+          # Test that all commands are available
+          for cmd in setup create list destroy help; do
+            echo "Testing command: $cmd"
+            docker run --rm test-spot-deployer:ci $cmd --help || true
+          done
