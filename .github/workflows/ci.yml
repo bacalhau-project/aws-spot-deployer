@@ -33,14 +33,12 @@ jobs:
 
       - name: Run smoke tests
         run: |
-          # Test the main module can be imported
-          uv run python -c "import spot_deployer; print('✓ Module import successful')"
-
           # Test CLI help command
           uv run python -m spot_deployer help
 
           # Test version command
           uv run python -m spot_deployer --version
+
   docker-build:
     name: Build Docker Image
     runs-on: ubuntu-latest

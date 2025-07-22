@@ -1,4 +1,5 @@
 BACALHAU
+Buildx
 daaronch
 dind
 healthcheck
