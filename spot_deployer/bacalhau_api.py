@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Direct Bacalhau API client for node management."""
+
 import json
 import os
 import ssl
@@ -43,6 +44,7 @@ def get_nodes():
         except Exception as e:
             # Log to stderr, not stdout
             import sys
+
             print(f"[DEBUG] Error fetching nodes from {url}: {e}", file=sys.stderr)
             continue
 
@@ -70,7 +72,7 @@ def delete_node(node_id):
 
     for url in urls_to_try:
         # Create DELETE request
-        req = urllib.request.Request(url, method='DELETE')
+        req = urllib.request.Request(url, method="DELETE")
         if api_key:
             req.add_header("Authorization", f"Bearer {api_key}")
 
@@ -83,10 +85,12 @@ def delete_node(node_id):
                 continue
             # Log to stderr
             import sys
+
             print(f"[DEBUG] Error deleting node {node_id} from {url}: {e}", file=sys.stderr)
             continue
         except Exception as e:
             import sys
+
             print(f"[DEBUG] Error deleting node {node_id}: {e}", file=sys.stderr)
             continue
 

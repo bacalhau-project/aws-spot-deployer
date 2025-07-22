@@ -1,4 +1,5 @@
 """AWS-specific utility functions."""
+
 import json
 import os
 import threading
@@ -90,21 +91,15 @@ def get_latest_ubuntu_ami(region: str, log_function=None) -> Optional[str]:
             ],
         )
 
-        log_message(
-            f"AMI response for {region}: {len(response.get('Images', []))} images found"
-        )
+        log_message(f"AMI response for {region}: {len(response.get('Images', []))} images found")
 
         if response["Images"]:
             # Sort by creation date to get latest
-            images = sorted(
-                response["Images"], key=lambda x: x["CreationDate"], reverse=True
-            )
+            images = sorted(response["Images"], key=lambda x: x["CreationDate"], reverse=True)
             ami_id = images[0]["ImageId"]
             log_message(f"Found AMI for {region}: {ami_id}")
             # Cache result
-            save_cache(
-                cache_file, {"ami_id": ami_id, "timestamp": datetime.now().isoformat()}
-            )
+            save_cache(cache_file, {"ami_id": ami_id, "timestamp": datetime.now().isoformat()})
             # Store in memory cache
             with CACHE_LOCK:
                 AMI_CACHE[region] = ami_id
@@ -196,10 +191,12 @@ def create_simple_security_group(ec2, vpc_id: str, group_name: str = "spot-deplo
         raise
 
 
-def create_deployment_vpc(ec2_client, region: str, deployment_id: str = None) -> Tuple[str, str, str]:
+def create_deployment_vpc(
+    ec2_client, region: str, deployment_id: str = None
+) -> Tuple[str, str, str]:
     """
     Create a dedicated VPC for spot deployment with all necessary components.
-    
+
     Returns: (vpc_id, subnet_id, internet_gateway_id)
     """
     if not deployment_id:
@@ -215,10 +212,7 @@ def create_deployment_vpc(ec2_client, region: str, deployment_id: str = None) ->
         waiter.wait(VpcIds=[vpc_id])
 
         # Enable DNS hostnames for the VPC
-        ec2_client.modify_vpc_attribute(
-            VpcId=vpc_id,
-            EnableDnsHostnames={"Value": True}
-        )
+        ec2_client.modify_vpc_attribute(VpcId=vpc_id, EnableDnsHostnames={"Value": True})
 
         # Tag the VPC
         ec2_client.create_tags(
@@ -227,7 +221,7 @@ def create_deployment_vpc(ec2_client, region: str, deployment_id: str = None) ->
                 {"Key": "Name", "Value": f"spot-deployer-{region}"},
                 {"Key": "ManagedBy", "Value": "SpotDeployer"},
                 {"Key": "DeploymentId", "Value": deployment_id},
-            ]
+            ],
         )
 
         # Create subnet in the first availability zone
@@ -237,17 +231,12 @@ def create_deployment_vpc(ec2_client, region: str, deployment_id: str = None) ->
         first_az = azs["AvailabilityZones"][0]["ZoneName"]
 
         subnet_response = ec2_client.create_subnet(
-            VpcId=vpc_id,
-            CidrBlock="10.0.1.0/24",
-            AvailabilityZone=first_az
+            VpcId=vpc_id, CidrBlock="10.0.1.0/24", AvailabilityZone=first_az
         )
         subnet_id = subnet_response["Subnet"]["SubnetId"]
 
         # Enable auto-assign public IP on subnet
-        ec2_client.modify_subnet_attribute(
-            SubnetId=subnet_id,
-            MapPublicIpOnLaunch={"Value": True}
-        )
+        ec2_client.modify_subnet_attribute(SubnetId=subnet_id, MapPublicIpOnLaunch={"Value": True})
 
         # Tag the subnet
         ec2_client.create_tags(
@@ -256,7 +245,7 @@ def create_deployment_vpc(ec2_client, region: str, deployment_id: str = None) ->
                 {"Key": "Name", "Value": f"spot-deployer-subnet-{region}"},
                 {"Key": "ManagedBy", "Value": "SpotDeployer"},
                 {"Key": "DeploymentId", "Value": deployment_id},
-            ]
+            ],
         )
 
         # Create Internet Gateway
@@ -270,29 +259,24 @@ def create_deployment_vpc(ec2_client, region: str, deployment_id: str = None) ->
                 {"Key": "Name", "Value": f"spot-deployer-igw-{region}"},
                 {"Key": "ManagedBy", "Value": "SpotDeployer"},
                 {"Key": "DeploymentId", "Value": deployment_id},
-            ]
+            ],
         )
 
         # Attach Internet Gateway to VPC
-        ec2_client.attach_internet_gateway(
-            InternetGatewayId=igw_id,
-            VpcId=vpc_id
-        )
+        ec2_client.attach_internet_gateway(InternetGatewayId=igw_id, VpcId=vpc_id)
 
         # Get the main route table for the VPC
         route_tables = ec2_client.describe_route_tables(
             Filters=[
                 {"Name": "vpc-id", "Values": [vpc_id]},
-                {"Name": "association.main", "Values": ["true"]}
+                {"Name": "association.main", "Values": ["true"]},
             ]
         )
         main_route_table_id = route_tables["RouteTables"][0]["RouteTableId"]
 
         # Add route to Internet Gateway
         ec2_client.create_route(
-            RouteTableId=main_route_table_id,
-            DestinationCidrBlock="0.0.0.0/0",
-            GatewayId=igw_id
+            RouteTableId=main_route_table_id, DestinationCidrBlock="0.0.0.0/0", GatewayId=igw_id
         )
 
         # Tag the route table
@@ -302,7 +286,7 @@ def create_deployment_vpc(ec2_client, region: str, deployment_id: str = None) ->
                 {"Key": "Name", "Value": f"spot-deployer-rt-{region}"},
                 {"Key": "ManagedBy", "Value": "SpotDeployer"},
                 {"Key": "DeploymentId", "Value": deployment_id},
-            ]
+            ],
         )
 
         return vpc_id, subnet_id, igw_id
@@ -311,7 +295,7 @@ def create_deployment_vpc(ec2_client, region: str, deployment_id: str = None) ->
         print(f"Error creating VPC in {region}: {e}")
         # Clean up any resources that were created
         try:
-            if 'vpc_id' in locals():
+            if "vpc_id" in locals():
                 delete_deployment_vpc(ec2_client, vpc_id)
         except Exception:
             pass
@@ -328,7 +312,10 @@ def delete_deployment_vpc(ec2_client, vpc_id: str) -> bool:
         instances = ec2_client.describe_instances(
             Filters=[
                 {"Name": "vpc-id", "Values": [vpc_id]},
-                {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}
+                {
+                    "Name": "instance-state-name",
+                    "Values": ["pending", "running", "stopping", "stopped"],
+                },
             ]
         )
 
@@ -364,9 +351,7 @@ def delete_deployment_vpc(ec2_client, vpc_id: str) -> bool:
             ec2_client.delete_internet_gateway(InternetGatewayId=igw_id)
 
         # Delete subnets
-        subnets = ec2_client.describe_subnets(
-            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
-        )
+        subnets = ec2_client.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
 
         for subnet in subnets["Subnets"]:
             ec2_client.delete_subnet(SubnetId=subnet["SubnetId"])

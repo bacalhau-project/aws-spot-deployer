@@ -38,12 +38,8 @@ def generate_bacalhau_config_with_credentials(
         config_content = f.read()
 
     # Inject the credentials into the config
-    config_content = config_content.replace(
-        "{{ORCHESTRATOR_ENDPOINT}}", orchestrator_endpoint
-    )
-    config_content = config_content.replace(
-        "{{ORCHESTRATOR_TOKEN}}", orchestrator_token
-    )
+    config_content = config_content.replace("{{ORCHESTRATOR_ENDPOINT}}", orchestrator_endpoint)
+    config_content = config_content.replace("{{ORCHESTRATOR_TOKEN}}", orchestrator_token)
 
     # Write to temporary file
     temp_config = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)

@@ -54,8 +54,12 @@ def post_creation_setup(instances, config, update_status_func, logger):
         output_dir = os.environ.get("SPOT_OUTPUT_DIR", ".")
         additional_commands_path = os.path.join(output_dir, "additional_commands.sh")
         if not os.path.exists(additional_commands_path):
-            logger.warning("No additional_commands.sh found in current directory. Deployment will continue without custom commands.")
-            logger.info("To add custom commands, create additional_commands.sh in the directory where you run spot-deployer.")
+            logger.warning(
+                "No additional_commands.sh found in current directory. Deployment will continue without custom commands."
+            )
+            logger.info(
+                "To add custom commands, create additional_commands.sh in the directory where you run spot-deployer."
+            )
             additional_commands_path = None
 
     def setup_instance(instance, instance_key):
@@ -305,7 +309,18 @@ def create_instances_in_region_with_table(
                         {"Key": "App", "Value": "SpotDeployer"},
                     ]
                     + [
-                        {"Key": k, "Value": v} for k, v in config.tags().items() if k not in ["Name", "ManagedBy", "DeploymentId", "CreatedAt", "CreatedBy", "Region", "SpotDeployerVersion"]
+                        {"Key": k, "Value": v}
+                        for k, v in config.tags().items()
+                        if k
+                        not in [
+                            "Name",
+                            "ManagedBy",
+                            "DeploymentId",
+                            "CreatedAt",
+                            "CreatedBy",
+                            "Region",
+                            "SpotDeployerVersion",
+                        ]
                     ],
                 }
             ],

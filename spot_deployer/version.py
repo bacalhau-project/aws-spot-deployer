@@ -12,25 +12,22 @@ def get_version():
             ["git", "describe", "--tags", "--exact-match"],
             capture_output=True,
             text=True,
-            check=False
+            check=False,
         )
 
         if result.returncode == 0:
             # We're on a tag, use it (remove 'v' prefix if present)
             tag = result.stdout.strip()
-            return tag.lstrip('v')
+            return tag.lstrip("v")
 
         # Not on a tag, get the most recent tag
         result = subprocess.run(
-            ["git", "describe", "--tags", "--abbrev=0"],
-            capture_output=True,
-            text=True,
-            check=False
+            ["git", "describe", "--tags", "--abbrev=0"], capture_output=True, text=True, check=False
         )
 
         if result.returncode == 0:
             # Got previous tag, append date
-            prev_tag = result.stdout.strip().lstrip('v')
+            prev_tag = result.stdout.strip().lstrip("v")
             date_str = datetime.now().strftime("%Y%m%d")
             return f"{prev_tag}-{date_str}"
 

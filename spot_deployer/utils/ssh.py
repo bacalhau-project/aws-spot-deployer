@@ -88,9 +88,7 @@ def transfer_files_scp(
         ]
 
         # Create directories in /tmp (where ubuntu user has permissions)
-        mkdir_cmd = ssh_base + [
-            "mkdir -p /tmp/uploaded_files/scripts /tmp/uploaded_files/config"
-        ]
+        mkdir_cmd = ssh_base + ["mkdir -p /tmp/uploaded_files/scripts /tmp/uploaded_files/config"]
 
         result = subprocess.run(mkdir_cmd, capture_output=True, text=True, timeout=30)
         if result.returncode != 0:
@@ -188,17 +186,13 @@ def transfer_files_scp(
             update_progress("SCP: Config", 90, "Preparing configuration...")
 
             # First, generate Bacalhau config with injected credentials
-            bacalhau_template = os.path.join(
-                config_directory, "bacalhau-config-template.yaml"
-            )
+            bacalhau_template = os.path.join(config_directory, "bacalhau-config-template.yaml")
             if os.path.exists(bacalhau_template):
                 generated_config = generate_bacalhau_config_with_credentials(
                     bacalhau_template, files_directory=files_directory
                 )
                 if generated_config:
-                    log_message(
-                        f"Bacalhau config with credentials uploaded: {generated_config}"
-                    )
+                    log_message(f"Bacalhau config with credentials uploaded: {generated_config}")
                 else:
                     log_error("Failed to generate Bacalhau config with credentials")
                     return False
@@ -258,7 +252,9 @@ def transfer_files_scp(
             else:
                 log_message("Custom additional_commands.sh uploaded successfully")
                 # Make it executable
-                chmod_cmd = ssh_base + ["chmod +x /tmp/uploaded_files/scripts/additional_commands.sh"]
+                chmod_cmd = ssh_base + [
+                    "chmod +x /tmp/uploaded_files/scripts/additional_commands.sh"
+                ]
                 subprocess.run(chmod_cmd, capture_output=True, text=True, timeout=10)
         elif additional_commands_path:
             log_message(f"Warning: additional_commands.sh not found at {additional_commands_path}")
@@ -284,9 +280,7 @@ def transfer_files_scp(
         log_message(f"Uploaded {file_count} files to /tmp/uploaded_files")
 
         # Trigger cloud-init to run the deployment
-        update_progress(
-            "SCP: Triggering", 98, f"Triggering deployment ({file_count} files)..."
-        )
+        update_progress("SCP: Triggering", 98, f"Triggering deployment ({file_count} files)...")
 
         # Create a marker file to signal that files are ready
         marker_cmd = ssh_base + ["touch /tmp/uploaded_files_ready"]

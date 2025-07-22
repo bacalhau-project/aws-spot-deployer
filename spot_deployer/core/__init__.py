@@ -4,4 +4,4 @@ from .config import SimpleConfig
 from .constants import ColumnWidths
 from .state import SimpleStateManager
 
-__all__ = ['SimpleConfig', 'SimpleStateManager', 'ColumnWidths']
+__all__ = ["SimpleConfig", "SimpleStateManager", "ColumnWidths"]

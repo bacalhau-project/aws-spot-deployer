@@ -1,4 +1,5 @@
 """Setup command implementation."""
+
 import os
 
 import yaml
@@ -41,6 +42,8 @@ def cmd_setup(config: SimpleConfig) -> None:
             yaml.dump(default_config, f, default_flow_style=False, sort_keys=False)
         rich_success(f"Created default config: {config.config_file}")
         if console:
-            console.print("\n[bold yellow]ACTION REQUIRED:[/bold yellow] Please edit this file with your details.")
+            console.print(
+                "\n[bold yellow]ACTION REQUIRED:[/bold yellow] Please edit this file with your details."
+            )
     except Exception as e:
         rich_error(f"Failed to create config file: {e}")

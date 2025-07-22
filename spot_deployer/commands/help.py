@@ -1,4 +1,5 @@
 """Help command implementation."""
+
 from ..utils.display import RICH_AVAILABLE, Panel, console
 
 
