@@ -116,10 +116,9 @@ jobs:
       id-token: write
       contents: read
 
-    # Remove environment protection for automated deployments
-    # environment:
-    #   name: github-pages
-    #   url: ${{ steps.deployment.outputs.page_url }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
     - name: Checkout gh-pages branch

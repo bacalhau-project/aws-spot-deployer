@@ -98,7 +98,8 @@
       "Bash(./scripts/next-version.sh:*)",
       "Bash(git tag:*)",
       "Bash(docker pull:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git config:*)"
     ],
     "deny": []
   }
