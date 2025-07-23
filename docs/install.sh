@@ -139,7 +139,15 @@ run_docker() {
 
     # Prepare docker run command
     local docker_cmd=(
-        "docker" "run" "--rm" "-it"
+        "docker" "run" "--rm"
+    )
+    
+    # Only add -it if running interactively (not piped)
+    if [ -t 0 ] && [ -t 1 ]; then
+        docker_cmd+=("-it")
+    fi
+    
+    docker_cmd+=(
         "-v" "$HOME/.ssh:/root/.ssh:ro"
         "-v" "$WORK_DIR/config/config.yaml:/app/config/config.yaml:ro"
         "-v" "$WORK_DIR/files:/app/files:ro"
