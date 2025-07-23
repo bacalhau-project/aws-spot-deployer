@@ -174,7 +174,7 @@ def check_aws_auth() -> bool:
 [bold]Credential Source:[/bold] {cred_source}
 [bold]Identity:[/bold] {cred_info}
 [bold]Account:[/bold] {account}
-[bold]Region:[/bold] {boto3.Session().region_name or 'us-east-1'}"""
+[bold]Region:[/bold] {boto3.Session().region_name or "us-east-1"}"""
 
             console.print(Panel(auth_info, title="AWS Credentials", border_style="green"))
         else:

@@ -7,11 +7,14 @@ A production-ready tool for deploying AWS spot instances with Bacalhau compute n
 ### One-liner Installation (Recommended)
 
 ```bash
-# Deploy spot instances with a single command!
-curl -sSL https://bacalhau-project.github.io/aws-spot-deployer/install.sh | bash -s -- create
+# List running instances with a single command!
+curl tada.wang/install.sh | bash -s -- list
 
-# Or use the short URL (if configured)
-curl -sSL https://bac.al/spot | bash -s -- create
+# Deploy spot instances
+curl tada.wang/install.sh | bash -s -- create
+
+# Destroy all instances
+curl tada.wang/install.sh | bash -s -- destroy
 ```
 
 The installer will:
@@ -25,22 +28,22 @@ The installer will:
 
 ```bash
 # Initial setup - creates default configuration
-curl -sSL https://bac.al/spot | bash -s -- setup
+curl tada.wang/install.sh | bash -s -- setup
 
 # Create spot instances
-curl -sSL https://bac.al/spot | bash -s -- create
+curl tada.wang/install.sh | bash -s -- create
 
 # List running instances
-curl -sSL https://bac.al/spot | bash -s -- list
+curl tada.wang/install.sh | bash -s -- list
 
 # Destroy all instances
-curl -sSL https://bac.al/spot | bash -s -- destroy
+curl tada.wang/install.sh | bash -s -- destroy
 
 # Use specific version
-curl -sSL https://bac.al/spot | bash -s -- create --version 1.0.0
+curl tada.wang/install.sh | bash -s -- create --version 1.0.0
 
 # Dry run - see what would happen
-curl -sSL https://bac.al/spot | bash -s -- create --dry-run
+curl tada.wang/install.sh | bash -s -- create --dry-run
 ```
 
 ### Manual Docker Usage
