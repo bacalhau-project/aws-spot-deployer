@@ -6,7 +6,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import List
+from typing import Any, Dict, List, Set
 
 import boto3
 
@@ -331,7 +331,7 @@ def create_instances_in_region_with_table(
         result = ec2.run_instances(**run_params)
 
         # Wait for instances to get public IPs
-        created_instances = []
+        created_instances: List[Dict[str, Any]] = []
         instance_ids = [inst["InstanceId"] for inst in result["Instances"]]
 
         log_message(f"Created {len(instance_ids)} instances in {region}, waiting for public IPs...")
@@ -459,7 +459,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         creator = "unknown"
 
     # Create console handler with instance IP map
-    instance_ip_map = {}
+    instance_ip_map: Dict[str, str] = {}
     console_handler = ConsoleLogger(console, instance_ip_map)
     logger = setup_logger("spot_creator", log_filename, console_handler)
 
@@ -513,7 +513,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         return
 
     # Track regions that were skipped due to capacity
-    skipped_regions = set()
+    skipped_regions: Set[str] = set()
 
     creation_status = {}
     all_instances = []

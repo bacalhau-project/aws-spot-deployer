@@ -119,4 +119,3 @@ dynamic_reloading:
   check_interval_seconds: 10             # Check for changes every 10 seconds
   reload_on_change: true                 # Automatically reload on changes
   validate_before_reload: true           # Validate config before applying
-

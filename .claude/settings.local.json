@@ -99,7 +99,10 @@
       "Bash(git tag:*)",
       "Bash(docker pull:*)",
       "Bash(git commit:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(pre-commit run:*)",
+      "Bash(yamllint:*)",
+      "Bash(.venv/bin/python -m ruff check:*)"
     ],
     "deny": []
   }

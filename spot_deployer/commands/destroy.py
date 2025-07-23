@@ -6,7 +6,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from threading import Lock
-from typing import Dict
+from typing import Any, Dict
 
 import boto3
 from rich.console import Console
@@ -31,7 +31,7 @@ class DestroyManager:
         self.console = console
         self.logger = None
         self.status_lock = Lock()
-        self.instance_status = {}
+        self.instance_status: Dict[str, Dict[str, Any]] = {}
         self.start_time = datetime.now()
 
     def initialize_logger(self):

@@ -20,16 +20,16 @@ if [[ $LATEST_TAG =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
     MAJOR=${BASH_REMATCH[1]}
     MINOR=${BASH_REMATCH[2]}
     PATCH=${BASH_REMATCH[3]}
-    
+
     NEXT_PATCH=$((PATCH + 1))
     NEXT_MINOR=$((MINOR + 1))
     NEXT_MAJOR=$((MAJOR + 1))
-    
+
     echo -e "\nSuggested next versions:"
     echo "  Patch release: v${MAJOR}.${MINOR}.${NEXT_PATCH}"
     echo "  Minor release: v${MAJOR}.${NEXT_MINOR}.0"
     echo "  Major release: v${NEXT_MAJOR}.0.0"
-    
+
     echo -e "\nTo create a new release:"
     echo "  git tag v${MAJOR}.${MINOR}.${NEXT_PATCH}"
     echo "  git push origin v${MAJOR}.${MINOR}.${NEXT_PATCH}"

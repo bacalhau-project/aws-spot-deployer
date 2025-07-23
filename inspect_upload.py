@@ -16,10 +16,11 @@ import os
 import shutil
 import sys
 import tempfile
-from pathlib import Path
 
+# ruff: noqa: E402
 # Import the actual function we use
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from spot_deployer.utils.bacalhau_config import (
     generate_bacalhau_config_with_credentials,
 )
@@ -107,9 +108,7 @@ def inspect_upload(
         print(f"   Source: {config_directory}")
         if os.path.exists(config_directory):
             # Check for Bacalhau template
-            bacalhau_template = os.path.join(
-                config_directory, "bacalhau-config-template.yaml"
-            )
+            bacalhau_template = os.path.join(config_directory, "bacalhau-config-template.yaml")
 
             if os.path.exists(bacalhau_template):
                 print("   Bacalhau config generation:")
@@ -193,9 +192,7 @@ def inspect_upload(
                 total_size += os.path.getsize(os.path.join(root, file))
 
         print(f"   Total files to upload: {total_files}")
-        print(
-            f"   Total size: {total_size:,} bytes ({total_size / 1024 / 1024:.2f} MB)"
-        )
+        print(f"   Total size: {total_size:,} bytes ({total_size / 1024 / 1024:.2f} MB)")
         print()
 
         # Show directory tree

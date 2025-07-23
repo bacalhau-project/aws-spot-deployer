@@ -11,12 +11,12 @@ if [ -f /opt/uploaded_files/scripts/sensor-generator.service ]; then
     echo "[$(date)] Installing sensor-generator.service"
     sudo cp /opt/uploaded_files/scripts/sensor-generator.service /etc/systemd/system/
     sudo chmod 644 /etc/systemd/system/sensor-generator.service
-    
+
     # Fix any dependency issues in the service file
     sudo sed -i 's/setup-config.service//g' /etc/systemd/system/sensor-generator.service
     sudo sed -i 's/After=network-online.target docker.service.*$/After=network-online.target docker.service/g' /etc/systemd/system/sensor-generator.service
     sudo sed -i 's/Requires=docker.service.*$/Requires=docker.service/g' /etc/systemd/system/sensor-generator.service
-    
+
     # Reload systemd and enable the service
     sudo systemctl daemon-reload
     sudo systemctl enable sensor-generator.service

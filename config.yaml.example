@@ -5,91 +5,91 @@ aws:
   # =========================================================================
   # BASIC SETTINGS
   # =========================================================================
-  
+
   # Total number of instances to create across all regions
   total_instances: 20
-  
+
   # SSH username for connecting to instances
   username: ubuntu
-  
+
   # =========================================================================
   # SSH KEY CONFIGURATION
   # =========================================================================
-  
+
   # Option 1: Use existing AWS key pair (recommended for production)
   ssh_key_name: "my-aws-key-pair"
-  
+
   # Option 2: Specify local SSH key files (will be uploaded to instances)
   # public_ssh_key_path: "~/.ssh/id_rsa.pub"
   # private_ssh_key_path: "~/.ssh/id_rsa"
-  
+
   # =========================================================================
   # FILE AND SCRIPT CONFIGURATION
   # =========================================================================
-  
+
   # Directory containing files to upload to all instances
   files_directory: "files"
-  
+
   # Directory containing scripts to be packaged and uploaded
   scripts_directory: "instance/scripts"
-  
+
   # Cloud-init template file for instance initialization
   cloud_init_template: "instance/cloud-init/init-vm-template.yml"
-  
+
   # Main startup script that runs on instance boot
   startup_script: "instance/scripts/startup.py"
-  
+
   # Optional additional commands script
   # additional_commands_script: "instance/scripts/additional_commands.sh"
-  
+
   # =========================================================================
   # BACALHAU CONFIGURATION
   # =========================================================================
-  
+
   # Directory for Bacalhau data on instances
   bacalhau_data_dir: "/bacalhau_data"
-  
+
   # Directory for Bacalhau node configuration
   bacalhau_node_dir: "/bacalhau_node"
-  
+
   # Bacalhau configuration template
   bacalhau_config_template: "instance/config/config-template.yaml"
-  
+
   # Docker Compose configuration for Bacalhau
   docker_compose_template: "instance/scripts/docker-compose.yaml"
-  
+
   # =========================================================================
   # INSTANCE CONFIGURATION
   # =========================================================================
-  
+
   # Maximum spot price limit (optional - uses market price if not specified)
   # spot_price_limit: 0.10
-  
+
   # Instance storage size in GB
   instance_storage_gb: 20
-  
+
   # Associate public IP address with instances
   associate_public_ip: true
-  
+
   # =========================================================================
   # NETWORK CONFIGURATION
   # =========================================================================
-  
+
   # Specific VPC ID to use (optional - uses default VPC if not specified)
   # vpc_id: "vpc-12345678"
-  
+
   # Specific subnet ID to use (optional - uses default subnet if not specified)
   # subnet_id: "subnet-12345678"
-  
+
   # Additional security groups to attach (optional)
   # security_groups:
   #   - "sg-12345678"
   #   - "sg-87654321"
-  
+
   # =========================================================================
   # TAGS AND METADATA
   # =========================================================================
-  
+
   # Additional tags to apply to all instances
   # Note: The following tags are automatically added by SpotDeployer:
   # - Name: "spot-{region}-{timestamp}" (e.g., "spot-us-west-2-20250122_143052")
@@ -120,42 +120,42 @@ regions:
   - us-west-2:
       # Instance type to use in this region
       machine_type: "t3.medium"
-      
+
       # AMI selection: "auto" for latest Ubuntu 22.04 LTS, or specify AMI ID
       image: "auto"
       # image: "ami-0abcdef1234567890"  # Alternative: specific AMI ID
-      
+
       # Region-specific spot price limit (optional)
       # spot_price_limit: 0.08
-      
+
       # Region-specific instance storage (optional)
       # instance_storage_gb: 30
-      
+
       # Region-specific tags (optional)
       # tags:
       #   Region: "us-west-2"
       #   DataCenter: "Oregon"
-  
+
   # US East (N. Virginia)
   - us-east-1:
       machine_type: "t3.medium"
       image: "auto"
-      
+
       # Different instance type for this region
       # machine_type: "t3.large"
-      
+
       # Region-specific configuration
       # spot_price_limit: 0.09
       # instance_storage_gb: 25
-  
+
   # Europe (Ireland)
   - eu-west-1:
       machine_type: "t3.medium"
       image: "auto"
-      
+
       # Example of using a specific AMI in this region
       # image: "ami-0987654321abcdef0"
-      
+
       # European region might have different pricing
       # spot_price_limit: 0.12
 

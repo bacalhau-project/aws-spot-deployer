@@ -71,12 +71,12 @@ log_error() {
 
 check_prerequisites() {
     local missing=()
-    
+
     # Check Docker
     if ! command -v docker &> /dev/null; then
         missing+=("docker")
     fi
-    
+
     # Check AWS CLI or environment variables
     if ! command -v aws &> /dev/null; then
         if [[ -z "$AWS_ACCESS_KEY_ID" ]] || [[ -z "$AWS_SECRET_ACCESS_KEY" ]]; then
@@ -84,7 +84,7 @@ check_prerequisites() {
             log_warn "You'll need to provide AWS credentials when running"
         fi
     fi
-    
+
     if [[ ${#missing[@]} -gt 0 ]]; then
         log_error "Missing prerequisites: ${missing[*]}"
         log_error "Please install missing tools and try again"
@@ -98,10 +98,10 @@ setup_directories() {
     CONFIG_FILE="${SPOT_CONFIG_FILE:-$WORK_DIR/config.yaml}"
     FILES_DIR="${SPOT_FILES_DIR:-$WORK_DIR/files}"
     OUTPUT_DIR="${SPOT_OUTPUT_DIR:-$WORK_DIR/output}"
-    
+
     # Create output directory if it doesn't exist
     mkdir -p "$OUTPUT_DIR"
-    
+
     # Check if config file exists
     if [[ ! -f "$CONFIG_FILE" ]]; then
         if [[ "$COMMAND" == "setup" ]]; then
@@ -116,7 +116,7 @@ setup_directories() {
             exit 1
         fi
     fi
-    
+
     # Create files directory if referenced in config
     if [[ -f "$CONFIG_FILE" ]] && grep -q "files_directory:" "$CONFIG_FILE"; then
         mkdir -p "$FILES_DIR"
@@ -128,11 +128,11 @@ get_latest_version() {
         # Get latest stable release from GitHub API
         local latest_release
         latest_release=$(curl -s "${GITHUB_API}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || echo "")
-        
+
         if [[ -n "$latest_release" ]]; then
             VERSION="$latest_release"
             log_info "Using latest stable version: $VERSION"
-            
+
             # Also show all available versions
             local all_tags
             all_tags=$(curl -s "${GITHUB_API}/tags" | grep '"name":' | sed -E 's/.*"([^"]+)".*/\1/' | head -5 || echo "")
@@ -155,7 +155,7 @@ get_latest_version() {
 
 run_docker() {
     local docker_image="${DEFAULT_IMAGE}:${VERSION}"
-    
+
     # Prepare docker run command
     local docker_cmd=(
         "docker" "run" "--rm" "-it"
@@ -163,12 +163,12 @@ run_docker() {
         "-v" "$(realpath "$CONFIG_FILE"):/app/config/config.yaml:ro"
         "-v" "$(realpath "$OUTPUT_DIR"):/app/output"
     )
-    
+
     # Add files directory if it exists
     if [[ -d "$FILES_DIR" ]]; then
         docker_cmd+=("-v" "$(realpath "$FILES_DIR"):/app/files:ro")
     fi
-    
+
     # Add AWS credentials if available
     if [[ -n "$AWS_ACCESS_KEY_ID" ]]; then
         docker_cmd+=("-e" "AWS_ACCESS_KEY_ID")
@@ -184,13 +184,13 @@ run_docker() {
     else
         docker_cmd+=("-e" "AWS_DEFAULT_REGION=us-west-2")
     fi
-    
+
     # Add terminal settings
     docker_cmd+=("-e" "TERM=${TERM:-xterm-256color}")
-    
+
     # Add image and command
     docker_cmd+=("$docker_image" "$COMMAND")
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "Would run: ${docker_cmd[*]}"
     else
@@ -205,7 +205,7 @@ run_docker() {
             log_info "  https://github.com/${REPO_OWNER}/${REPO_NAME}/releases"
             exit 1
         fi
-        
+
         log_info "Running: spot-deployer $COMMAND"
         "${docker_cmd[@]}"
     fi
@@ -220,7 +220,7 @@ Usage:
 
 Commands:
   create    Create spot instances
-  destroy   Destroy all spot instances  
+  destroy   Destroy all spot instances
   list      List running instances
   setup     Initial configuration setup
   help      Show this help message
@@ -235,13 +235,13 @@ Options:
 Examples:
   # Initial setup
   curl -sSL https://yourdomain.com/install.sh | bash -s -- setup
-  
+
   # Create instances
   curl -sSL https://yourdomain.com/install.sh | bash -s -- create
-  
+
   # List instances
   curl -sSL https://yourdomain.com/install.sh | bash -s -- list
-  
+
   # Destroy all instances
   curl -sSL https://yourdomain.com/install.sh | bash -s -- destroy
 
@@ -267,12 +267,12 @@ EOF
 main() {
     echo "🚀 Spot Deployer Installer"
     echo "========================="
-    
+
     if [[ "$COMMAND" == "help" ]]; then
         show_help
         exit 0
     fi
-    
+
     check_prerequisites
     setup_directories
     get_latest_version

@@ -8,7 +8,7 @@ check_aws_credentials() {
     if [ -n "$AWS_ACCESS_KEY_ID" ] || [ -f "$HOME/.aws/credentials" ] || curl -s -m 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ > /dev/null 2>&1; then
         return 0
     fi
-    
+
     echo "❌ ERROR: No AWS credentials found!"
     echo ""
     echo "Please provide AWS credentials using one of:"
@@ -24,11 +24,11 @@ check_config_file() {
     if [[ "$1" == "help" ]] || [[ "$1" == "setup" ]] || [[ "$1" == "--help" ]] || [[ -z "$1" ]]; then
         return 0
     fi
-    
+
     if [ -f "$SPOT_CONFIG_PATH" ] || [ -f "/app/config.yaml" ]; then
         return 0
     fi
-    
+
     echo "❌ ERROR: No config file found!"
     echo ""
     echo "Mount your config: -v /path/to/config.yaml:/app/config/config.yaml"
@@ -54,7 +54,7 @@ if [[ "$1" != "help" ]] && [[ "$1" != "setup" ]] && [[ "$1" != "--help" ]]; then
     if ! check_aws_credentials; then
         exit 1
     fi
-    
+
     if ! check_config_file "$1"; then
         exit 1
     fi

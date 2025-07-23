@@ -17,7 +17,7 @@ The version is automatically derived from git tags. When on a tagged release, it
    # Test Docker build
    docker build -t spot-test:local .
    docker run --rm spot-test:local help
-   
+
    # Lint check
    uv run ruff check .
    ```
@@ -30,16 +30,16 @@ The version is automatically derived from git tags. When on a tagged release, it
    ```
 
 4. **Create Tag and Push**
-   
+
    **Option 1: Use GitHub Actions**
    - Go to Actions → Create Version Tag → Run workflow
    - Enter version number (e.g., 1.0.0)
-   
+
    **Option 2: Create tag locally**
    ```bash
    # Create annotated tag
    git tag -a v1.0.0 -m "Release version 1.0.0"
-   
+
    # Push tag
    git push origin v1.0.0
    ```

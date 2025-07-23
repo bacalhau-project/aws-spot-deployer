@@ -56,14 +56,14 @@ jobs:
         # Update the install script with the correct repository information
         sed -i "s|REPO_OWNER=\".*\"|REPO_OWNER=\"${GITHUB_REPOSITORY_OWNER}\"|g" docs/install.sh
         sed -i "s|REPO_NAME=\".*\"|REPO_NAME=\"${GITHUB_REPOSITORY#*/}\"|g" docs/install.sh
-        
+
         # Update the HTML with the correct domain
         PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
         sed -i "s|https://yourdomain.com|${PAGES_URL}|g" docs/index.html
-        
+
         # Update version in install script to use this specific tag
         sed -i "s|VERSION=\"latest\"|VERSION=\"${{ steps.get_tag.outputs.tag }}\"|g" docs/install.sh
-        
+
         # Add version info to the HTML
         sed -i "s|<h1>🚀 Spot Deployer</h1>|<h1>🚀 Spot Deployer</h1>\n        <p><small>Version: ${{ steps.get_tag.outputs.tag }}</small></p>|g" docs/index.html
 
@@ -71,12 +71,12 @@ jobs:
       run: |
         echo "${{ steps.get_tag.outputs.tag }}" > docs/VERSION
         echo "Updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> docs/VERSION
-        
+
         # Get all tags and show latest
         echo "" >> docs/VERSION
         echo "All versions:" >> docs/VERSION
         git tag -l | sort -V | tail -5 >> docs/VERSION
-        
+
         # Suggest next version
         CURRENT_TAG="${{ steps.get_tag.outputs.tag }}"
         if [[ $CURRENT_TAG =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
@@ -92,16 +92,16 @@ jobs:
       run: |
         mkdir -p /tmp/gh-pages
         cp -r docs/* /tmp/gh-pages/
-        
+
     - name: Checkout gh-pages branch
       run: |
         git checkout gh-pages || git checkout -b gh-pages
         git rm -rf . || true
-        
+
     - name: Copy files from temp
       run: |
         cp -r /tmp/gh-pages/* .
-        
+
     - name: Commit and push
       run: |
         git add -A

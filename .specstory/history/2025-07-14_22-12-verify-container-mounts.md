@@ -4,7 +4,7 @@
 
 _**User**_
 
-make sure all these are mounted in the container correctly - 
+make sure all these are mounted in the container correctly -
 
 ---
 
@@ -63,11 +63,10 @@ Perfect! I've updated the Docker Compose file to include all the required volume
 Now all the paths specified in the `AllowListedLocalPaths` section of the Bacalhau configuration are properly mounted in the container:
 
 - ✅ `/opt/sensor/data:ro` → mounted as read-only
-- ✅ `/opt/sensor/exports:rw` → mounted as read-write  
+- ✅ `/opt/sensor/exports:rw` → mounted as read-write
 - ✅ `/tmp:rw` → mounted as read-write
 - ✅ `/bacalhau_data:rw` → already mounted as read-write
 
 The container will now have access to all the directories that Bacalhau jobs might need to access, ensuring that compute jobs can read sensor data and write results to the appropriate locations.
 
 ---
-

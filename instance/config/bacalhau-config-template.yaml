@@ -15,7 +15,7 @@ API:
 Compute:
   Enabled: true
   Orchestrators:
-    - {{ORCHESTRATOR_ENDPOINT}}
+    - "{{ORCHESTRATOR_ENDPOINT}}"
   Auth:
     Token: "{{ORCHESTRATOR_TOKEN}}"
   TLS:

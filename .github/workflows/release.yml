@@ -66,21 +66,21 @@ jobs:
         prerelease: ${{ contains(github.ref, '-') }}
         body: |
           ## 🚀 Quick Start
-          
+
           Deploy spot instances with a single command:
-          
+
           ```bash
           curl -sSL https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/install.sh | bash -s -- create
           ```
-          
+
           ## Docker Images
-          
+
           This release is available as Docker images:
-          
+
           ```bash
           # Pull this specific version
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          
+
           # Run the container directly
           docker run -it --rm \
             -v $(pwd)/config.yaml:/app/config/config.yaml \
@@ -88,13 +88,13 @@ jobs:
             -v ~/.aws:/root/.aws:ro \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} help
           ```
-          
+
           Multi-architecture images are available for:
           - linux/amd64
           - linux/arm64
-          
+
           ## What's Changed
-          
+
           See the automated changelog below for details.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

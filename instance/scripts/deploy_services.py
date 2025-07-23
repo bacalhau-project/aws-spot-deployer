@@ -31,9 +31,7 @@ def run_command(cmd, check=True):
     """Run shell command and return result"""
     log(f"Running: {cmd}")
     try:
-        result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, check=check
-        )
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=check)
         if result.stdout:
             log(f"Output: {result.stdout.strip()}")
         return result
@@ -160,7 +158,7 @@ def copy_configuration_files():
 def run_additional_commands():
     """Run additional commands script if it exists"""
     additional_script = "/opt/uploaded_files/scripts/additional_commands.sh"
-    
+
     if os.path.exists(additional_script):
         log("Running additional commands script...")
         # Make it executable
@@ -184,9 +182,7 @@ def fix_service_dependencies(service_file):
         # Remove configure-services.service from After= and Requires= lines
         original_content = content
         content = re.sub(r"(After=.*?)\s*configure-services\.service", r"\1", content)
-        content = re.sub(
-            r"(Requires=.*?)\s*configure-services\.service", r"\1", content
-        )
+        content = re.sub(r"(Requires=.*?)\s*configure-services\.service", r"\1", content)
         content = re.sub(r"^Requires=\s*$", "", content, flags=re.MULTILINE)
 
         if content != original_content:

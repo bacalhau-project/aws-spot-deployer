@@ -18,7 +18,7 @@ from ..core.constants import (
 from .display import rich_error
 
 # Global AMI cache
-AMI_CACHE = {}
+AMI_CACHE: Dict[str, str] = {}
 CACHE_LOCK = threading.Lock()
 
 
@@ -192,7 +192,7 @@ def create_simple_security_group(ec2, vpc_id: str, group_name: str = "spot-deplo
 
 
 def create_deployment_vpc(
-    ec2_client, region: str, deployment_id: str = None
+    ec2_client, region: str, deployment_id: Optional[str] = None
 ) -> Tuple[str, str, str]:
     """
     Create a dedicated VPC for spot deployment with all necessary components.

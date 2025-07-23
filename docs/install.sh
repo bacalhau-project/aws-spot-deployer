@@ -71,12 +71,12 @@ log_error() {
 
 check_prerequisites() {
     local missing=()
-    
+
     # Check Docker
     if ! command -v docker &> /dev/null; then
         missing+=("docker")
     fi
-    
+
     # Check AWS CLI or environment variables
     if ! command -v aws &> /dev/null; then
         if [[ -z "$AWS_ACCESS_KEY_ID" ]] || [[ -z "$AWS_SECRET_ACCESS_KEY" ]]; then
@@ -84,7 +84,7 @@ check_prerequisites() {
             log_warn "You'll need to provide AWS credentials when running"
         fi
     fi
-    
+
     if [[ ${#missing[@]} -gt 0 ]]; then
         log_error "Missing prerequisites: ${missing[*]}"
         log_error "Please install missing tools and try again"
@@ -94,11 +94,11 @@ check_prerequisites() {
 
 setup_directories() {
     log_info "Setting up directories..."
-    
+
     # Create working directory
     WORK_DIR="${SPOT_WORK_DIR:-$HOME/.spot-deployer}"
     mkdir -p "$WORK_DIR"/{config,files,output}
-    
+
     # Create default config if it doesn't exist
     if [[ ! -f "$WORK_DIR/config/config.yaml" ]]; then
         cat > "$WORK_DIR/config/config.yaml" << 'EOF'
@@ -123,20 +123,20 @@ get_latest_version() {
         # Try to get latest release from GitHub API
         local latest_release
         latest_release=$(curl -s "${GITHUB_API}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/' || echo "")
-        
+
         if [[ -n "$latest_release" ]]; then
             VERSION="$latest_release"
         else
             VERSION="latest"
         fi
     fi
-    
+
     log_info "Using version: $VERSION"
 }
 
 run_docker() {
     local docker_image="${DEFAULT_IMAGE}:${VERSION}"
-    
+
     # Prepare docker run command
     local docker_cmd=(
         "docker" "run" "--rm" "-it"
@@ -145,7 +145,7 @@ run_docker() {
         "-v" "$WORK_DIR/files:/app/files:ro"
         "-v" "$WORK_DIR/output:/app/output"
     )
-    
+
     # Add AWS credentials if available
     if [[ -n "$AWS_ACCESS_KEY_ID" ]]; then
         docker_cmd+=("-e" "AWS_ACCESS_KEY_ID")
@@ -161,19 +161,19 @@ run_docker() {
     else
         docker_cmd+=("-e" "AWS_DEFAULT_REGION=us-west-2")
     fi
-    
+
     # Add terminal settings
     docker_cmd+=("-e" "TERM=${TERM:-xterm-256color}")
-    
+
     # Add image and command
     docker_cmd+=("$docker_image" "$COMMAND")
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "Would run: ${docker_cmd[*]}"
     else
         log_info "Pulling Docker image..."
         docker pull "$docker_image"
-        
+
         log_info "Running: spot-deployer $COMMAND"
         "${docker_cmd[@]}"
     fi
@@ -188,7 +188,7 @@ Usage:
 
 Commands:
   create    Create spot instances
-  destroy   Destroy all spot instances  
+  destroy   Destroy all spot instances
   list      List running instances
   setup     Initial configuration setup
   help      Show this help message
@@ -200,13 +200,13 @@ Options:
 Examples:
   # Initial setup
   curl -sSL https://yourdomain.com/install.sh | bash -s -- setup
-  
+
   # Create instances
   curl -sSL https://yourdomain.com/install.sh | bash -s -- create
-  
+
   # List instances
   curl -sSL https://yourdomain.com/install.sh | bash -s -- list
-  
+
   # Destroy all instances
   curl -sSL https://yourdomain.com/install.sh | bash -s -- destroy
 
@@ -229,12 +229,12 @@ EOF
 main() {
     echo "🚀 Spot Deployer Installer"
     echo "========================="
-    
+
     if [[ "$COMMAND" == "help" ]]; then
         show_help
         exit 0
     fi
-    
+
     check_prerequisites
     setup_directories
     get_latest_version

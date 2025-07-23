@@ -180,7 +180,7 @@ class NodeIdentityGenerator:
         number = (self.seed // len(self.US_CITIES)) % 9999 + 1
         return f"SENSOR_{region_code}_{number:04d}"
 
-    def _select_manufacturer_config(self) -> Dict[str, str]:
+    def _select_manufacturer_config(self) -> Dict[str, Any]:
         """Select manufacturer and model configuration deterministically."""
         manufacturer_index = (self.seed // 100) % len(self.SENSOR_MANUFACTURERS)
         manufacturer = self.SENSOR_MANUFACTURERS[manufacturer_index]
@@ -212,9 +212,7 @@ class NodeIdentityGenerator:
         ).strftime("%Y-%m-%d")
 
         # Use seeded RNG for deterministic values
-        height_meters = round(
-            2.0 + (self.seed % 480) / 10.0, 1
-        )  # 2.0-50.0 in 0.1 steps
+        height_meters = round(2.0 + (self.seed % 480) / 10.0, 1)  # 2.0-50.0 in 0.1 steps
         orientation_degrees = self.seed % 360
 
         return {
@@ -300,9 +298,7 @@ def main():
 
     print(f"Selected location: {identity['location']['address']}")
     print(f"Sensor ID: {identity['sensor_id']}")
-    print(
-        f"Device: {identity['device_info']['manufacturer']} {identity['device_info']['model']}"
-    )
+    print(f"Device: {identity['device_info']['manufacturer']} {identity['device_info']['model']}")
 
     if generator.save_identity(output_path):
         print(f"Node identity saved to: {output_path}")

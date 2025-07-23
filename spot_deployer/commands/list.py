@@ -60,25 +60,25 @@ def cmd_list(state: SimpleStateManager) -> None:
         table = create_instance_table(title="Running Spot Instances")
 
         for inst in sorted(instances, key=lambda i: i.get("region", "")):
-            state = inst.get("state", "unknown")
+            instance_state = inst.get("state", "unknown")
 
             # Color code the state
-            if state == "running":
-                state_display = f"[green]{state}[/green]"
-            elif state == "pending":
-                state_display = f"[yellow]{state}[/yellow]"
-            elif state == "stopping":
-                state_display = f"[orange]{state}[/orange]"
-            elif state == "stopped":
-                state_display = f"[red]{state}[/red]"
-            elif state == "terminated":
-                state_display = f"[dim]{state}[/dim]"
-            elif state == "not-found":
+            if instance_state == "running":
+                state_display = f"[green]{instance_state}[/green]"
+            elif instance_state == "pending":
+                state_display = f"[yellow]{instance_state}[/yellow]"
+            elif instance_state == "stopping":
+                state_display = f"[orange]{instance_state}[/orange]"
+            elif instance_state == "stopped":
+                state_display = f"[red]{instance_state}[/red]"
+            elif instance_state == "terminated":
+                state_display = f"[dim]{instance_state}[/dim]"
+            elif instance_state == "not-found":
                 state_display = "[red]not found[/red]"
-            elif state == "error":
+            elif instance_state == "error":
                 state_display = "[red]error[/red]"
             else:
-                state_display = state
+                state_display = instance_state
 
             add_instance_row(
                 table,

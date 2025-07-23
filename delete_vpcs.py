@@ -124,15 +124,13 @@ class AwsVpcCleaner:
         self.dry_run = dry_run
         self.region_filter = region_filter
         self.skip_credential_check = skip_credential_check
-        self.region_stats = {}  # Track statistics per region
+        self.region_stats: Dict[str, Dict[str, Any]] = {}  # Track statistics per region
 
         # Set up AWS session
         self.session = boto3.Session()
 
         # Set up API concurrency control
-        self.api_semaphore = asyncio.Semaphore(
-            10
-        )  # Allow up to 10 concurrent API calls
+        self.api_semaphore = asyncio.Semaphore(10)  # Allow up to 10 concurrent API calls
 
         # Set up AWS activity tracking
         self.aws_tracker = AwsActivityTracker()
@@ -202,9 +200,7 @@ class AwsVpcCleaner:
                 box=box.ROUNDED,
             )
             self.mode_banner = Panel(
-                Text(
-                    "! SCAN-ONLY MODE: NO RESOURCES WILL BE DELETED !", justify="center"
-                ),
+                Text("! SCAN-ONLY MODE: NO RESOURCES WILL BE DELETED !", justify="center"),
                 style="yellow bold",
                 box=box.HEAVY,
             )
@@ -271,9 +267,7 @@ class AwsVpcCleaner:
             ec2 = self.session.client("ec2")
             response = await self.execute_aws_api(ec2.describe_regions)
             regions = [region["RegionName"] for region in response["Regions"]]
-            return [
-                r for r in regions if not self.region_filter or r in self.region_filter
-            ]
+            return [r for r in regions if not self.region_filter or r in self.region_filter]
         except botocore.exceptions.ClientError as e:
             logger.error(f"Failed to get AWS regions: {str(e)}")
             raise
@@ -315,9 +309,7 @@ class AwsVpcCleaner:
                     f"Instances: {', '.join(instance_names)}",
                 )
 
-                await self.execute_aws_api(
-                    ec2.terminate_instances, InstanceIds=instance_ids
-                )
+                await self.execute_aws_api(ec2.terminate_instances, InstanceIds=instance_ids)
                 # Wait for instances to start terminating
                 await asyncio.sleep(5)
 
@@ -348,15 +340,11 @@ class AwsVpcCleaner:
                                 try:
                                     await self.execute_aws_api(
                                         ec2.disassociate_address,
-                                        AssociationId=eni["Association"][
-                                            "AssociationId"
-                                        ],
+                                        AssociationId=eni["Association"]["AssociationId"],
                                     )
                                 except botocore.exceptions.ClientError as e:
                                     if "does not exist" not in str(e).lower():
-                                        logger.warning(
-                                            f"Error disassociating public IP: {str(e)}"
-                                        )
+                                        logger.warning(f"Error disassociating public IP: {str(e)}")
 
                             # Then release the Elastic IP if it exists
                             if eni["Association"].get("AllocationId"):
@@ -367,9 +355,7 @@ class AwsVpcCleaner:
                                     )
                                 except botocore.exceptions.ClientError as e:
                                     if "does not exist" not in str(e).lower():
-                                        logger.warning(
-                                            f"Error releasing Elastic IP: {str(e)}"
-                                        )
+                                        logger.warning(f"Error releasing Elastic IP: {str(e)}")
 
                     except botocore.exceptions.ClientError as e:
                         if "does not exist" not in str(e).lower():
@@ -480,9 +466,7 @@ class AwsVpcCleaner:
             )["RouteTables"]
 
             for rt in route_tables:
-                if not rt.get("Associations", []) or not rt["Associations"][0].get(
-                    "Main", False
-                ):
+                if not rt.get("Associations", []) or not rt["Associations"][0].get("Main", False):
                     try:
                         # First disassociate any subnets
                         for assoc in rt.get("Associations", []):
@@ -523,9 +507,7 @@ class AwsVpcCleaner:
                     subnet_enis = (
                         await self.execute_aws_api(
                             ec2.describe_network_interfaces,
-                            Filters=[
-                                {"Name": "subnet-id", "Values": [subnet["SubnetId"]]}
-                            ],
+                            Filters=[{"Name": "subnet-id", "Values": [subnet["SubnetId"]]}],
                         )
                     )["NetworkInterfaces"]
 
@@ -538,14 +520,10 @@ class AwsVpcCleaner:
                                 )
                             except botocore.exceptions.ClientError as e:
                                 if "does not exist" not in str(e).lower():
-                                    logger.warning(
-                                        f"Error deleting subnet ENI: {str(e)}"
-                                    )
+                                    logger.warning(f"Error deleting subnet ENI: {str(e)}")
 
                     # Delete the subnet
-                    await self.execute_aws_api(
-                        ec2.delete_subnet, SubnetId=subnet["SubnetId"]
-                    )
+                    await self.execute_aws_api(ec2.delete_subnet, SubnetId=subnet["SubnetId"])
                 except botocore.exceptions.ClientError as e:
                     if "does not exist" not in str(e).lower():
                         logger.error(f"Error deleting subnet: {str(e)}")
@@ -561,9 +539,7 @@ class AwsVpcCleaner:
             for sg in security_groups:
                 if sg["GroupName"] != "default":
                     try:
-                        await self.execute_aws_api(
-                            ec2.delete_security_group, GroupId=sg["GroupId"]
-                        )
+                        await self.execute_aws_api(ec2.delete_security_group, GroupId=sg["GroupId"])
                     except botocore.exceptions.ClientError as e:
                         if "does not exist" not in str(e).lower():
                             logger.error(f"Error deleting security group: {str(e)}")
@@ -611,9 +587,7 @@ class AwsVpcCleaner:
                 raise AuthenticationError("AWS SSO Token Expired") from e
             raise
 
-    async def _process_single_region(
-        self, region: str, results: Dict[str, Any]
-    ) -> None:
+    async def _process_single_region(self, region: str, results: Dict[str, Any]) -> None:
         """Process a single AWS region."""
         task_id = self.region_tasks[region]
         self.progress.start_task(task_id)
@@ -629,9 +603,7 @@ class AwsVpcCleaner:
 
         try:
             # Scan for VPCs
-            self.progress.update(
-                task_id, advance=20, description=f"[cyan]Scanning {region}"
-            )
+            self.progress.update(task_id, advance=20, description=f"[cyan]Scanning {region}")
             vpc_ids = await self.get_vpc_ids(region)
 
             if vpc_ids:
@@ -645,9 +617,7 @@ class AwsVpcCleaner:
 
                 for vpc_id in vpc_ids:
                     status = (
-                        "[blue]Found[/blue]"
-                        if self.dry_run
-                        else "[yellow]DEL Started[/yellow]"
+                        "[blue]Found[/blue]" if self.dry_run else "[yellow]DEL Started[/yellow]"
                     )
                     self._update_vpc_row(vpc_id, region, status, "Starting...")
 
@@ -666,20 +636,15 @@ class AwsVpcCleaner:
                                 1
                                 for r in instances
                                 for i in r["Instances"]
-                                if i["State"]["Name"]
-                                not in ["terminated", "shutting-down"]
+                                if i["State"]["Name"] not in ["terminated", "shutting-down"]
                             )
-                            self.region_stats[region]["instances_found"] += (
-                                instance_count
-                            )
+                            self.region_stats[region]["instances_found"] += instance_count
 
                             # Delete VPC dependencies
                             if await self.delete_vpc_dependencies(ec2, vpc_id):
                                 results["vpcs_deleted"] += 1
                                 self.region_stats[region]["vpcs_deleted"] += 1
-                                self.region_stats[region]["instances_deleted"] += (
-                                    instance_count
-                                )
+                                self.region_stats[region]["instances_deleted"] += instance_count
                                 # Update row with new status
                                 self._update_vpc_row(
                                     vpc_id,
@@ -699,16 +664,12 @@ class AwsVpcCleaner:
                             )
 
             # Mark region as complete
-            self.progress.update(
-                task_id, completed=100, description=f"[green]Completed {region}"
-            )
+            self.progress.update(task_id, completed=100, description=f"[green]Completed {region}")
             self.progress.stop_task(task_id)
 
         except Exception as e:
             logger.error(f"Error in region {region}: {str(e)}")
-            self.progress.update(
-                task_id, description=f"[red]Failed {region}: {str(e)[:30]}..."
-            )
+            self.progress.update(task_id, description=f"[red]Failed {region}: {str(e)[:30]}...")
             raise
 
     async def _process_regions(self, max_concurrency: int) -> Dict[str, Any]:
@@ -730,9 +691,7 @@ class AwsVpcCleaner:
             # Create all tasks but don't await them yet
             async with asyncio.TaskGroup() as tg:
                 for region in regions:
-                    tasks.append(
-                        tg.create_task(self._process_single_region(region, results))
-                    )
+                    tasks.append(tg.create_task(self._process_single_region(region, results)))
 
             # All tasks are now complete
             return results
@@ -764,15 +723,10 @@ class AwsVpcCleaner:
     async def run(self, max_concurrency: int = 5) -> None:
         """Main entry point for the VPC cleaner."""
         try:
-            if (
-                not self.skip_credential_check
-                and not await self.verify_aws_credentials()
-            ):
+            if not self.skip_credential_check and not await self.verify_aws_credentials():
                 return
 
-            with Live(
-                self.layout, console=console, screen=True, refresh_per_second=4
-            ) as live:
+            with Live(self.layout, console=console, screen=True, refresh_per_second=4) as live:
                 self.layout["header"].update(self.header_panel)
                 self.layout["progress"].update(self.progress)
                 self.layout["details"].update(self.details_table)
@@ -850,7 +804,9 @@ def check_aws_sso_token() -> bool:
         return True
     except Exception as e:
         logger.error(f"Error checking AWS SSO token: {str(e)}")
-        error_code = e.response.get("Error", {}).get("Code", "")
+        error_code = ""
+        if hasattr(e, "response") and isinstance(e.response, dict):
+            error_code = e.response.get("Error", {}).get("Code", "")
         if error_code in ["ExpiredToken", "InvalidClientTokenId"]:
             console.print(
                 "\n[yellow]AWS SSO token has expired. Please run 'aws sso login'[/yellow]"
@@ -866,9 +822,7 @@ def main():
         sys.exit(1)
 
     parser = argparse.ArgumentParser(description="AWS VPC Cleanup Tool")
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Perform a dry run (no deletions)"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="Perform a dry run (no deletions)")
     parser.add_argument("--region", type=str, help="Filter by specific AWS region")
     parser.add_argument(
         "--skip-credential-check",

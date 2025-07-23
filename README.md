@@ -88,10 +88,10 @@ The container supports multiple authentication methods:
 ```bash
    # Login with SSO
    aws sso login
-   
+
    # Use the SSO wrapper
    ./spot-sso create
-   
+
    # Or mount your AWS directory
    docker run --rm -v ~/.aws:/root/.aws:ro ...
    ```
