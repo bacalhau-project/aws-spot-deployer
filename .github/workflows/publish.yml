@@ -1,4 +1,6 @@
 name: Publish Docker Image
+# This workflow builds and publishes Docker images to GitHub Container Registry
+# Triggers on: main branch, version tags, and manual dispatch
 
 on:
   push:
