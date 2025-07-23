@@ -566,16 +566,11 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             else:
                 progress_items.append((key, item))
 
-        # Combine in priority order: in-progress first, then errors, then success
+        # Combine in priority order: errors first (most important), then in-progress, then success
         all_items = progress_items + error_items + success_items
-        max_rows = 25  # Reasonable limit to keep log visible
 
-        items_to_show = all_items[:max_rows]
-        if len(all_items) > max_rows:
-            # Add indicator that there are more items
-            table.caption = f"[dim]Showing {max_rows} of {len(all_items)} instances[/dim]"
-
-        for key, item in items_to_show:
+        # Show all instances - no limit
+        for key, item in all_items:
             status = item["status"]
 
             if "SUCCESS" in status:

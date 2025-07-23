@@ -113,10 +113,73 @@ def get_latest_ubuntu_ami(region: str, log_function=None) -> Optional[str]:
 
 
 def check_aws_auth() -> bool:
-    """Quick AWS authentication check."""
+    """Check AWS authentication and display which credentials are being used."""
     try:
         sts = boto3.client("sts")
-        sts.get_caller_identity()
+        caller_identity = sts.get_caller_identity()
+
+        # Get the ARN and extract useful information
+        arn = caller_identity.get("Arn", "")
+        account = caller_identity.get("Account", "unknown")
+
+        # Determine the type of credentials being used
+        if "assumed-role" in arn:
+            # SSO or assumed role
+            role_name = arn.split("/")[-2] if "/" in arn else "unknown"
+            user_name = arn.split("/")[-1] if "/" in arn else "unknown"
+            cred_type = "AWS SSO/AssumedRole"
+            cred_info = f"{role_name} (user: {user_name})"
+        elif ":user/" in arn:
+            # IAM user
+            user_name = arn.split("/")[-1] if "/" in arn else "unknown"
+            cred_type = "IAM User"
+            cred_info = user_name
+        elif "arn:aws:iam::" in arn and ":root" in arn:
+            # Root account (not recommended)
+            cred_type = "Root Account"
+            cred_info = "⚠️  WARNING: Using root credentials"
+        else:
+            # Environment credentials or other
+            cred_type = "AWS Credentials"
+            cred_info = "from environment or config"
+
+        # Check if we're using environment variables
+        if os.environ.get("AWS_ACCESS_KEY_ID"):
+            cred_source = "Environment Variables"
+        elif os.environ.get("AWS_PROFILE"):
+            cred_source = f"AWS Profile: {os.environ.get('AWS_PROFILE')}"
+        elif os.environ.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"):
+            cred_source = "ECS Task Role"
+        elif os.environ.get("AWS_WEB_IDENTITY_TOKEN_FILE"):
+            cred_source = "Web Identity Token"
+        else:
+            # Check for SSO cache
+            sso_cache_dir = os.path.expanduser("~/.aws/sso/cache")
+            if os.path.exists(sso_cache_dir) and any(
+                f.endswith(".json")
+                for f in os.listdir(sso_cache_dir)
+                if os.path.isfile(os.path.join(sso_cache_dir, f))
+            ):
+                cred_source = "AWS SSO"
+            else:
+                cred_source = "AWS Config File or Instance Profile"
+
+        # Display the authentication information
+        from .display import Panel, console
+
+        if console:
+            auth_info = f"""[green]✓ AWS Authentication Successful[/green]
+
+[bold]Credential Type:[/bold] {cred_type}
+[bold]Credential Source:[/bold] {cred_source}
+[bold]Identity:[/bold] {cred_info}
+[bold]Account:[/bold] {account}
+[bold]Region:[/bold] {boto3.Session().region_name or 'us-east-1'}"""
+
+            console.print(Panel(auth_info, title="AWS Credentials", border_style="green"))
+        else:
+            print(f"✓ AWS Auth: {cred_type} - {cred_info} (Account: {account})")
+
         return True
     except Exception as e:
         if "token has expired" in str(e).lower():

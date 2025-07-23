@@ -103,7 +103,9 @@
       "Bash(pre-commit run:*)",
       "Bash(yamllint:*)",
       "Bash(.venv/bin/python -m ruff check:*)",
-      "Bash(./test-docker-help.sh:*)"
+      "Bash(./test-docker-help.sh:*)",
+      "Bash(./spot:*)",
+      "Bash(AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test ./spot list)"
     ],
     "deny": []
   }

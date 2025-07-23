@@ -5,16 +5,54 @@ set -e
 
 # Function to check AWS credentials
 check_aws_credentials() {
-    if [ -n "$AWS_ACCESS_KEY_ID" ] || [ -f "$HOME/.aws/credentials" ] || curl -s -m 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ > /dev/null 2>&1; then
+    # Check various credential sources
+    if [ -n "$AWS_ACCESS_KEY_ID" ]; then
+        echo "ℹ️  Using AWS credentials from environment variables"
+        return 0
+    elif [ -n "$AWS_PROFILE" ]; then
+        echo "ℹ️  Using AWS profile: $AWS_PROFILE"
+        if [ -f "$HOME/.aws/credentials" ] || [ -f "$HOME/.aws/config" ]; then
+            return 0
+        else
+            echo "⚠️  AWS profile specified but no credentials file found"
+        fi
+    elif [ -f "$HOME/.aws/credentials" ]; then
+        echo "ℹ️  Using AWS credentials from ~/.aws/credentials"
+        return 0
+    elif [ -d "$HOME/.aws/sso/cache" ] && [ "$(ls -A $HOME/.aws/sso/cache 2>/dev/null)" ]; then
+        echo "ℹ️  Using AWS SSO credentials"
+        # Check if SSO session is still valid
+        if aws sts get-caller-identity > /dev/null 2>&1; then
+            echo "✅ AWS SSO session is active"
+            return 0
+        else
+            echo "⚠️  AWS SSO session expired. Run: aws sso login"
+            return 1
+        fi
+    elif curl -s -m 1 http://169.254.169.254/latest/meta-data/iam/security-credentials/ > /dev/null 2>&1; then
+        echo "ℹ️  Using IAM instance role"
+        return 0
+    elif [ -n "$AWS_CONTAINER_CREDENTIALS_RELATIVE_URI" ]; then
+        echo "ℹ️  Using ECS task role"
         return 0
     fi
 
     echo "❌ ERROR: No AWS credentials found!"
     echo ""
-    echo "Please provide AWS credentials using one of:"
-    echo "- Environment variables: -e AWS_ACCESS_KEY_ID=xxx -e AWS_SECRET_ACCESS_KEY=yyy"
-    echo "- Mount AWS directory: -v ~/.aws:/root/.aws:ro"
-    echo "- IAM role (when running on EC2/ECS)"
+    echo "Please provide AWS credentials using one of the following methods:"
+    echo ""
+    echo "Option 1 - Environment variables:"
+    echo "  docker run -e AWS_ACCESS_KEY_ID=xxx -e AWS_SECRET_ACCESS_KEY=yyy ..."
+    echo ""
+    echo "Option 2 - AWS SSO (recommended):"
+    echo "  aws sso login  # Run this first on your host"
+    echo "  docker run -v ~/.aws:/root/.aws:ro ..."
+    echo ""
+    echo "Option 3 - AWS Profile:"
+    echo "  docker run -v ~/.aws:/root/.aws:ro -e AWS_PROFILE=myprofile ..."
+    echo ""
+    echo "Option 4 - IAM role (when running on EC2/ECS)"
+    echo ""
     return 1
 }
 

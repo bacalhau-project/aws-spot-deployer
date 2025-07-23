@@ -82,33 +82,64 @@ docker run --rm \
 
 ### AWS Authentication
 
-The container supports multiple authentication methods:
-
-1. **AWS SSO** (Recommended for local development):
+The spot deployer now includes a unified `spot` command that automatically detects and uses your AWS credentials:
 
 ```bash
-   # Login with SSO
+# The spot command automatically detects your credentials
+./spot create
+
+# It will show which credentials are being used:
+# 🔍 Detecting AWS credentials...
+# ✓ Using AWS SSO session
+# → Running: docker run ...
+```
+
+**Supported Authentication Methods** (in order of detection):
+
+1. **Environment Variables** - If AWS_ACCESS_KEY_ID is set
+2. **EC2 Instance Role** - When running on EC2
+3. **AWS SSO** - If you have an active SSO session
+4. **AWS Config Files** - ~/.aws/credentials or ~/.aws/config
+
+**Manual Authentication Options**:
+
+1. **AWS SSO** (Recommended):
+   ```bash
+   # Login with SSO first
    aws sso login
 
-   # Use the SSO wrapper
-   ./spot-sso create
-
-   # Or mount your AWS directory
-   docker run --rm -v ~/.aws:/root/.aws:ro ...
+   # Then use spot command
+   ./spot create
    ```
 
-1. **Environment Variables**:
-
-```bash
-   docker run --rm \
-     -e AWS_ACCESS_KEY_ID=xxx \
-     -e AWS_SECRET_ACCESS_KEY=yyy \
-     -e AWS_DEFAULT_REGION=us-west-2 ...
+2. **Environment Variables**:
+   ```bash
+   export AWS_ACCESS_KEY_ID=your-key-id
+   export AWS_SECRET_ACCESS_KEY=your-secret-key
+   ./spot create
    ```
 
-1. **IAM Role** (for EC2/ECS environments)
+3. **AWS Profile**:
+   ```bash
+   export AWS_PROFILE=myprofile
+   ./spot create
+   ```
 
-See [AWS_SSO_DOCKER.md](AWS_SSO_DOCKER.md) for detailed SSO instructions.
+The tool will display detailed information about which AWS credentials are being used during execution:
+
+```
+╭─────────────────── AWS Credentials ───────────────────╮
+│ ✓ AWS Authentication Successful                       │
+│                                                       │
+│ Credential Type: AWS SSO/AssumedRole                  │
+│ Credential Source: AWS SSO                            │
+│ Identity: AWSReservedSSO_AdministratorAccess_xxx     │
+│ Account: 123456789012                                 │
+│ Region: us-west-2                                     │
+╰───────────────────────────────────────────────────────╯
+```
+
+See [AWS_SSO_DOCKER.md](AWS_SSO_DOCKER.md) for additional SSO configuration details.
 
 ### Configuration
 
