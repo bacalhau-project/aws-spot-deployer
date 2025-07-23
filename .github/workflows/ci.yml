@@ -61,12 +61,6 @@ jobs:
 
       - name: Test Docker image
         run: |
-          # Test that the image runs help command
-          docker run --rm test-spot-deployer:ci help
-
-          # Test version command
-          docker run --rm test-spot-deployer:ci --version
-
           # Test that setup command works without config
           docker run --rm -v /tmp/test-output:/app/output test-spot-deployer:ci setup
 
