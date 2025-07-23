@@ -67,8 +67,8 @@ jobs:
           # Test version command
           docker run --rm test-spot-deployer:ci --version
 
-          # Test that all commands are available
-          for cmd in setup create list destroy help; do
-            echo "Testing command: $cmd"
-            docker run --rm test-spot-deployer:ci $cmd --help || true
-          done
+          # Test that setup command works without config
+          docker run --rm -v /tmp/test-output:/app/output test-spot-deployer:ci setup
+
+          # Verify config was created
+          test -f /tmp/test-output/config.yaml || exit 1

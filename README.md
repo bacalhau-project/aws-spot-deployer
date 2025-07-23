@@ -15,6 +15,7 @@ curl -sSL https://bac.al/spot | bash -s -- create
 ```
 
 The installer will:
+
 - Check prerequisites (Docker, AWS credentials)
 - Set up configuration directory at `~/.spot-deployer`
 - Pull the latest Docker image
@@ -229,6 +230,7 @@ See [config.yaml.example](config.yaml.example) for all available options:
 ### No AWS Credentials Found
 
 Ensure AWS credentials are available:
+
 ```bash
 # Check credentials
 aws sts get-caller-identity
@@ -241,6 +243,7 @@ export AWS_SECRET_ACCESS_KEY=yyy
 ### No Config File Found
 
 Create a config file first:
+
 ```bash
 docker run --rm -v $(pwd):/app/output ghcr.io/bacalhau-project/spot-deployer setup
 ```
@@ -248,6 +251,7 @@ docker run --rm -v $(pwd):/app/output ghcr.io/bacalhau-project/spot-deployer set
 ### Permission Denied
 
 Ensure proper mount permissions:
+
 - Use `:ro` for read-only mounts
 - Check file ownership
 - Verify Docker daemon permissions
@@ -255,6 +259,7 @@ Ensure proper mount permissions:
 ### Debugging Deployments
 
 Use the debug script after deployment:
+
 ```bash
 # Download debug script
 curl -O https://raw.githubusercontent.com/bacalhau-project/spot/main/debug_deployment.sh

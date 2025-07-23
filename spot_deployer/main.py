@@ -27,6 +27,11 @@ def main() -> None:
         print(f"spot-deployer {__version__}")
         return
 
+    # Handle help command early to avoid config loading
+    if command == "help":
+        cmd_help()
+        return
+
     # Check for verbose flag
     verbose = "-v" in sys.argv or "--verbose" in sys.argv
 
@@ -45,8 +50,6 @@ def main() -> None:
         cmd_list(state)
     elif command == "destroy":
         cmd_destroy(config, state, verbose=verbose)
-    elif command == "help":
-        cmd_help()
     else:
         print(f"Unknown command: {command}")
         cmd_help()

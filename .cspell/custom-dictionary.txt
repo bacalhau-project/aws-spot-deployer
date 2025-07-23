@@ -4,6 +4,7 @@ daaronch
 dind
 healthcheck
 healthz
+iotop
 NOPASSWD
 oneshot
 runcmd
