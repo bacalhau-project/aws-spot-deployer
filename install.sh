@@ -27,7 +27,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Default values
-VERSION="latest"
+VERSION="v1.0.14"
 DRY_RUN=false
 COMMAND=""
 
@@ -127,7 +127,7 @@ get_latest_version() {
         if [[ -n "$latest_release" ]]; then
             VERSION="$latest_release"
         else
-            VERSION="latest"
+            VERSION="v1.0.14"
         fi
     fi
 
