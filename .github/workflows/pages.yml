@@ -57,8 +57,8 @@ jobs:
         sed -i "s|REPO_OWNER=\".*\"|REPO_OWNER=\"${GITHUB_REPOSITORY_OWNER}\"|g" docs/install.sh
         sed -i "s|REPO_NAME=\".*\"|REPO_NAME=\"${GITHUB_REPOSITORY#*/}\"|g" docs/install.sh
 
-        # Update the HTML with the correct domain
-        PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+        # Update the HTML with the correct domain (tada.wang)
+        PAGES_URL="https://tada.wang"
         sed -i "s|https://yourdomain.com|${PAGES_URL}|g" docs/index.html
 
         # Update version in install script to use this specific tag
@@ -92,6 +92,8 @@ jobs:
       run: |
         mkdir -p /tmp/gh-pages
         cp -r docs/* /tmp/gh-pages/
+        # Copy placeholder.html as index.html for root domain
+        cp /tmp/gh-pages/placeholder.html /tmp/gh-pages/index.html || true
 
     - name: Checkout gh-pages branch
       run: |

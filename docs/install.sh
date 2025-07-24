@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Spot Deployer Installation Script
-# Usage: curl -sSL https://yourdomain.com/install.sh | bash -s -- [OPTIONS]
+# Usage: curl -sSL https://tada.wang/install.sh | bash -s -- [OPTIONS]
 #
 # Options:
 #   create    - Create spot instances
@@ -149,6 +149,7 @@ run_docker() {
     
     docker_cmd+=(
         "-v" "$HOME/.ssh:/root/.ssh:ro"
+        "-v" "$HOME/.aws:/root/.aws:ro"
         "-v" "$WORK_DIR/config/config.yaml:/app/config/config.yaml:ro"
         "-v" "$WORK_DIR/files:/app/files:ro"
         "-v" "$WORK_DIR/output:/app/output"
@@ -163,6 +164,9 @@ run_docker() {
     fi
     if [[ -n "$AWS_SESSION_TOKEN" ]]; then
         docker_cmd+=("-e" "AWS_SESSION_TOKEN")
+    fi
+    if [[ -n "$AWS_PROFILE" ]]; then
+        docker_cmd+=("-e" "AWS_PROFILE")
     fi
     if [[ -n "$AWS_DEFAULT_REGION" ]]; then
         docker_cmd+=("-e" "AWS_DEFAULT_REGION")
@@ -192,7 +196,7 @@ show_help() {
 Spot Deployer - Easy AWS Spot Instance Deployment
 
 Usage:
-  curl -sSL https://yourdomain.com/install.sh | bash -s -- [COMMAND] [OPTIONS]
+  curl -sSL https://tada.wang/install.sh | bash -s -- [COMMAND] [OPTIONS]
 
 Commands:
   create    Create spot instances
@@ -207,22 +211,23 @@ Options:
 
 Examples:
   # Initial setup
-  curl -sSL https://yourdomain.com/install.sh | bash -s -- setup
+  curl -sSL https://tada.wang/install.sh | bash -s -- setup
 
   # Create instances
-  curl -sSL https://yourdomain.com/install.sh | bash -s -- create
+  curl -sSL https://tada.wang/install.sh | bash -s -- create
 
   # List instances
-  curl -sSL https://yourdomain.com/install.sh | bash -s -- list
+  curl -sSL https://tada.wang/install.sh | bash -s -- list
 
   # Destroy all instances
-  curl -sSL https://yourdomain.com/install.sh | bash -s -- destroy
+  curl -sSL https://tada.wang/install.sh | bash -s -- destroy
 
 Environment Variables:
   SPOT_WORK_DIR     Working directory (default: ~/.spot-deployer)
   AWS_ACCESS_KEY_ID AWS access key
   AWS_SECRET_ACCESS_KEY AWS secret key
   AWS_SESSION_TOKEN AWS session token (optional)
+  AWS_PROFILE       AWS profile name (for SSO/named profiles)
   AWS_DEFAULT_REGION AWS region (default: us-west-2)
 
 Files:
