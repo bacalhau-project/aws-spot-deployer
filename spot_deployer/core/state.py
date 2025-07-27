@@ -1,6 +1,7 @@
 """State management for tracking deployed instances."""
 
 import json
+import os
 from datetime import datetime
 from typing import Dict, List
 
@@ -26,6 +27,11 @@ class SimpleStateManager:
     def save_instances(self, instances: List[Dict]) -> None:
         """Save instances to JSON file."""
         try:
+            # Ensure directory exists
+            state_dir = os.path.dirname(self.state_file)
+            if state_dir and not os.path.exists(state_dir):
+                os.makedirs(state_dir, exist_ok=True)
+            
             data = {"instances": instances, "last_updated": datetime.now().isoformat()}
             with open(self.state_file, "w") as f:
                 json.dump(data, f, indent=2, default=str)

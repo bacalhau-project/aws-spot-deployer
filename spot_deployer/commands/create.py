@@ -252,7 +252,8 @@ def create_instances_in_region_with_table(
         if region_cfg.get("image") == "auto":
             from ..utils.aws import get_latest_ubuntu_ami
 
-            ami_id = get_latest_ubuntu_ami(region, log_function=log_message)
+            cache_dir = os.path.join(config.output_directory(), ".aws_cache")
+            ami_id = get_latest_ubuntu_ami(region, log_function=log_message, cache_dir=cache_dir)
         else:
             ami_id = region_cfg.get("image")
 

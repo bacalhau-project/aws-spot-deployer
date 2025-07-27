@@ -137,6 +137,17 @@ get_latest_version() {
 run_docker() {
     local docker_image="${DEFAULT_IMAGE}:${VERSION}"
 
+    # Create a temporary directory for AWS SSO cache
+    # This prevents the "Read-only file system" error when AWS SDK tries to refresh SSO tokens
+    # We copy the AWS config to a temp dir to allow writes while keeping the original files safe
+    local temp_aws_dir=$(mktemp -d)
+    trap "rm -rf $temp_aws_dir" EXIT
+    
+    # Copy AWS config files (including SSO cache)
+    if [[ -d "$HOME/.aws" ]]; then
+        cp -r "$HOME/.aws/." "$temp_aws_dir/"
+    fi
+
     # Prepare docker run command
     local docker_cmd=(
         "docker" "run" "--rm"
@@ -149,7 +160,7 @@ run_docker() {
     
     docker_cmd+=(
         "-v" "$HOME/.ssh:/root/.ssh:ro"
-        "-v" "$HOME/.aws:/root/.aws:ro"
+        "-v" "$temp_aws_dir:/root/.aws"
         "-v" "$WORK_DIR/config/config.yaml:/app/config/config.yaml:ro"
         "-v" "$WORK_DIR/files:/app/files:ro"
         "-v" "$WORK_DIR/output:/app/output"

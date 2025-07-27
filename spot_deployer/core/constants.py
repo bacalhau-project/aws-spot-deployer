@@ -1,5 +1,7 @@
 """Constants and configuration values."""
 
+import os
+
 
 # Column widths for Rich tables
 class ColumnWidths:
@@ -37,10 +39,14 @@ DEFAULT_STORAGE_GB = 50
 CANONICAL_OWNER_ID = "099720109477"  # Ubuntu AMI owner
 DEFAULT_UBUNTU_AMI_PATTERN = "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
 
-# File paths
+# File paths - all relative to current working directory
 DEFAULT_CONFIG_FILE = "config.yaml"
-DEFAULT_STATE_FILE = "instances.json"
-CACHE_DIR = ".aws_cache"
+DEFAULT_FILES_DIR = "files"
+DEFAULT_OUTPUT_DIR = "output"
+
+# Default file names
+DEFAULT_STATE_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "instances.json")
+CACHE_DIR = os.path.join(DEFAULT_OUTPUT_DIR, ".aws_cache")
 
 # Security group
 DEFAULT_SECURITY_GROUP_NAME = "spot-deployer-sg"

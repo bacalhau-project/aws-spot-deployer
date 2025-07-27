@@ -51,9 +51,13 @@ def save_cache(filepath: str, data: Dict) -> None:
         pass
 
 
-def get_latest_ubuntu_ami(region: str, log_function=None) -> Optional[str]:
+def get_latest_ubuntu_ami(region: str, log_function=None, cache_dir: Optional[str] = None) -> Optional[str]:
     """Get latest Ubuntu 22.04 LTS AMI for region."""
-    cache_file = f"{CACHE_DIR}/ami_{region}.json"
+    if cache_dir is None:
+        cache_dir = os.environ.get("SPOT_OUTPUT_DIR", CACHE_DIR)
+        if cache_dir != CACHE_DIR:
+            cache_dir = os.path.join(cache_dir, ".aws_cache")
+    cache_file = f"{cache_dir}/ami_{region}.json"
 
     def log_message(msg: str):
         if log_function:

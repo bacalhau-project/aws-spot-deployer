@@ -12,8 +12,10 @@ class SimpleConfig:
     # Class-level singleton for deployment ID
     _deployment_id = None
 
-    def __init__(self, config_file: str = "config.yaml"):
+    def __init__(self, config_file: str = "config.yaml", files_dir: Optional[str] = None, output_dir: Optional[str] = None):
         self.config_file = config_file
+        self.files_dir = files_dir
+        self.output_dir = output_dir
         self.data = self._load_config()
 
     def _load_config(self) -> Dict:
@@ -112,11 +114,26 @@ class SimpleConfig:
 
     def files_directory(self) -> str:
         """Get files directory path."""
+        # If explicitly provided, use that
+        if self.files_dir:
+            return self.files_dir
+        
+        # Otherwise get from config or use default
         return self.data.get("aws", {}).get("files_directory", "files")
 
     def scripts_directory(self) -> str:
         """Get scripts directory path."""
         return self.data.get("aws", {}).get("scripts_directory", "instance/scripts")
+    
+    def output_directory(self) -> str:
+        """Get output directory path."""
+        # If explicitly provided, use that
+        if self.output_dir:
+            return self.output_dir
+        
+        # Otherwise use default from constants
+        from .constants import DEFAULT_OUTPUT_DIR
+        return DEFAULT_OUTPUT_DIR
 
     def cloud_init_template(self) -> str:
         """Get cloud-init template path."""
