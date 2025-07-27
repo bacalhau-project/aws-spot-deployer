@@ -22,69 +22,64 @@ def main() -> None:
         description="AWS Spot Instance Deployer",
         add_help=False,  # We handle help ourselves
     )
-    
+
     # Add command as first positional argument
     parser.add_argument("command", nargs="?", help="Command to run")
-    
+
     # Add optional flags
-    parser.add_argument("--config", "-c", 
-                        help="Path to config file")
-    parser.add_argument("--files", "-f", 
-                        help="Path to files directory")
-    parser.add_argument("--output", "-o", 
-                        help="Path to output directory")
-    parser.add_argument("--verbose", "-v", action="store_true",
-                        help="Enable verbose output")
-    parser.add_argument("--version", "-V", action="store_true",
-                        help="Show version")
-    
+    parser.add_argument("--config", "-c", help="Path to config file")
+    parser.add_argument("--files", "-f", help="Path to files directory")
+    parser.add_argument("--output", "-o", help="Path to output directory")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
+    parser.add_argument("--version", "-V", action="store_true", help="Show version")
+
     # Parse known args to allow command-specific args to pass through
     args, remaining = parser.parse_known_args()
-    
+
     # Handle version flag
     if args.version or args.command == "version":
         print(f"spot-deployer {__version__}")
         return
-    
+
     # Handle missing command
     if not args.command:
         cmd_help()
         return
-    
+
     # Handle help command
     if args.command == "help":
         cmd_help()
         return
-    
+
     # Determine paths with priority: CLI flag > env var > default
     config_path = (
-        args.config or 
-        os.environ.get("SPOT_CONFIG_PATH") or 
-        os.environ.get("SPOT_CONFIG", DEFAULT_CONFIG_FILE)
+        args.config
+        or os.environ.get("SPOT_CONFIG_PATH")
+        or os.environ.get("SPOT_CONFIG", DEFAULT_CONFIG_FILE)
     )
-    
+
     files_dir = (
-        args.files or 
-        os.environ.get("SPOT_FILES_DIR") or 
-        os.environ.get("SPOT_FILES", DEFAULT_FILES_DIR)
+        args.files
+        or os.environ.get("SPOT_FILES_DIR")
+        or os.environ.get("SPOT_FILES", DEFAULT_FILES_DIR)
     )
-    
+
     output_dir = (
-        args.output or 
-        os.environ.get("SPOT_OUTPUT_DIR") or 
-        os.environ.get("SPOT_OUTPUT", DEFAULT_OUTPUT_DIR)
+        args.output
+        or os.environ.get("SPOT_OUTPUT_DIR")
+        or os.environ.get("SPOT_OUTPUT", DEFAULT_OUTPUT_DIR)
     )
-    
+
     # For backwards compatibility with Docker
     state_path = os.environ.get("SPOT_STATE_PATH")
     if not state_path:
         state_path = os.path.join(output_dir, "instances.json")
-    
+
     # Set environment variables for child processes
     os.environ["SPOT_CONFIG_PATH"] = config_path
     os.environ["SPOT_FILES_DIR"] = files_dir
     os.environ["SPOT_OUTPUT_DIR"] = output_dir
-    
+
     config = SimpleConfig(config_path, files_dir=files_dir, output_dir=output_dir)
     state = SimpleStateManager(state_path)
 

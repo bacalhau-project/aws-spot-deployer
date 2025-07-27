@@ -37,4 +37,6 @@ def cmd_help() -> None:
 """
         console.print(Panel(help_text, title="Help", border_style="blue"))
     else:
-        print("Usage: ./deploy_spot.py [setup|create|list|destroy|help] [--config PATH] [--files PATH] [--output PATH]")
+        print(
+            "Usage: ./deploy_spot.py [setup|create|list|destroy|help] [--config PATH] [--files PATH] [--output PATH]"
+        )

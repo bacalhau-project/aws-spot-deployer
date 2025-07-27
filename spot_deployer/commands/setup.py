@@ -13,7 +13,7 @@ def cmd_setup(config: SimpleConfig) -> None:
     # First ensure the directory structure exists
     files_dir = config.files_directory()
     output_dir = config.output_directory()
-    
+
     # Create directories if they don't exist
     for dir_path, dir_name in [
         (files_dir, "files directory"),
@@ -26,7 +26,7 @@ def cmd_setup(config: SimpleConfig) -> None:
             except Exception as e:
                 rich_error(f"Failed to create {dir_name}: {e}")
                 return
-    
+
     if os.path.exists(config.config_file):
         rich_warning(f"'{config.config_file}' already exists.")
         if input("Overwrite? (y/n): ").lower() != "y":
@@ -58,7 +58,7 @@ def cmd_setup(config: SimpleConfig) -> None:
         with open(config.config_file, "w") as f:
             yaml.dump(default_config, f, default_flow_style=False, sort_keys=False)
         rich_success(f"Created default config: {config.config_file}")
-        
+
         # Create a sample README in the files directory
         readme_path = os.path.join(files_dir, "README.txt")
         if not os.path.exists(readme_path):
@@ -70,7 +70,7 @@ def cmd_setup(config: SimpleConfig) -> None:
                 f.write("- orchestrator_endpoint: Contains the NATS endpoint URL\n")
                 f.write("- orchestrator_token: Contains the authentication token\n")
             rich_success("Created sample README in files directory")
-        
+
         if console:
             console.print(
                 "\n[bold yellow]ACTION REQUIRED:[/bold yellow] Please edit the config file with your details."

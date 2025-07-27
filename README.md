@@ -325,11 +325,32 @@ For development and contributions:
 git clone https://github.com/bacalhau-project/spot.git
 cd spot
 
+# Set up development environment
+uv sync
+
+# Install pre-commit hooks (IMPORTANT: prevents CI failures)
+uv run pre-commit install
+
+# Run pre-commit manually on all files
+uv run pre-commit run --all-files
+
 # Build Docker image locally
 ./scripts/build-docker.sh
 
 # Run tests
 docker run --rm spot-deployer:dev help
+```
+
+### Code Quality
+
+This project uses:
+- **ruff** for linting and formatting
+- **mypy** for type checking
+- **pre-commit** hooks to ensure code quality
+
+**Important**: Always install pre-commit hooks after cloning to avoid CI failures:
+```bash
+uv run pre-commit install
 ```
 
 ## 📄 License

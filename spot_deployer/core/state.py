@@ -31,7 +31,7 @@ class SimpleStateManager:
             state_dir = os.path.dirname(self.state_file)
             if state_dir and not os.path.exists(state_dir):
                 os.makedirs(state_dir, exist_ok=True)
-            
+
             data = {"instances": instances, "last_updated": datetime.now().isoformat()}
             with open(self.state_file, "w") as f:
                 json.dump(data, f, indent=2, default=str)
