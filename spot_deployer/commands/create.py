@@ -558,6 +558,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             title=f"Creating instances ({active_count} active)",
             show_lines=False,
             padding=(0, 1),
+            expand=True,
         )
 
         sorted_items = sorted(creation_status.items(), key=lambda x: x[0])
