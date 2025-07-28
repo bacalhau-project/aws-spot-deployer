@@ -9,11 +9,19 @@ import argparse
 import os
 import sys
 
-from .commands import cmd_create, cmd_destroy, cmd_help, cmd_list, cmd_nuke, cmd_readme, cmd_setup
+from .commands import (
+    cmd_create,
+    cmd_destroy,
+    cmd_help,
+    cmd_list,
+    cmd_nuke,
+    cmd_readme,
+    cmd_setup,
+    cmd_version,
+)
 from .core.config import SimpleConfig
 from .core.constants import DEFAULT_CONFIG_FILE, DEFAULT_FILES_DIR, DEFAULT_OUTPUT_DIR
 from .core.state import SimpleStateManager
-from .version import __version__
 
 
 def main() -> None:
@@ -38,7 +46,7 @@ def main() -> None:
 
     # Handle version flag
     if args.version or args.command == "version":
-        print(f"spot-deployer {__version__}")
+        cmd_version()
         return
 
     # Handle missing command

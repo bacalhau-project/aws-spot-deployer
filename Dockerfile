@@ -1,5 +1,11 @@
 FROM python:3.11-slim
 
+# Build arguments
+ARG BUILD_DATE
+ARG BUILD_VERSION
+ARG BUILD_COMMIT
+ARG DOCKER_TAG
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
@@ -47,6 +53,13 @@ ENV SPOT_FILES_DIR=/app/files
 ENV SPOT_OUTPUT_DIR=/app/output
 ENV SPOT_STATE_PATH=/app/output/instances.json
 ENV PYTHONPATH=/app
+
+# Set build information
+ENV BUILD_DATE=${BUILD_DATE}
+ENV BUILD_VERSION=${BUILD_VERSION}
+ENV BUILD_COMMIT=${BUILD_COMMIT}
+ENV DOCKER_TAG=${DOCKER_TAG}
+ENV DOCKER_CONTAINER=true
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["help"]
