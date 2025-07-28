@@ -77,7 +77,7 @@ runcmd:
   # Create log files
   - touch /opt/startup.log /opt/deployment.log
   - chmod 666 /opt/startup.log /opt/deployment.log
-  
+
   # Install uv
   - |
     echo "[$(date)] Installing uv..." >> /opt/startup.log
@@ -87,7 +87,7 @@ runcmd:
       chmod +x /usr/local/bin/uv
       ln -sf /usr/local/bin/uv /usr/bin/uv
     fi
-  
+
   # Install Docker
   - |
     echo "[$(date)] Installing Docker..." >> /opt/startup.log
@@ -99,7 +99,7 @@ runcmd:
     systemctl enable docker
     systemctl start docker
     usermod -aG docker {config.username()}
-  
+
   # Wait for files to be uploaded (SSH transfer happens after cloud-init)
   - |
     echo "[$(date)] Waiting for file upload..." >> /opt/startup.log
@@ -109,12 +109,12 @@ runcmd:
       sleep 5
       elapsed=$((elapsed + 5))
     done
-    
+
     if [ ! -f /tmp/uploaded_files_ready ]; then
       echo "[$(date)] ERROR: File upload timeout" >> /opt/startup.log
       exit 1
     fi
-  
+
   # Run deployment script
   - |
     echo "[$(date)] Running deployment script..." >> /opt/startup.log
@@ -124,7 +124,7 @@ runcmd:
       echo "[$(date)] ERROR: deploy_services.py not found" >> /opt/startup.log
       exit 1
     fi
-  
+
   # Run additional commands if they exist
   - |
     if [ -f /opt/uploaded_files/scripts/additional_commands.sh ]; then
@@ -132,7 +132,7 @@ runcmd:
       chmod +x /opt/uploaded_files/scripts/additional_commands.sh
       /opt/uploaded_files/scripts/additional_commands.sh
     fi
-  
+
   # Cloud-init will handle the reboot
   - echo "[$(date)] Cloud-init deployment complete" >> /opt/startup.log
 
@@ -185,33 +185,33 @@ write_files:
       Cloud-init started
     owner: root:root
     permissions: '0666'
-  
+
   - path: /opt/setup_deployment.sh
     content: |
       #!/bin/bash
       # This script runs after reboot to set up all services
-      
+
       echo "[$(date)] Starting deployment setup" | tee -a /opt/startup.log
-      
+
       # Extract deployment bundle
       if [ ! -f /opt/deployment-bundle.tar.gz ]; then
         echo "[$(date)] ERROR: Deployment bundle not found!" | tee -a /opt/startup.log
         exit 1
       fi
-      
+
       echo "[$(date)] Extracting deployment bundle..." | tee -a /opt/startup.log
       cd /opt
       tar -xzf deployment-bundle.tar.gz
-      
+
       # Move files to correct locations
       echo "[$(date)] Installing files..." | tee -a /opt/startup.log
-      
+
       # Copy configs
       if [ -d /opt/config ]; then
         mkdir -p /opt/uploaded_files/config
         cp -r /opt/config/* /opt/uploaded_files/config/
       fi
-      
+
       # Copy scripts
       if [ -d /opt/scripts ]; then
         mkdir -p /opt/uploaded_files/scripts
@@ -219,46 +219,46 @@ write_files:
         chmod +x /opt/uploaded_files/scripts/*.sh
         chmod +x /opt/uploaded_files/scripts/*.py
       fi
-      
+
       # Copy credential files
       cp /opt/orchestrator_endpoint /opt/uploaded_files/
       cp /opt/orchestrator_token /opt/uploaded_files/
       chmod 600 /opt/uploaded_files/orchestrator_token
-      
+
       # Create required directories
       mkdir -p /bacalhau_node /bacalhau_data
       mkdir -p /opt/sensor/{{config,data,logs,exports}}
       chown -R ubuntu:ubuntu /opt/uploaded_files /bacalhau_node /bacalhau_data /opt/sensor
-      
+
       # Install systemd services
       echo "[$(date)] Installing systemd services..." | tee -a /opt/startup.log
       cp /opt/uploaded_files/scripts/*.service /etc/systemd/system/ 2>/dev/null || true
       systemctl daemon-reload
-      
+
       # Ensure uv is in PATH for systemd services
       echo 'PATH="/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"' >> /etc/environment
-      
+
       # Start services in order
       echo "[$(date)] Starting services..." | tee -a /opt/startup.log
-      
+
       # Start bacalhau-startup first
       systemctl enable bacalhau-startup.service
       systemctl start bacalhau-startup.service
-      
+
       # Wait for startup to complete
       sleep 10
-      
+
       # Check if services are running
       echo "[$(date)] Checking Docker containers..." | tee -a /opt/startup.log
       docker ps | tee -a /opt/startup.log
-      
+
       # Check if bacalhau is running
       if docker ps | grep -q bacalhau; then
         echo "[$(date)] SUCCESS: Bacalhau container is running" | tee -a /opt/startup.log
       else
         echo "[$(date)] WARNING: Bacalhau container not found" | tee -a /opt/startup.log
       fi
-      
+
       echo "[$(date)] Deployment setup complete" | tee -a /opt/startup.log
     owner: root:root
     permissions: '0755'
@@ -267,7 +267,7 @@ runcmd:
   # Create required directories
   - mkdir -p /opt/uploaded_files /bacalhau_node /bacalhau_data /opt/sensor
   - chown -R {config.username()}:{config.username()} /opt/uploaded_files /bacalhau_node /bacalhau_data /opt/sensor
-  
+
   # Install uv
   - |
     curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -276,7 +276,7 @@ runcmd:
       chmod +x /usr/local/bin/uv
       ln -sf /usr/local/bin/uv /usr/bin/uv
     fi
-  
+
   # Install Docker
   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
   - add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
@@ -285,7 +285,7 @@ runcmd:
   - usermod -aG docker {config.username()}
   - systemctl enable docker
   - systemctl start docker
-  
+
   # Mark cloud-init as complete
   - echo "[$(date)] Cloud-init complete - waiting for deployment bundle" | tee -a /opt/startup.log
 """

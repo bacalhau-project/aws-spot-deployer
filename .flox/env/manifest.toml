@@ -38,7 +38,7 @@ on-activate = """
       echo "Creating Python virtual environment..." >&2
       python3 -m venv .venv
     fi
-    
+
     source ".venv/bin/activate"
     # install the dependencies for this project based on pyproject.toml
     # <https://pip.pypa.io/en/stable/cli/pip_install/>

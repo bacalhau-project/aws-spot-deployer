@@ -57,7 +57,6 @@ def cmd_setup(config: SimpleConfig) -> None:
             yaml.dump(default_config, f, default_flow_style=False, sort_keys=False)
         rich_success(f"Created default config: {config.config_file}")
 
-
         if console:
             console.print(f"""
 [bold yellow]ACTION REQUIRED:[/bold yellow] Please edit the config file with your details.

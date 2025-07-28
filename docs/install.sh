@@ -142,7 +142,7 @@ run_docker() {
     # We copy the AWS config to a temp dir to allow writes while keeping the original files safe
     local temp_aws_dir=$(mktemp -d)
     trap "rm -rf $temp_aws_dir" EXIT
-    
+
     # Copy AWS config files (including SSO cache)
     if [[ -d "$HOME/.aws" ]]; then
         cp -r "$HOME/.aws/." "$temp_aws_dir/"
@@ -152,12 +152,12 @@ run_docker() {
     local docker_cmd=(
         "docker" "run" "--rm"
     )
-    
+
     # Only add -it if running interactively (not piped)
     if [ -t 0 ] && [ -t 1 ]; then
         docker_cmd+=("-it")
     fi
-    
+
     docker_cmd+=(
         "-v" "$HOME/.ssh:/root/.ssh:ro"
         "-v" "$temp_aws_dir:/root/.aws"

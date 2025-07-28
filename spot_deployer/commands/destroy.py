@@ -336,8 +336,8 @@ Elapsed: {elapsed:.1f}s"""
         # Debug environment variables if verbose
         if verbose:
             self.console.print(f"""[dim]Environment variables:[/dim]
-[dim]BACALHAU_API_HOST: {os.environ.get('BACALHAU_API_HOST', 'NOT SET')}[/dim]
-[dim]BACALHAU_API_KEY: {'SET' if os.environ.get('BACALHAU_API_KEY') else 'NOT SET'}[/dim]
+[dim]BACALHAU_API_HOST: {os.environ.get("BACALHAU_API_HOST", "NOT SET")}[/dim]
+[dim]BACALHAU_API_KEY: {"SET" if os.environ.get("BACALHAU_API_KEY") else "NOT SET"}[/dim]
 """)
 
         # Always check for disconnected Bacalhau nodes if configured
@@ -378,10 +378,10 @@ Elapsed: {elapsed:.1f}s"""
                 missing_vars.append("   - BACALHAU_API_HOST (orchestrator endpoint)")
             if not os.environ.get("BACALHAU_API_KEY"):
                 missing_vars.append("   - BACALHAU_API_KEY (authentication)")
-            
+
             self.console.print(f"""[yellow]⚠️  WARNING: Bacalhau node cleanup disabled[/yellow]
 [dim]   Missing environment variables:
-{chr(10).join(f'[dim]{var}[/dim]' for var in missing_vars)}
+{chr(10).join(f"[dim]{var}[/dim]" for var in missing_vars)}
    Disconnected nodes will remain in the Bacalhau cluster.[/dim]
 """)
 

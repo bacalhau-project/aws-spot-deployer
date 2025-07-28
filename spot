@@ -38,21 +38,21 @@ is_ec2_instance() {
 # Detect AWS credentials
 detect_aws_credentials() {
     echo -e "${BLUE}🔍 Detecting AWS credentials...${NC}"
-    
+
     # 1. Check environment variables
     if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
         echo -e "${GREEN}✓ Using AWS credentials from environment variables${NC}"
         CREDENTIAL_METHOD="env"
         return 0
     fi
-    
+
     # 2. Check if running on EC2 with instance role
     if is_ec2_instance; then
         echo -e "${GREEN}✓ Using EC2 instance role${NC}"
         CREDENTIAL_METHOD="instance"
         return 0
     fi
-    
+
     # 3. Check AWS SSO
     if command -v aws >/dev/null 2>&1; then
         if aws sts get-caller-identity >/dev/null 2>&1; then
@@ -68,7 +68,7 @@ detect_aws_credentials() {
             return 0
         fi
     fi
-    
+
     # 4. Check AWS config/credentials files
     if [ -f "$HOME/.aws/credentials" ] || [ -f "$HOME/.aws/config" ]; then
         echo -e "${GREEN}✓ Using AWS config files${NC}"
@@ -78,7 +78,7 @@ detect_aws_credentials() {
         CREDENTIAL_METHOD="config"
         return 0
     fi
-    
+
     # No credentials found
     echo -e "${RED}❌ No AWS credentials found!${NC}"
     echo ""
@@ -106,27 +106,27 @@ main() {
         docker run --rm "$FULL_IMAGE" help
         exit 0
     fi
-    
+
     # Check for version
     if [[ "$1" == "version" ]] || [[ "$1" == "--version" ]] || [[ "$1" == "-v" ]]; then
         docker run --rm "$FULL_IMAGE" --version
         exit 0
     fi
-    
+
     # Detect credentials for commands that need them
     if [[ "$1" != "setup" ]]; then
         if ! detect_aws_credentials; then
             exit 1
         fi
     fi
-    
+
     # Build and execute Docker command
     echo -e "${BLUE}→ Running Docker container...${NC}"
     echo ""
-    
+
     # Build Docker command directly here
     docker_cmd=(docker run --rm)
-    
+
     # Add TTY flags if in terminal
     if [ -t 0 ] && [ -t 1 ]; then
         docker_cmd+=(-it)
@@ -135,7 +135,7 @@ main() {
             docker_cmd+=(-e COLUMNS="$(tput cols)" -e LINES="$(tput lines)")
         fi
     fi
-    
+
     # Add credential-specific configurations
     case "$CREDENTIAL_METHOD" in
         env|sso)
@@ -159,36 +159,36 @@ main() {
             # Nothing special needed for instance roles
             ;;
     esac
-    
+
     # Mount SSH directory if it exists
     if [ -d "$HOME/.ssh" ]; then
         docker_cmd+=(-v "$HOME/.ssh:/root/.ssh:ro")
     fi
-    
+
     # Mount config file if it exists (not needed for setup/help)
     if [ -f "$CONFIG_FILE" ] && [[ "$1" != "setup" ]] && [[ "$1" != "help" ]]; then
         docker_cmd+=(-v "$(realpath "$CONFIG_FILE"):/app/config/config.yaml:ro")
     fi
-    
+
     # Mount files directory if it exists
     if [ -d "$FILES_DIR" ]; then
         docker_cmd+=(-v "$(realpath "$FILES_DIR"):/app/files:ro")
     fi
-    
+
     # Mount output directory
     mkdir -p "$OUTPUT_DIR"
     docker_cmd+=(-v "$(realpath "$OUTPUT_DIR"):/app/output")
-    
+
     # Mount additional_commands.sh if it exists
     if [ -f "./additional_commands.sh" ]; then
         echo -e "${GREEN}✓ Found additional_commands.sh${NC}"
         docker_cmd+=(-v "$(realpath ./additional_commands.sh):/app/output/additional_commands.sh:ro")
     fi
-    
+
     # Add image and command
     docker_cmd+=("$FULL_IMAGE")
     docker_cmd+=("$@")
-    
+
     # Execute the command
     exec "${docker_cmd[@]}"
 }

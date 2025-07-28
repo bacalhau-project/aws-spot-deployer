@@ -70,6 +70,19 @@ uv run delete_vpcs.py
 
 
 ### Code Quality
+
+#### Pre-commit Hooks
+This project uses pre-commit hooks to automatically run code quality checks before each commit.
+
+```bash
+# Setup pre-commit (one-time setup)
+./scripts/setup-pre-commit.sh
+
+# Manual run (if you can't install hooks due to global git config)
+uv run pre-commit run --all-files
+```
+
+#### Manual Checks
 ```bash
 # Linting - ALWAYS run before committing
 uv run ruff check spot_deployer/
@@ -81,7 +94,7 @@ uv run ruff check spot_deployer/ --fix
 uv run ruff format spot_deployer/
 ```
 
-**Important:** Always run `uv run ruff check spot_deployer/` to verify syntax and code quality before committing changes.
+**Important:** Pre-commit hooks will automatically run `ruff` checks on every commit. If you have a global git hooks path configured, you may need to run checks manually with `uv run pre-commit run --all-files`.
 
 ## Core Components
 
