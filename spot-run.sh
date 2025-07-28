@@ -24,7 +24,7 @@ echo "Pulling latest image..."
 docker pull "$IMAGE"
 
 # Run the container
-docker run --rm -it \
+docker run --rm \
     -v "$HOME/.ssh:/root/.ssh:ro" \
     -v "$(realpath "$CONFIG_FILE"):/app/config/config.yaml:ro" \
     -v "$(realpath "$FILES_DIR"):/app/files:ro" \
@@ -37,5 +37,5 @@ docker run --rm -it \
     -e BACALHAU_API_HOST \
     -e BACALHAU_API_TOKEN \
     -e BACALHAU_API_KEY \
-    -e TERM \
+    -e TERM=xterm-256color \
     "$IMAGE" "$@"

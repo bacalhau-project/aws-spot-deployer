@@ -69,11 +69,9 @@ if [ -n "$AWS_REGION" ]; then
 fi
 
 # Run the container
-exec docker run --rm -it \
+exec docker run --rm \
     $VOLUMES \
     $ENV_VARS \
     -e TERM=xterm-256color \
-    -e COLUMNS=$(tput cols) \
-    -e LINES=$(tput lines) \
     "$FULL_IMAGE" \
     "$@"

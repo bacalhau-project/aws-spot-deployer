@@ -174,11 +174,6 @@ run_docker() {
         "docker" "run" "--rm"
     )
 
-    # Only add -it if running interactively (not piped)
-    if [ -t 0 ] && [ -t 1 ]; then
-        docker_cmd+=("-it")
-    fi
-
     docker_cmd+=(
         "-v" "$HOME/.ssh:/root/.ssh:ro"
         "-v" "$temp_aws_dir:/root/.aws"

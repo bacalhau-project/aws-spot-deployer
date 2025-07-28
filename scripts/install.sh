@@ -158,7 +158,7 @@ run_docker() {
 
     # Prepare docker run command
     local docker_cmd=(
-        "docker" "run" "--rm" "-it"
+        "docker" "run" "--rm"
         "-v" "$HOME/.ssh:/root/.ssh:ro"
         "-v" "$(realpath "$CONFIG_FILE"):/app/config/config.yaml:ro"
         "-v" "$(realpath "$OUTPUT_DIR"):/app/output"

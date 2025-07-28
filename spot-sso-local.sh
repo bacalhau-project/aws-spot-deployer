@@ -64,15 +64,13 @@ mkdir -p "$OUTPUT_DIR"
 VOLUMES="$VOLUMES -v $(realpath $OUTPUT_DIR):/app/output"
 
 # Run the container with SSO credentials
-exec docker run --rm -it \
+exec docker run --rm \
     -e AWS_ACCESS_KEY_ID \
     -e AWS_SECRET_ACCESS_KEY \
     -e AWS_SESSION_TOKEN \
     -e AWS_DEFAULT_REGION \
     -e AWS_REGION \
     -e TERM=xterm-256color \
-    -e COLUMNS=$(tput cols) \
-    -e LINES=$(tput lines) \
     $VOLUMES \
     "$FULL_IMAGE" \
     "$@"

@@ -87,7 +87,16 @@ class DestroyManager:
             elif len(detail) > 47:
                 detail = detail[:44] + "..."
 
-            add_destroy_row(table, info["region"], instance_id, status_display, detail)
+            # Add row with all available data
+            add_instance_row(
+                table,
+                info["region"],
+                instance_id,
+                status_display,
+                info.get("type", "unknown"),
+                info.get("public_ip", "N/A"),
+                info.get("created", "N/A")
+            )
 
         return table
 
@@ -364,6 +373,9 @@ Elapsed: {elapsed:.1f}s"""
                 "status": "⏳ Queued",
                 "detail": "",
                 "timestamp": datetime.now(),
+                "type": instance.get("type", "unknown"),
+                "public_ip": instance.get("public_ip", "N/A"),
+                "created": instance.get("created", "N/A"),
             }
 
         # Show warning

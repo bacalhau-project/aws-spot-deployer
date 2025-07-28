@@ -78,14 +78,8 @@ else
     echo -e "${YELLOW}  To run custom commands on instances, create additional_commands.sh${NC}"
 fi
 
-# Check if we're in a terminal
-if [ -t 0 ] && [ -t 1 ]; then
-    TTY_FLAGS="-it"
-    TERM_VARS="-e TERM=xterm-256color"
-else
-    TTY_FLAGS=""
-    TERM_VARS="-e TERM=dumb"
-fi
+# Always let Rich determine terminal size
+TERM_VARS="-e TERM=xterm-256color"
 
 # Pass through Bacalhau environment variables if set
 BACALHAU_VARS=""
@@ -100,7 +94,7 @@ if [ -n "$BACALHAU_API_KEY" ]; then
 fi
 
 # Run the container with SSO credentials
-exec docker run --rm $TTY_FLAGS \
+exec docker run --rm \
     -e AWS_ACCESS_KEY_ID \
     -e AWS_SECRET_ACCESS_KEY \
     -e AWS_SESSION_TOKEN \

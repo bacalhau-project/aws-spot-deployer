@@ -62,29 +62,14 @@ def cmd_list(state: SimpleStateManager) -> None:
         for inst in sorted(instances, key=lambda i: i.get("region", "")):
             instance_state = inst.get("state", "unknown")
 
-            # Color code the state
-            if instance_state == "running":
-                state_display = f"[green]{instance_state}[/green]"
-            elif instance_state == "pending":
-                state_display = f"[yellow]{instance_state}[/yellow]"
-            elif instance_state == "stopping":
-                state_display = f"[orange]{instance_state}[/orange]"
-            elif instance_state == "stopped":
-                state_display = f"[red]{instance_state}[/red]"
-            elif instance_state == "terminated":
-                state_display = f"[dim]{instance_state}[/dim]"
-            elif instance_state == "not-found":
-                state_display = "[red]not found[/red]"
-            elif instance_state == "error":
-                state_display = "[red]error[/red]"
-            else:
-                state_display = instance_state
+            # Keep status display simple
+            state_display = instance_state
 
             add_instance_row(
                 table,
                 inst.get("region", "unknown"),
                 inst.get("id", "unknown"),
-                str(state_display),
+                state_display,
                 inst.get("type", "unknown"),
                 inst.get("public_ip", "N/A"),
                 inst.get("created", "unknown"),
