@@ -28,9 +28,7 @@ def cmd_setup(config: SimpleConfig) -> None:
                 return
 
     if os.path.exists(config.config_file):
-        rich_warning(f"'{config.config_file}' already exists.")
-        if input("Overwrite? (y/n): ").lower() != "y":
-            return
+        rich_warning(f"Overwriting existing config: {config.config_file}")
 
     # Default configuration
     default_config = {
