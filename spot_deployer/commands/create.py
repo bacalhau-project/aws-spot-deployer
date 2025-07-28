@@ -27,6 +27,7 @@ from ..utils.display import (
 from ..utils.logging import ConsoleLogger, setup_logger
 from ..utils.ssh import transfer_files_scp, wait_for_ssh_only
 from ..utils.tables import add_instance_row, create_instance_table
+from ..version import __version__
 
 
 def post_creation_setup(instances, config, update_status_func, logger):
@@ -311,13 +312,13 @@ def create_instances_in_region_with_table(
                     "ResourceType": "instance",
                     "Tags": [
                         {"Key": "Name", "Value": f"spot-{region}-{created_at}"},
-                        {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                        {"Key": "ManagedBy", "Value": "aws-spot-deployer"},
                         {"Key": "DeploymentId", "Value": deployment_id},
                         {"Key": "CreatedAt", "Value": datetime.now().isoformat()},
                         {"Key": "CreatedBy", "Value": creator},
                         {"Key": "Region", "Value": region},
-                        {"Key": "SpotDeployerVersion", "Value": "0.1.1"},
-                        {"Key": "App", "Value": "SpotDeployer"},
+                        {"Key": "SpotDeployerVersion", "Value": __version__},
+                        {"Key": "App", "Value": "aws-spot-deployer"},
                     ]
                     + [
                         {"Key": k, "Value": v}
