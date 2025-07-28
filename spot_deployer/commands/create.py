@@ -699,7 +699,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             )
 
     state.save_instances(all_instances)
-    
+
     # Show deployment summary table
     if all_instances:
         summary_table = Table(
@@ -709,17 +709,17 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             padding=(0, 1),
             show_lines=True,
         )
-        
+
         # Add columns with specific styles
         summary_table.add_column("Metric", style="bold white", width=20)
         summary_table.add_column("Value", style="green", justify="left")
-        
+
         # Calculate summary statistics
         total_instances = len(all_instances)
         regions_used = len(set(inst["region"] for inst in all_instances))
         instance_types = {}
         total_cost_estimate = 0.0
-        
+
         # Estimate costs (rough estimates)
         cost_per_hour = {
             "t2.micro": 0.0116,
@@ -733,26 +733,28 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             "m5.large": 0.096,
             "m5.xlarge": 0.192,
         }
-        
+
         for inst in all_instances:
             inst_type = inst.get("type", "unknown")
             instance_types[inst_type] = instance_types.get(inst_type, 0) + 1
             total_cost_estimate += cost_per_hour.get(inst_type, 0.05)  # Default to $0.05/hr
-        
+
         # Add rows to the summary table
         summary_table.add_row("Total Instances", str(total_instances))
         summary_table.add_row("Regions Used", str(regions_used))
         summary_table.add_row("Deployment ID", deployment_id)
         summary_table.add_row("Creator", creator)
-        
+
         # Instance type breakdown
-        type_breakdown = ", ".join([f"{count}x {itype}" for itype, count in sorted(instance_types.items())])
+        type_breakdown = ", ".join(
+            [f"{count}x {itype}" for itype, count in sorted(instance_types.items())]
+        )
         summary_table.add_row("Instance Types", type_breakdown)
-        
+
         # Cost estimate
         summary_table.add_row("Est. Cost/Hour", f"${total_cost_estimate:.2f}")
         summary_table.add_row("Est. Cost/Day", f"${total_cost_estimate * 24:.2f}")
-        
+
         # Show table
         console.print("")
         console.print(summary_table)
