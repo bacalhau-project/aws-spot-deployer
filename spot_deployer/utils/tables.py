@@ -4,8 +4,6 @@ from typing import Optional
 
 from rich.table import Table
 
-from ..core.constants import ColumnWidths
-
 
 def create_instance_table(
     title: str,
@@ -25,13 +23,13 @@ def create_instance_table(
         header_style=header_style,
     )
 
-    # Add standard columns with minimum widths to ensure content fits
-    table.add_column("Region", style="magenta", min_width=ColumnWidths.REGION, no_wrap=True)
-    table.add_column("Instance ID", style="cyan", min_width=ColumnWidths.INSTANCE_ID, no_wrap=True)
-    table.add_column("Status", style="yellow", min_width=ColumnWidths.STATUS, no_wrap=True)
-    table.add_column("Type", style="green", min_width=ColumnWidths.TYPE, no_wrap=True)
-    table.add_column("Public IP", style="blue", min_width=ColumnWidths.PUBLIC_IP, no_wrap=True)
-    table.add_column("Created", style="dim", min_width=ColumnWidths.CREATED, no_wrap=True)
+    # Add standard columns - let Rich determine optimal widths
+    table.add_column("Region", style="magenta", no_wrap=True)
+    table.add_column("Instance ID", style="cyan", no_wrap=True)
+    table.add_column("Status", style="yellow", no_wrap=True)
+    table.add_column("Type", style="green", no_wrap=True)
+    table.add_column("Public IP", style="blue", no_wrap=True)
+    table.add_column("Created", style="dim", no_wrap=True)
 
     return table
 

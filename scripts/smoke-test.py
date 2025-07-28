@@ -51,7 +51,7 @@ def test_imports() -> List[Tuple[str, str]]:
     core_modules = [
         ("config", ["SimpleConfig"]),
         ("state", ["SimpleStateManager"]),
-        ("constants", ["DEFAULT_CONFIG_FILE", "ColumnWidths"]),
+        ("constants", ["DEFAULT_CONFIG_FILE"]),
     ]
 
     for core_module, attrs in core_modules:
