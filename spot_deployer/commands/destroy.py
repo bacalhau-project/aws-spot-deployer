@@ -19,7 +19,7 @@ from ..core.config import SimpleConfig
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth, delete_deployment_vpc
 from ..utils.logging import setup_logger
-from ..utils.tables import add_destroy_row, create_instance_table
+from ..utils.tables import add_destroy_row, add_instance_row, create_instance_table
 
 
 class DestroyManager:

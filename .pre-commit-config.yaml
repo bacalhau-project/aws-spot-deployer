@@ -18,3 +18,13 @@ repos:
       - id: check-toml
       - id: mixed-line-ending
         args: [--fix=lf]
+  
+  - repo: local
+    hooks:
+      - id: smoke-test
+        name: Run smoke tests
+        entry: uv run python scripts/smoke-test.py --quiet
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
