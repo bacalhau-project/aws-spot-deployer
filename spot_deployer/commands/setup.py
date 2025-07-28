@@ -24,26 +24,9 @@ def merge_configs(existing: dict, defaults: dict) -> dict:
 
 def cmd_setup(config: SimpleConfig) -> None:
     """Guide user through creating or updating config.yaml."""
-    # Get the actual host paths (these will be mapped from Docker volumes)
-    # When running in Docker:
-    # - /app/config maps to ~/.spot-deployer/config
-    # - /app/files maps to ~/.spot-deployer/files
-    # - /app/output maps to ~/.spot-deployer/output
-
-    # Determine if we're in Docker
-    in_docker = os.path.exists("/.dockerenv")
-
-    if in_docker:
-        # Show host paths for user clarity
-        host_base = "$HOME/.spot-deployer"
-        host_config = f"{host_base}/config/config.yaml"
-        host_files = f"{host_base}/files"
-        host_output = f"{host_base}/output"
-    else:
-        # Running locally
-        host_config = config.config_file
-        host_files = config.files_directory()
-        host_output = config.output_directory()
+    # When running in Docker, the config is always in the current directory
+    # The docker wrapper mounts $(pwd) to /app/output
+    # So we always want to show paths relative to where the user is running the command
 
     # First ensure the directory structure exists
     files_dir = config.files_directory()
@@ -95,10 +78,10 @@ def cmd_setup(config: SimpleConfig) -> None:
 
             # Check if any new fields were added
             if merged_config != existing_config:
-                rich_warning(f"Updating config with new fields: {config.config_file}")
+                rich_warning("Updating config.yaml with new fields")
                 final_config = merged_config
             else:
-                rich_success(f"Config is up to date: {config.config_file}")
+                rich_success("Config is up to date")
                 final_config = existing_config
         except Exception as e:
             rich_error(f"Failed to read existing config: {e}")
@@ -113,38 +96,38 @@ def cmd_setup(config: SimpleConfig) -> None:
             yaml.dump(final_config, f, default_flow_style=False, sort_keys=False)
 
         if final_config == default_config:
-            rich_success(f"Created default config: {config.config_file}")
+            rich_success("Created default config.yaml")
         else:
-            rich_success(f"Updated config: {config.config_file}")
+            rich_success("Updated config.yaml")
 
         if console:
-            console.print(f"""
+            console.print("""
 [bold yellow]ACTION REQUIRED:[/bold yellow] Please review and edit the config file with your AWS details.
 
-[bold]Local paths on your system:[/bold]
-Config location: {host_config}
-Files directory: {host_files}
-Output directory: {host_output}
+[bold]Directory structure created in current directory:[/bold]
+• config.yaml    - Your deployment configuration
+• files/         - Place files here to upload to instances  
+• output/        - Deployment state and logs will be stored here
 
-[bold cyan]Files Directory ({host_files}):[/bold cyan]
-This directory is where you place files to upload to your spot instances.
+[bold cyan]Files Directory (./files):[/bold cyan]
+This is where you place files to upload to your spot instances.
 Files placed here will be copied to /opt/uploaded_files/ on each instance.
 
 [bold]Required credential files for Bacalhau compute nodes:[/bold]
-• {host_files}/orchestrator_endpoint
+• files/orchestrator_endpoint
   Contents: NATS endpoint URL (e.g., nats://orchestrator.example.com:4222)
   
-• {host_files}/orchestrator_token  
+• files/orchestrator_token  
   Contents: Authentication token for the orchestrator
 
-[bold]Output Directory ({host_output}):[/bold]
-This directory contains:
+[bold]Output Directory (./output):[/bold]
+After deployment, this directory will contain:
 • instances.json - Current deployment state and instance tracking
 • deployment logs - Logs from instance creation and configuration
 
 [bold]Next Steps:[/bold]
-1. Edit {host_config} with your AWS settings
-2. Add orchestrator credentials to {host_files}/
+1. Edit config.yaml with your AWS settings
+2. Add orchestrator credentials to files/
 3. Run: spot-deployer create""")
     except Exception as e:
         rich_error(f"Failed to write config file: {e}")
