@@ -335,19 +335,16 @@ Elapsed: {elapsed:.1f}s"""
 
         # Debug environment variables if verbose
         if verbose:
-            self.console.print("[dim]Environment variables:[/dim]")
-            self.console.print(
-                f"[dim]BACALHAU_API_HOST: {os.environ.get('BACALHAU_API_HOST', 'NOT SET')}[/dim]"
-            )
-            self.console.print(
-                f"[dim]BACALHAU_API_KEY: {'SET' if os.environ.get('BACALHAU_API_KEY') else 'NOT SET'}[/dim]"
-            )
-            self.console.print("")
+            self.console.print(f"""[dim]Environment variables:[/dim]
+[dim]BACALHAU_API_HOST: {os.environ.get('BACALHAU_API_HOST', 'NOT SET')}[/dim]
+[dim]BACALHAU_API_KEY: {'SET' if os.environ.get('BACALHAU_API_KEY') else 'NOT SET'}[/dim]
+""")
 
         # Always check for disconnected Bacalhau nodes if configured
         if self.has_bacalhau_env() and not instances:
-            self.console.print("[yellow]No instances in state file.[/yellow]")
-            self.console.print("\n[dim]Checking for disconnected Bacalhau nodes...[/dim]")
+            self.console.print("""[yellow]No instances in state file.[/yellow]
+
+[dim]Checking for disconnected Bacalhau nodes...[/dim]""")
             deleted = self.cleanup_all_disconnected_nodes()
             if deleted > 0:
                 self.console.print(
@@ -376,15 +373,17 @@ Elapsed: {elapsed:.1f}s"""
 
         # Check Bacalhau env
         if not self.has_bacalhau_env():
-            self.console.print("[yellow]⚠️  WARNING: Bacalhau node cleanup disabled[/yellow]")
-            self.console.print("[dim]   Missing environment variables:[/dim]")
+            missing_vars = []
             if not os.environ.get("BACALHAU_API_HOST"):
-                self.console.print("[dim]   - BACALHAU_API_HOST (orchestrator endpoint)[/dim]")
+                missing_vars.append("   - BACALHAU_API_HOST (orchestrator endpoint)")
             if not os.environ.get("BACALHAU_API_KEY"):
-                self.console.print("[dim]   - BACALHAU_API_KEY (authentication)[/dim]")
-            self.console.print(
-                "[dim]   Disconnected nodes will remain in the Bacalhau cluster.[/dim]\n"
-            )
+                missing_vars.append("   - BACALHAU_API_KEY (authentication)")
+            
+            self.console.print(f"""[yellow]⚠️  WARNING: Bacalhau node cleanup disabled[/yellow]
+[dim]   Missing environment variables:
+{chr(10).join(f'[dim]{var}[/dim]' for var in missing_vars)}
+   Disconnected nodes will remain in the Bacalhau cluster.[/dim]
+""")
 
         # Create layout
         def generate_layout() -> Layout:
@@ -435,20 +434,21 @@ Elapsed: {elapsed:.1f}s"""
         completed = sum(1 for s in self.instance_status.values() if "✓" in s["status"])
         failed = total - completed
 
-        self.console.print("\n[bold]Destruction Summary:[/bold]")
+        summary_lines = ["\n[bold]Destruction Summary:[/bold]"]
         if completed == total:
-            self.console.print(f"[green]✅ All {total} instances destroyed successfully[/green]")
+            summary_lines.append(f"[green]✅ All {total} instances destroyed successfully[/green]")
         else:
-            self.console.print(f"[yellow]⚠️  {completed}/{total} instances destroyed[/yellow]")
+            summary_lines.append(f"[yellow]⚠️  {completed}/{total} instances destroyed[/yellow]")
             if failed > 0:
-                self.console.print(f"[red]❌ {failed} instances failed[/red]")
+                summary_lines.append(f"[red]❌ {failed} instances failed[/red]")
+        self.console.print("\n".join(summary_lines))
 
         # Clean up all disconnected nodes if Bacalhau is configured
         if self.has_bacalhau_env():
             # If we just destroyed AWS instances, wait for nodes to disconnect
             if completed > 0:
                 self.console.print(
-                    "\n[dim]Waiting 10 seconds for Bacalhau nodes to disconnect...[/dim]"
+                    """\n[dim]Waiting 10 seconds for Bacalhau nodes to disconnect...[/dim]"""
                 )
                 import time
 

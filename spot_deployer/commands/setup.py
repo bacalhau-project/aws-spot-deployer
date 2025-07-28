@@ -57,24 +57,20 @@ def cmd_setup(config: SimpleConfig) -> None:
             yaml.dump(default_config, f, default_flow_style=False, sort_keys=False)
         rich_success(f"Created default config: {config.config_file}")
 
-        # Create a sample README in the files directory
-        readme_path = os.path.join(files_dir, "README.txt")
-        if not os.path.exists(readme_path):
-            with open(readme_path, "w") as f:
-                f.write("# Files Directory\n\n")
-                f.write("Place files here that you want to upload to your spot instances.\n")
-                f.write("These files will be copied to /opt/uploaded_files/ on each instance.\n\n")
-                f.write("Required files for Bacalhau compute nodes:\n")
-                f.write("- orchestrator_endpoint: Contains the NATS endpoint URL\n")
-                f.write("- orchestrator_token: Contains the authentication token\n")
-            rich_success("Created sample README in files directory")
 
         if console:
-            console.print(
-                "\n[bold yellow]ACTION REQUIRED:[/bold yellow] Please edit the config file with your details."
-            )
-            console.print(f"Config location: {config.config_file}")
-            console.print(f"Files directory: {files_dir}")
-            console.print(f"Output directory: {output_dir}")
+            console.print(f"""
+[bold yellow]ACTION REQUIRED:[/bold yellow] Please edit the config file with your details.
+Config location: {config.config_file}
+Files directory: {files_dir}
+Output directory: {output_dir}
+
+[bold cyan]Files Directory Info:[/bold cyan]
+Place files here that you want to upload to your spot instances.
+These files will be copied to /opt/uploaded_files/ on each instance.
+
+[bold]Required files for Bacalhau compute nodes:[/bold]
+• orchestrator_endpoint: Contains the NATS endpoint URL
+• orchestrator_token: Contains the authentication token""")
     except Exception as e:
         rich_error(f"Failed to create config file: {e}")

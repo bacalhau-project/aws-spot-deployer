@@ -9,7 +9,7 @@ import argparse
 import os
 import sys
 
-from .commands import cmd_create, cmd_destroy, cmd_help, cmd_list, cmd_setup
+from .commands import cmd_create, cmd_destroy, cmd_help, cmd_list, cmd_readme, cmd_setup
 from .core.config import SimpleConfig
 from .core.constants import DEFAULT_CONFIG_FILE, DEFAULT_FILES_DIR, DEFAULT_OUTPUT_DIR
 from .core.state import SimpleStateManager
@@ -91,6 +91,8 @@ def main() -> None:
         cmd_list(state)
     elif args.command == "destroy":
         cmd_destroy(config, state, verbose=args.verbose)
+    elif args.command == "readme":
+        cmd_readme()
     else:
         print(f"Unknown command: {args.command}")
         cmd_help()
