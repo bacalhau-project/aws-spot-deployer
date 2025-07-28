@@ -154,6 +154,7 @@ def create_instances_in_region_with_table(
     deployment_id: str,
     created_at: str,
     creator: str,
+    state: SimpleStateManager = None,
 ) -> List[dict]:
     """Create spot instances in a specific region with live table updates."""
     if count <= 0:
@@ -348,6 +349,29 @@ def create_instances_in_region_with_table(
 
         log_message(f"Created {len(instance_ids)} instances in {region}, waiting for public IPs...")
 
+        # Immediately save instances to state with minimal info
+        if state:
+            with lock:
+                for inst_id in instance_ids:
+                    partial_instance = {
+                        "id": inst_id,
+                        "region": region,
+                        "type": machine_type,
+                        "state": "pending",
+                        "public_ip": "pending",
+                        "created": datetime.now().isoformat(),
+                        "ami": ami_id,
+                        "vpc_id": vpc_id,
+                        "subnet_id": subnet_id,
+                        "security_group_id": sg_id,
+                        "deployment_id": deployment_id,
+                        "creator": creator,
+                    }
+                    # Add to state immediately
+                    existing_instances = state.load_instances()
+                    existing_instances.append(partial_instance)
+                    state.save_instances(existing_instances)
+
         for i, inst_id in enumerate(instance_ids):
             key = instance_keys[i]
             update_status_func(key, "Waiting for public IP", instance_id=inst_id)
@@ -369,14 +393,14 @@ def create_instances_in_region_with_table(
                         key = instance_keys[idx]
 
                         public_ip = inst.get("PublicIpAddress")
-                        state = inst["State"]["Name"]
+                        instance_state = inst["State"]["Name"]
 
                         if public_ip:
                             instance_data = {
                                 "id": inst_id,
                                 "region": region,
                                 "type": machine_type,
-                                "state": state,
+                                "state": instance_state,
                                 "public_ip": public_ip,
                                 "created": datetime.now().isoformat(),
                                 "ami": ami_id,
@@ -399,6 +423,16 @@ def create_instances_in_region_with_table(
                                 # Update the IP map for logging context
                                 with lock:
                                     instance_ip_map[inst_id] = public_ip
+
+                                    # Update state with the public IP
+                                    if state:
+                                        instances = state.load_instances()
+                                        for inst in instances:
+                                            if inst["id"] == inst_id:
+                                                inst["public_ip"] = public_ip
+                                                inst["state"] = instance_state
+                                                break
+                                        state.save_instances(instances)
 
                 if len(created_instances) == len(instance_ids):
                     break
@@ -655,6 +689,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                     deployment_id,
                     timestamp,
                     creator,
+                    state,
                 )
                 with lock:
                     all_instances.extend(instances)

@@ -8,7 +8,7 @@ from rich.table import Table
 def create_instance_table(
     title: str,
     show_header: bool = True,
-    expand: bool = False,
+    expand: bool = True,
     show_lines: bool = False,
     padding: tuple = (0, 1),
     header_style: Optional[str] = None,
