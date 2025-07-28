@@ -273,3 +273,8 @@ Example output:
 - Test with: `INSTANCE_ID=i-test python3 instance/scripts/generate_node_identity.py`
 - Check generated identity: `cat /opt/sensor/config/node_identity.json | jq .`
 - Add new cities/manufacturers in `generate_node_identity.py`
+
+## Design Principles
+
+### Single Table Function Philosophy
+- This project should only use one table function for everything

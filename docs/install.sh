@@ -207,7 +207,7 @@ run_docker() {
 
     # Add terminal settings
     docker_cmd+=("-e" "TERM=${TERM:-xterm-256color}")
-    
+
     # Add Bacalhau environment variables if they exist
     if [[ -n "$BACALHAU_API_HOST" ]]; then
         docker_cmd+=("-e" "BACALHAU_API_HOST")

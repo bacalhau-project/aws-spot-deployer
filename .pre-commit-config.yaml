@@ -8,7 +8,7 @@ repos:
         args: [--no-fix]
       # Then format check without modifying
       - id: ruff-format
-        name: ruff format check  
+        name: ruff format check
         args: [--check, --diff]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks

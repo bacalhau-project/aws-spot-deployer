@@ -12,7 +12,8 @@ def test_imports() -> List[Tuple[str, str]]:
     # Test main entry point
     try:
         import spot_deployer.main
-        if not hasattr(spot_deployer.main, 'main'):
+
+        if not hasattr(spot_deployer.main, "main"):
             errors.append(("main", "Missing main function"))
     except ImportError as e:
         errors.append(("main", str(e)))
