@@ -349,11 +349,10 @@ Elapsed: {elapsed:.1f}s"""
 [dim]BACALHAU_API_KEY: {"SET" if os.environ.get("BACALHAU_API_KEY") else "NOT SET"}[/dim]
 """)
 
-        # Always check for disconnected Bacalhau nodes if configured
-        if self.has_bacalhau_env() and not instances:
-            self.console.print("""[yellow]No instances in state file.[/yellow]
-
-[dim]Checking for disconnected Bacalhau nodes...[/dim]""")
+        # Always check for disconnected Bacalhau nodes first if configured
+        bacalhau_cleanup_done = False
+        if self.has_bacalhau_env():
+            self.console.print("[dim]Checking for disconnected Bacalhau nodes...[/dim]")
             deleted = self.cleanup_all_disconnected_nodes()
             if deleted > 0:
                 self.console.print(
@@ -361,8 +360,10 @@ Elapsed: {elapsed:.1f}s"""
                 )
             else:
                 self.console.print("[dim]No disconnected nodes found[/dim]")
-            return
-        elif not instances:
+            bacalhau_cleanup_done = True
+
+        # If no instances to destroy, we're done
+        if not instances:
             self.console.print("[yellow]No instances to destroy.[/yellow]")
             return
 
@@ -456,15 +457,15 @@ Elapsed: {elapsed:.1f}s"""
         self.console.print("\n".join(summary_lines))
 
         # Clean up all disconnected nodes if Bacalhau is configured
-        if self.has_bacalhau_env():
-            # If we just destroyed AWS instances, wait for nodes to disconnect
-            if completed > 0:
-                self.console.print(
-                    """\n[dim]Waiting 10 seconds for Bacalhau nodes to disconnect...[/dim]"""
-                )
-                import time
+        # Do second Bacalhau cleanup only if we destroyed instances
+        if self.has_bacalhau_env() and completed > 0:
+            # Wait for nodes to disconnect
+            self.console.print(
+                """\n[dim]Waiting 10 seconds for Bacalhau nodes to disconnect...[/dim]"""
+            )
+            import time
 
-                time.sleep(10)
+            time.sleep(10)
 
             self.console.print("[dim]Cleaning up disconnected Bacalhau nodes...[/dim]")
             deleted = self.cleanup_all_disconnected_nodes()
