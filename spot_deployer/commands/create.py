@@ -6,7 +6,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Set, cast
 
 import boto3
 
@@ -18,6 +18,7 @@ from ..utils.display import (
     Layout,
     Live,
     Panel,
+    Table,
     console,
     rich_error,
     rich_success,
@@ -203,13 +204,15 @@ def create_instances_in_region_with_table(
         else:
             # Use default VPC (old behavior)
             vpcs = ec2.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
-            if not vpcs["Vpcs"]:
+
+            typed_vpcs = cast(List[Dict[str, Any]], vpcs["Vpcs"])
+            if not typed_vpcs:
                 log_message(f"No default VPC found in {region}")
                 for key in instance_keys:
                     update_status_func(key, "ERROR: No default VPC", is_final=True)
                 return []
 
-            vpc_id = vpcs["Vpcs"][0]["VpcId"]
+            vpc_id = typed_vpcs[0]["VpcId"]
             log_message(f"Found VPC in {region}: {vpc_id}")
 
             for key in instance_keys:
@@ -228,7 +231,13 @@ def create_instances_in_region_with_table(
                     update_status_func(key, "ERROR: No subnets", is_final=True)
                 return []
 
-            subnet_id = subnets["Subnets"][0]["SubnetId"]
+            typed_subnets = cast(List[Dict[str, Any]], subnets["Subnets"])
+            if not typed_subnets:
+                log_message(f"No default subnets found in {region}")
+                for key in instance_keys:
+                    update_status_func(key, "ERROR: No subnets", is_final=True)
+                return []
+            subnet_id = typed_subnets[0]["SubnetId"]
             log_message(f"Using subnet in {region}: {subnet_id}")
 
         for key in instance_keys:
@@ -333,7 +342,9 @@ def create_instances_in_region_with_table(
 
         # Wait for instances to get public IPs
         created_instances: List[Dict[str, Any]] = []
-        instance_ids = [inst["InstanceId"] for inst in result["Instances"]]
+
+        typed_instances = cast(List[Dict[str, Any]], result["Instances"])
+        instance_ids = [inst["InstanceId"] for inst in typed_instances]
 
         log_message(f"Created {len(instance_ids)} instances in {region}, waiting for public IPs...")
 
@@ -348,8 +359,11 @@ def create_instances_in_region_with_table(
             try:
                 instances_data = ec2.describe_instances(InstanceIds=instance_ids)
 
-                for reservation in instances_data["Reservations"]:
-                    for inst in reservation["Instances"]:
+                typed_reservations = cast(List[Dict[str, Any]], instances_data["Reservations"])
+
+                for reservation in typed_reservations:
+                    typed_reservation = cast(Dict[str, Any], reservation)
+                    for inst in typed_reservation["Instances"]:
                         inst_id = inst["InstanceId"]
                         idx = instance_ids.index(inst_id)
                         key = instance_keys[idx]
@@ -685,6 +699,64 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             )
 
     state.save_instances(all_instances)
+    
+    # Show deployment summary table
+    if all_instances:
+        summary_table = Table(
+            title="📊 Deployment Summary",
+            title_style="bold cyan",
+            expand=True,
+            padding=(0, 1),
+            show_lines=True,
+        )
+        
+        # Add columns with specific styles
+        summary_table.add_column("Metric", style="bold white", width=20)
+        summary_table.add_column("Value", style="green", justify="left")
+        
+        # Calculate summary statistics
+        total_instances = len(all_instances)
+        regions_used = len(set(inst["region"] for inst in all_instances))
+        instance_types = {}
+        total_cost_estimate = 0.0
+        
+        # Estimate costs (rough estimates)
+        cost_per_hour = {
+            "t2.micro": 0.0116,
+            "t3.micro": 0.0104,
+            "t3.small": 0.0208,
+            "t3.medium": 0.0416,
+            "t3.large": 0.0832,
+            "t3.xlarge": 0.1664,
+            "c5.large": 0.085,
+            "c5.xlarge": 0.17,
+            "m5.large": 0.096,
+            "m5.xlarge": 0.192,
+        }
+        
+        for inst in all_instances:
+            inst_type = inst.get("type", "unknown")
+            instance_types[inst_type] = instance_types.get(inst_type, 0) + 1
+            total_cost_estimate += cost_per_hour.get(inst_type, 0.05)  # Default to $0.05/hr
+        
+        # Add rows to the summary table
+        summary_table.add_row("Total Instances", str(total_instances))
+        summary_table.add_row("Regions Used", str(regions_used))
+        summary_table.add_row("Deployment ID", deployment_id)
+        summary_table.add_row("Creator", creator)
+        
+        # Instance type breakdown
+        type_breakdown = ", ".join([f"{count}x {itype}" for itype, count in sorted(instance_types.items())])
+        summary_table.add_row("Instance Types", type_breakdown)
+        
+        # Cost estimate
+        summary_table.add_row("Est. Cost/Hour", f"${total_cost_estimate:.2f}")
+        summary_table.add_row("Est. Cost/Day", f"${total_cost_estimate * 24:.2f}")
+        
+        # Show table
+        console.print("")
+        console.print(summary_table)
+        console.print("")
 
     # Import and call cmd_list to show final state
     from .list import cmd_list
