@@ -54,32 +54,32 @@ check_aws() {
 # Get the latest version or use specified version
 get_version() {
     local version="${1:-latest}"
-    
+
     if [ "$version" = "latest" ]; then
         # Get latest release tag from GitHub
         version=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-        
+
         if [ -z "$version" ]; then
             warning "Could not fetch latest version, using 'latest' tag"
             version="latest"
         fi
     fi
-    
+
     echo "$version"
 }
 
 # Setup directories
 setup_directories() {
     info "Setting up directories..."
-    
+
     mkdir -p "$INSTALL_DIR"/{config,files,output}
-    
+
     # Create orchestrator credential placeholders
     if [ ! -f "$INSTALL_DIR/files/orchestrator_endpoint" ]; then
         echo "# Add your orchestrator NATS endpoint here" > "$INSTALL_DIR/files/orchestrator_endpoint"
         echo "# Example: nats://orchestrator.example.com:4222" >> "$INSTALL_DIR/files/orchestrator_endpoint"
     fi
-    
+
     if [ ! -f "$INSTALL_DIR/files/orchestrator_token" ]; then
         echo "# Add your orchestrator token here" > "$INSTALL_DIR/files/orchestrator_token"
     fi
@@ -97,9 +97,9 @@ create_wrapper() {
     local version="$1"
     local wrapper_path="/usr/local/bin/${BINARY_NAME}"
     local temp_wrapper="/tmp/${BINARY_NAME}-wrapper"
-    
+
     info "Creating wrapper script..."
-    
+
     cat > "$temp_wrapper" << 'EOF'
 #!/bin/bash
 # Spot Deployer wrapper script
@@ -135,7 +135,7 @@ EOF
 
     # Replace version placeholder
     sed -i.bak "s/VERSION_PLACEHOLDER/${version}/" "$temp_wrapper" && rm "${temp_wrapper}.bak"
-    
+
     # Install wrapper script
     if command -v sudo &> /dev/null; then
         sudo mv "$temp_wrapper" "$wrapper_path"
@@ -147,7 +147,7 @@ EOF
         chmod +x "$HOME/bin/${BINARY_NAME}"
         wrapper_path="$HOME/bin/${BINARY_NAME}"
     fi
-    
+
     success "Wrapper script installed at: $wrapper_path"
 }
 
@@ -161,15 +161,15 @@ run_setup() {
 main() {
     echo "🚀 Spot Deployer Installer"
     echo "========================="
-    
+
     # Parse command line arguments
     local command="${1:-install}"
     local version="${2:-latest}"
-    
+
     # Check prerequisites
     check_docker
     check_aws
-    
+
     case "$command" in
         install)
             setup_directories
@@ -177,7 +177,7 @@ main() {
             info "Using version: $version"
             pull_docker_image "$version"
             create_wrapper "$version"
-            
+
             echo ""
             success "Installation complete!"
             echo ""
@@ -188,7 +188,7 @@ main() {
             echo "4. Add orchestrator credentials to: $INSTALL_DIR/files/"
             echo "5. Run: ${BINARY_NAME} create"
             ;;
-            
+
         setup)
             setup_directories
             version=$(get_version "$version")
@@ -197,7 +197,7 @@ main() {
             create_wrapper "$version"
             run_setup
             ;;
-            
+
         update)
             version=$(get_version "$version")
             info "Updating to version: $version"
@@ -205,7 +205,7 @@ main() {
             create_wrapper "$version"
             success "Update complete!"
             ;;
-            
+
         uninstall)
             warning "This will remove Spot Deployer but preserve your config and data"
             read -p "Continue? (y/N) " -n 1 -r
@@ -220,7 +220,7 @@ main() {
                 info "Config and data preserved at: $INSTALL_DIR"
             fi
             ;;
-            
+
         *)
             error "Unknown command: $command"
             echo "Usage: $0 [install|setup|update|uninstall] [version]"

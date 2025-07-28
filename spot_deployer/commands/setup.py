@@ -106,7 +106,7 @@ def cmd_setup(config: SimpleConfig) -> None:
 
 [bold]Directory structure created in current directory:[/bold]
 • config.yaml    - Your deployment configuration
-• files/         - Place files here to upload to instances  
+• files/         - Place files here to upload to instances
 • output/        - Deployment state and logs will be stored here
 
 [bold cyan]Files Directory (./files):[/bold cyan]
@@ -116,8 +116,8 @@ Files placed here will be copied to /opt/uploaded_files/ on each instance.
 [bold]Required credential files for Bacalhau compute nodes:[/bold]
 • files/orchestrator_endpoint
   Contents: NATS endpoint URL (e.g., nats://orchestrator.example.com:4222)
-  
-• files/orchestrator_token  
+
+• files/orchestrator_token
   Contents: Authentication token for the orchestrator
 
 [bold]Output Directory (./output):[/bold]

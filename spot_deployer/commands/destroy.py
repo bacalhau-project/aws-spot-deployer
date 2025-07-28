@@ -95,7 +95,7 @@ class DestroyManager:
                 status_display,
                 info.get("type", "unknown"),
                 info.get("public_ip", "N/A"),
-                info.get("created", "N/A")
+                info.get("created", "N/A"),
             )
 
         return table
