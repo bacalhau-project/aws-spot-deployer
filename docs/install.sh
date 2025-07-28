@@ -207,6 +207,17 @@ run_docker() {
 
     # Add terminal settings
     docker_cmd+=("-e" "TERM=${TERM:-xterm-256color}")
+    
+    # Add Bacalhau environment variables if they exist
+    if [[ -n "$BACALHAU_API_HOST" ]]; then
+        docker_cmd+=("-e" "BACALHAU_API_HOST")
+    fi
+    if [[ -n "$BACALHAU_API_KEY" ]]; then
+        docker_cmd+=("-e" "BACALHAU_API_KEY")
+    fi
+    if [[ -n "$BACALHAU_API_TOKEN" ]]; then
+        docker_cmd+=("-e" "BACALHAU_API_TOKEN")
+    fi
 
     # Add image and command
     docker_cmd+=("$docker_image" "$COMMAND")
@@ -263,6 +274,9 @@ Environment Variables:
   AWS_SESSION_TOKEN  AWS session token (optional)
   AWS_PROFILE        AWS profile name (for SSO/named profiles)
   AWS_DEFAULT_REGION AWS region (default: us-west-2)
+  BACALHAU_API_HOST  Bacalhau orchestrator endpoint
+  BACALHAU_API_KEY   Bacalhau authentication key
+  BACALHAU_API_TOKEN Bacalhau authentication token
 
 Files:
   Config: ./config.yaml
