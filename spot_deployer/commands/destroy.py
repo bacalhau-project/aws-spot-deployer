@@ -19,7 +19,7 @@ from ..core.config import SimpleConfig
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth, delete_deployment_vpc
 from ..utils.logging import setup_logger
-from ..utils.tables import add_destroy_row, add_instance_row, create_instance_table
+from ..utils.tables import add_instance_row, create_instance_table
 
 
 class DestroyManager:
@@ -350,7 +350,6 @@ Elapsed: {elapsed:.1f}s"""
 """)
 
         # Always check for disconnected Bacalhau nodes first if configured
-        bacalhau_cleanup_done = False
         if self.has_bacalhau_env():
             self.console.print("[dim]Checking for disconnected Bacalhau nodes...[/dim]")
             deleted = self.cleanup_all_disconnected_nodes()
@@ -360,7 +359,6 @@ Elapsed: {elapsed:.1f}s"""
                 )
             else:
                 self.console.print("[dim]No disconnected nodes found[/dim]")
-            bacalhau_cleanup_done = True
 
         # If no instances to destroy, we're done
         if not instances:
