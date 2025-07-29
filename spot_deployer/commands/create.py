@@ -15,9 +15,7 @@ from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth
 from ..utils.cloud_init import generate_minimal_cloud_init
 from ..utils.display import (
-    Layout,
     Live,
-    Panel,
     Table,
     console,
     rich_error,
@@ -155,7 +153,7 @@ def create_instances_in_region_with_table(
     deployment_id: str,
     created_at: str,
     creator: str,
-    state: SimpleStateManager = None,
+    state: SimpleStateManager,
 ) -> List[dict]:
     """Create spot instances in a specific region with live table updates."""
     if count <= 0:
@@ -584,7 +582,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 "created": "pending...",
             }
 
-    def generate_layout():
+    def generate_table():
         # Count active (non-skipped) instances
         active_count = sum(
             1 for item in creation_status.values() if "SKIPPED" not in item["status"]
@@ -593,7 +591,6 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             title=f"Creating instances ({active_count} active)",
             show_lines=False,
             padding=(0, 1),
-            expand=True,
         )
 
         sorted_items = sorted(creation_status.items(), key=lambda x: x[0])
@@ -641,23 +638,18 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 item["created"],
             )
 
+        # Add log information directly to the table
         try:
             with open(log_filename, "r") as f:
                 # Read only last 5 lines for compact display
                 lines = [line.rstrip() for line in f.readlines()[-5:]]
                 log_content = "\n".join(lines)
+                if log_content:
+                    table.caption = f"[dim]Log: {log_filename}[/dim]\n[dim]{log_content}[/dim]"
         except (FileNotFoundError, IOError):
-            log_content = "Waiting for log entries..."
+            pass
 
-        log_panel = Panel(log_content, title=f"Log: {log_filename}", border_style="blue", height=7)
-
-        layout = Layout()
-        layout.split_column(
-            Layout(table, ratio=1),  # Table takes available space
-            Layout(log_panel, size=7),  # Fixed log panel at bottom
-        )
-
-        return layout
+        return table
 
     def update_status(key, status, instance_id=None, ip=None, created=None, is_final=False):
         with lock:
@@ -674,7 +666,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 log_id = instance_id if instance_id else key
                 logger.info(f"[{log_id} @ {log_ip}] {status}")
 
-    with Live(generate_layout(), refresh_per_second=4, console=console, screen=True) as live:
+    with Live(
+        generate_table(), refresh_per_second=4, console=console, screen=True, redirect_stdout=False
+    ) as live:
 
         def create_region_instances(region, count):
             try:
@@ -703,20 +697,20 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 for r, c in region_instance_map.items()
             ]
             while any(f.running() for f in futures):
-                live.update(generate_layout())
+                live.update(generate_table())
                 time.sleep(0.25)
 
-        live.update(generate_layout())  # Final update after creation phase
+        live.update(generate_table())  # Final update after creation phase
 
         if all_instances:
             # Status will be shown in the layout, not printed separately
-            live.update(generate_layout())
+            live.update(generate_table())
 
             # Always run post-creation setup to upload files
             post_creation_setup(all_instances, config, update_status, logger)
 
             # Keep the live display running during setup
-            live.update(generate_layout())
+            live.update(generate_table())
         else:
             rich_error("No instances were successfully created.")
 

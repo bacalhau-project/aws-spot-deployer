@@ -8,7 +8,6 @@ from rich.table import Table
 def create_instance_table(
     title: str,
     show_header: bool = True,
-    expand: bool = True,
     show_lines: bool = False,
     padding: tuple = (0, 1),
     header_style: Optional[str] = None,
@@ -17,19 +16,21 @@ def create_instance_table(
     table = Table(
         title=title,
         show_header=show_header,
-        expand=expand,
+        expand=False,  # Don't expand to full console width
         show_lines=show_lines,
         padding=padding,
         header_style=header_style,
+        width=134,  # Table width = console width (140) - 6
     )
 
-    # Add standard columns - let Rich determine optimal widths
-    table.add_column("Region", style="magenta", no_wrap=True)
-    table.add_column("Instance ID", style="cyan", no_wrap=True)
-    table.add_column("Status", style="yellow", no_wrap=True)
-    table.add_column("Type", style="green", no_wrap=True)
-    table.add_column("Public IP", style="blue", no_wrap=True)
-    table.add_column("Created", style="dim", no_wrap=True)
+    # Add standard columns with fixed widths that fit in 134 total
+    # Total content width: 18+22+25+12+18+28 = 123 (leaving 11 for borders/padding)
+    table.add_column("Region", style="magenta", width=18, no_wrap=True)
+    table.add_column("Instance ID", style="cyan", width=22, no_wrap=True)
+    table.add_column("Status", style="yellow", width=25, no_wrap=True)
+    table.add_column("Type", style="green", width=12, no_wrap=True)
+    table.add_column("Public IP", style="blue", width=18, no_wrap=True)
+    table.add_column("Created", style="dim", width=28, no_wrap=True)
 
     return table
 

@@ -5,6 +5,7 @@ dind
 healthcheck
 healthz
 iotop
+itype
 NOPASSWD
 oneshot
 runcmd

@@ -19,12 +19,28 @@ try:
     from rich.table import Table  # noqa: F401 - Re-exported for other modules
 
     RICH_AVAILABLE = True
-    # Let Rich handle all terminal detection
+    # Force Rich to use full width regardless of terminal detection
+    import os
+    import shutil
+    import sys
+
+    # Clear any environment variables that might affect width detection
+    os.environ.pop("COLUMNS", None)
+    os.environ.pop("LINES", None)
+
+    # Get terminal height with minimum of 30
+    term_size = shutil.get_terminal_size(fallback=(140, 30))
+    height = max(term_size.lines, 30)
+
     console = Console(
         force_terminal=True,
         force_interactive=True,
         legacy_windows=False,
         color_system="auto",
+        width=140,  # Fixed width of 140 as requested
+        height=height,  # Use terminal height, minimum 30
+        file=sys.stdout,
+        _environ={},  # Empty environment to avoid detection
     )
 except ImportError:
     RICH_AVAILABLE = False
