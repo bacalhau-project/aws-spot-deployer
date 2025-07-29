@@ -16,9 +16,9 @@ def get_instance_state(instance_id: str, region: str) -> str:
         ec2 = boto3.client("ec2", region_name=region)
         response = ec2.describe_instances(InstanceIds=[instance_id])
 
-        for reservation in response["Reservations"]:
-            for instance in reservation["Instances"]:
-                return instance["State"]["Name"]
+        for reservation in response.get("Reservations", []):
+            for instance in reservation.get("Instances", []):
+                return instance.get("State", {}).get("Name", "unknown")
 
         return "not-found"
     except Exception:

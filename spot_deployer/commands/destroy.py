@@ -269,9 +269,9 @@ Elapsed: {elapsed:.1f}s"""
             try:
                 response = ec2.describe_instances(InstanceIds=[instance_id])
                 instance_exists = False
-                for reservation in response["Reservations"]:
-                    for inst in reservation["Instances"]:
-                        state = inst["State"]["Name"]
+                for reservation in response.get("Reservations", []):
+                    for inst in reservation.get("Instances", []):
+                        state = inst.get("State", {}).get("Name", "unknown")
                         if state not in ["terminated", "terminating"]:
                             instance_exists = True
                             break
@@ -301,16 +301,20 @@ Elapsed: {elapsed:.1f}s"""
             try:
                 response = ec2.describe_instances(InstanceIds=[instance_id])
                 vpc_id = None
-                for reservation in response["Reservations"]:
-                    for inst in reservation["Instances"]:
+                for reservation in response.get("Reservations", []):
+                    for inst in reservation.get("Instances", []):
                         vpc_id = inst.get("VpcId")
                         break
 
                 if vpc_id:
                     # Check if it's a dedicated VPC
                     vpcs = ec2.describe_vpcs(VpcIds=[vpc_id])
-                    for vpc in vpcs["Vpcs"]:
-                        tags = {tag["Key"]: tag["Value"] for tag in vpc.get("Tags", [])}
+                    for vpc in vpcs.get("Vpcs", []):
+                        # Extract tags safely
+                        tags = {}
+                        for tag in vpc.get("Tags", []):
+                            if "Key" in tag and "Value" in tag:
+                                tags[tag["Key"]] = tag["Value"]
                         if tags.get("ManagedBy") == "SpotDeployer":
                             self.update_status(instance_id, region, "⏳ Deleting VPC...", vpc_id)
                             if delete_deployment_vpc(ec2, vpc_id):

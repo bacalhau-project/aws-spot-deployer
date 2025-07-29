@@ -2,6 +2,7 @@ BACALHAU
 Buildx
 daaronch
 dind
+dockerenv
 healthcheck
 healthz
 iotop

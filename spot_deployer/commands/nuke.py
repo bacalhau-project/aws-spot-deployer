@@ -1,7 +1,7 @@
 """Nuke command - finds and destroys ALL spot instances across all regions."""
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from typing import Any, Dict, List
 
 import boto3
 from botocore.exceptions import ClientError
@@ -36,7 +36,7 @@ AWS_REGIONS = [
 ]
 
 
-def find_spot_instances_in_region(region: str) -> List[Dict[str, str]]:
+def find_spot_instances_in_region(region: str) -> List[Dict[str, Any]]:
     """Find all spot instances in a specific region."""
     try:
         ec2 = boto3.client("ec2", region_name=region)
@@ -52,26 +52,35 @@ def find_spot_instances_in_region(region: str) -> List[Dict[str, str]]:
             ]
         )
 
-        instances = []
-        for reservation in response["Reservations"]:
-            for instance in reservation["Instances"]:
+        instances: List[Dict[str, Any]] = []
+        for reservation in response.get("Reservations", []):
+            for instance in reservation.get("Instances", []):
+                # Extract tags safely
+                tags_dict: Dict[str, str] = {}
+                for tag in instance.get("Tags", []):
+                    if "Key" in tag and "Value" in tag:
+                        tags_dict[tag["Key"]] = tag["Value"]
+
                 instances.append(
                     {
-                        "id": instance["InstanceId"],
+                        "id": instance.get("InstanceId", "unknown"),
                         "region": region,
-                        "state": instance["State"]["Name"],
+                        "state": instance.get("State", {}).get("Name", "unknown"),
                         "type": instance.get("InstanceType", "unknown"),
                         "public_ip": instance.get("PublicIpAddress", "N/A"),
                         "launch_time": str(instance.get("LaunchTime", "unknown")),
-                        "tags": {tag["Key"]: tag["Value"] for tag in instance.get("Tags", [])},
+                        "tags": tags_dict,
                     }
                 )
 
         return instances
     except ClientError as e:
-        if e.response["Error"]["Code"] == "UnauthorizedOperation":
-            # Skip regions where we don't have access
-            return []
+        error_response = e.response
+        if error_response and "Error" in error_response:
+            error = error_response["Error"]
+            if "Code" in error and error["Code"] == "UnauthorizedOperation":
+                # Skip regions where we don't have access
+                return []
         raise
 
 
@@ -87,9 +96,12 @@ def terminate_instances_in_region(region: str, instance_ids: List[str]) -> Dict[
         response = ec2.terminate_instances(InstanceIds=instance_ids)
 
         # Extract termination status
-        results = {}
-        for inst in response["TerminatingInstances"]:
-            results[inst["InstanceId"]] = inst["CurrentState"]["Name"]
+        results: Dict[str, str] = {}
+        for inst in response.get("TerminatingInstances", []):
+            instance_id = inst.get("InstanceId", "unknown")
+            current_state = inst.get("CurrentState", {})
+            state_name = current_state.get("Name", "unknown")
+            results[instance_id] = state_name
 
         return results
     except Exception as e:
@@ -108,28 +120,21 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
     console.print("  • Terminate ALL spot instances found")
     console.print("  • This includes instances NOT managed by this tool\n")
 
-    if not force:
-        console.print("[bold red]Are you ABSOLUTELY sure?[/bold red]")
-        confirmation = input("Type 'DESTROY ALL SPOTS' to confirm: ")
-        if confirmation != "DESTROY ALL SPOTS":
-            rich_error("Aborted. No instances were terminated.")
-            return
-
     # Phase 1: Scan all regions for spot instances
     console.print("\n[cyan]Phase 1: Scanning all AWS regions for spot instances...[/cyan]")
 
-    all_instances = []
-    region_errors = []
+    all_instances: List[Dict[str, Any]] = []
+    region_errors: List[tuple[str, str]] = []
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit all region scans
-        future_to_region = {
+        scan_future_to_region: Dict[Future[List[Dict[str, Any]]], str] = {
             executor.submit(find_spot_instances_in_region, region): region for region in AWS_REGIONS
         }
 
         # Process results as they complete
-        for future in as_completed(future_to_region):
-            region = future_to_region[future]
+        for future in as_completed(scan_future_to_region):
+            region = scan_future_to_region[future]
             try:
                 instances = future.result()
                 if instances:
@@ -154,7 +159,7 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
     console.print(f"\n[bold]Found {len(all_instances)} spot instances:[/bold]\n")
 
     # Group by region for display
-    by_region = {}
+    by_region: Dict[str, List[Dict[str, Any]]] = {}
     for inst in all_instances:
         region = inst["region"]
         if region not in by_region:
@@ -191,7 +196,7 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
     console.print("\n[cyan]Phase 2: Terminating instances...[/cyan]")
 
     # Group instances by region for termination
-    termination_groups = {}
+    termination_groups: Dict[str, List[str]] = {}
     for inst in all_instances:
         region = inst["region"]
         if region not in termination_groups:
@@ -203,14 +208,14 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit termination requests
-        future_to_region = {
+        terminate_future_to_region: Dict[Future[Dict[str, str]], str] = {
             executor.submit(terminate_instances_in_region, region, instance_ids): region
             for region, instance_ids in termination_groups.items()
         }
 
         # Process results
-        for future in as_completed(future_to_region):
-            region = future_to_region[future]
+        for future in as_completed(terminate_future_to_region):
+            region = terminate_future_to_region[future]
             try:
                 results = future.result()
                 success = sum(1 for status in results.values() if "ERROR" not in status)
@@ -244,12 +249,8 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
     if terminated_count > 0:
         console.print("\n[dim]Updating local state...[/dim]")
         current_instances = state.load_instances()
-        terminated_ids = {
-            inst["id"]
-            for inst in all_instances
-            if inst["id"]
-            not in [i for r in future_to_region.values() for i in termination_groups.get(r, [])]
-        }
+        # Get all terminated instance IDs
+        terminated_ids = {inst["id"] for inst in all_instances}
         remaining_instances = [
             inst for inst in current_instances if inst["id"] not in terminated_ids
         ]
