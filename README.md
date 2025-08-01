@@ -8,84 +8,69 @@ A production-ready tool for deploying AWS spot instances with Bacalhau compute n
 
 ```bash
 # List running instances with a single command!
-curl tada.wang/install.sh | bash -s -- list
+curl -sSL https://tada.wang/install.sh | bash -s -- list
 
 # Deploy spot instances
-curl tada.wang/install.sh | bash -s -- create
+curl -sSL https://tada.wang/install.sh | bash -s -- create
 
 # Destroy all instances
-curl tada.wang/install.sh | bash -s -- destroy
+curl -sSL https://tada.wang/install.sh | bash -s -- destroy
 ```
 
 The installer will:
 
-- Check prerequisites (Docker, AWS credentials)
-- Set up configuration directory at `~/.spot-deployer`
-- Pull the latest Docker image
-- Run the deployment
+- Check prerequisites (uvx, AWS credentials)
+- Install uvx if needed (Python package runner)
+- Set up configuration directory
+- Run the deployment directly from GitHub
 
 #### Available Commands
 
 ```bash
 # Initial setup - creates default configuration
-curl tada.wang/install.sh | bash -s -- setup
+curl -sSL https://tada.wang/install.sh | bash -s -- setup
 
 # Create spot instances
-curl tada.wang/install.sh | bash -s -- create
+curl -sSL https://tada.wang/install.sh | bash -s -- create
 
 # List running instances
-curl tada.wang/install.sh | bash -s -- list
+curl -sSL https://tada.wang/install.sh | bash -s -- list
 
 # Destroy all instances
-curl tada.wang/install.sh | bash -s -- destroy
-
-# Use specific version
-curl tada.wang/install.sh | bash -s -- create --version 1.0.0
+curl -sSL https://tada.wang/install.sh | bash -s -- destroy
 
 # Dry run - see what would happen
-curl tada.wang/install.sh | bash -s -- create --dry-run
+curl -sSL https://tada.wang/install.sh | bash -s -- create --dry-run
 ```
 
-### Manual Docker Usage
+### Manual uvx Usage
 
 ```bash
-# Pull the Docker image
-docker pull ghcr.io/bacalhau-project/aws-spot-deployer:latest
-
-# Create configuration
-docker run --rm -v $(pwd):/app/output ghcr.io/bacalhau-project/aws-spot-deployer setup
+# Run directly from GitHub
+uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer setup
 
 # Deploy instances
-docker run --rm \
-  -v ~/.aws:/root/.aws:ro \
-  -v $(pwd)/config.yaml:/app/config/config.yaml:ro \
-  ghcr.io/bacalhau-project/spot-deployer create
+uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer create
 
 # List instances
-docker run --rm \
-  -v ~/.aws:/root/.aws:ro \
-  -v $(pwd)/config.yaml:/app/config/config.yaml:ro \
-  ghcr.io/bacalhau-project/spot-deployer list
+uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer list
 
 # Destroy instances
-docker run --rm \
-  -v ~/.aws:/root/.aws:ro \
-  -v $(pwd)/config.yaml:/app/config/config.yaml:ro \
-  ghcr.io/bacalhau-project/spot-deployer destroy
+uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer destroy
 ```
 
 ## 📋 Prerequisites
 
-- **Docker** installed on your machine
+- **Python 3.8+** (uvx will be installed automatically if needed)
 - **AWS Account** with EC2, VPC, and Security Group permissions
 - **AWS Credentials** configured locally
 - **Bacalhau Orchestrator** credentials (optional)
 
-## 🐳 Docker Usage
+## 🔧 Usage
 
 ### AWS Authentication
 
-The spot deployer now includes a unified `spot` command that automatically detects and uses your AWS credentials:
+The spot deployer includes a unified `spot` command that automatically detects and uses your AWS credentials:
 
 ```bash
 # The spot command automatically detects your credentials
@@ -94,7 +79,7 @@ The spot deployer now includes a unified `spot` command that automatically detec
 # It will show which credentials are being used:
 # 🔍 Detecting AWS credentials...
 # ✓ Using AWS SSO session
-# → Running: docker run ...
+# → Running spot-deployer with uvx...
 ```
 
 **Supported Authentication Methods** (in order of detection):
@@ -142,19 +127,24 @@ The tool will display detailed information about which AWS credentials are being
 ╰───────────────────────────────────────────────────────╯
 ```
 
-See [AWS_SSO_DOCKER.md](AWS_SSO_DOCKER.md) for additional SSO configuration details.
+
 
 ### Configuration
 
 1. **Generate Config**:
 
 ```bash
-   docker run --rm \
-     -v $(pwd):/app/output \
-     ghcr.io/bacalhau-project/aws-spot-deployer setup
+   # Using the one-liner
+   curl -sSL https://tada.wang | bash -s -- setup
+
+   # Or using uvx directly
+   uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer setup
+
+   # Or using the local wrapper
+   ./spot setup
 ```
 
-1. **Edit `config.yaml`**:
+2. **Edit `config.yaml`**:
 
 ```yaml
    aws:
@@ -169,7 +159,7 @@ See [AWS_SSO_DOCKER.md](AWS_SSO_DOCKER.md) for additional SSO configuration deta
 
 ### Bacalhau Integration
 
-For Bacalhau compute nodes:
+For Bacalhau compute nodes (runs as Docker container on instances):
 
 ```bash
 # Create credential files
@@ -178,12 +168,13 @@ echo "nats://orchestrator.example.com:4222" > files/orchestrator_endpoint
 echo "your-secret-token" > files/orchestrator_token
 
 # Deploy with credentials
-docker run --rm \
-  -v ~/.aws:/root/.aws:ro \
-  -v $(pwd)/config.yaml:/app/config/config.yaml:ro \
-  -v $(pwd)/files:/app/files:ro \
-  ghcr.io/bacalhau-project/aws-spot-deployer create
+curl -sSL https://tada.wang/install.sh | bash -s -- create
+
+# Or using the local wrapper
+./spot create
 ```
+
+**Note**: Bacalhau runs as a Docker container (`ghcr.io/bacalhau-project/bacalhau:latest-dind`) on each instance.
 
 ### Custom Commands
 
@@ -212,40 +203,38 @@ EOF
 
 chmod +x additional_commands.sh
 
-# Deploy with custom commands
-docker run --rm \
-  -v ~/.aws:/root/.aws:ro \
-  -v $(pwd)/config.yaml:/app/config/config.yaml:ro \
-  -v $(pwd)/additional_commands.sh:/app/output/additional_commands.sh:ro \
-  ghcr.io/bacalhau-project/aws-spot-deployer create
+# Deploy with custom commands (script is automatically detected)
+./spot create
 ```
 
 The `additional_commands.sh` script will be uploaded to each instance and executed during deployment.
 
-### Convenience Wrapper
+### Local Installation
 
-Use the included wrapper script for easier commands:
+For frequent use, clone the repository and use the local wrapper:
 
 ```bash
-# Download wrapper
-curl -O https://raw.githubusercontent.com/bacalhau-project/aws-spot-deployer/main/spot-docker
-chmod +x spot-docker
+# Clone repository
+git clone https://github.com/bacalhau-project/aws-spot-deployer.git
+cd aws-spot-deployer
 
-# Use wrapper
-./spot-docker setup
-./spot-docker create
-./spot-docker list
-./spot-docker destroy
+# Use the spot wrapper (auto-detects AWS credentials)
+./spot setup
+./spot create
+./spot list
+./spot destroy
 ```
 
 ## 🎨 Features
 
+- **No Docker Required** - Deployment tool runs via uvx (Python package runner)
 - **Beautiful Terminal UI** - Rich tables and progress tracking
 - **Hands-Off Deployment** - No SSH connection held during setup
 - **State Management** - Automatic state tracking via AWS tags
 - **Multi-Region** - Deploy across multiple AWS regions
 - **Dedicated VPCs** - Isolated network per deployment
-- **Bacalhau Ready** - Optional compute node deployment
+- **Bacalhau Ready** - Compute nodes run as Docker containers on instances
+- **Sensor Simulation** - Sensor generators run as Docker containers
 - **Custom Commands** - Run your own setup scripts on instances
 
 ## 📁 Configuration Options
@@ -279,16 +268,18 @@ export AWS_SECRET_ACCESS_KEY=yyy
 Create a config file first:
 
 ```bash
-docker run --rm -v $(pwd):/app/output ghcr.io/bacalhau-project/spot-deployer setup
+curl -sSL https://tada.wang | bash -s -- setup
+# or
+./spot setup
 ```
 
 ### Permission Denied
 
-Ensure proper mount permissions:
+Ensure proper file permissions:
 
-- Use `:ro` for read-only mounts
-- Check file ownership
-- Verify Docker daemon permissions
+- Check file ownership in current directory
+- Verify AWS credentials are readable
+- Ensure SSH keys have correct permissions (600)
 
 ### Debugging Deployments
 
@@ -303,18 +294,18 @@ chmod +x debug_deployment.sh
 ./debug_deployment.sh <instance-ip>
 ```
 
-## 📦 Version Management
+## 📦 Architecture
 
-```bash
-# Use specific version
-docker pull ghcr.io/bacalhau-project/spot-deployer:v1.0.0
+### Deployment Tool (Your Machine)
+- Runs via **uvx** - no Docker required
+- Instant execution from GitHub
+- Automatic dependency management
 
-# Use latest
-docker pull ghcr.io/bacalhau-project/spot-deployer:latest
-
-# Use edge (main branch)
-docker pull ghcr.io/bacalhau-project/spot-deployer:edge
-```
+### On EC2 Instances
+- **Bacalhau**: Runs as Docker container (`ghcr.io/bacalhau-project/bacalhau:latest-dind`)
+- **Sensor Generator**: Runs as Docker container (`ghcr.io/bacalhau-project/sensor-log-generator:latest`)
+- **Docker**: Automatically installed via cloud-init
+- **SystemD**: Manages container lifecycle
 
 ## 🚦 Development
 
@@ -322,8 +313,8 @@ For development and contributions:
 
 ```bash
 # Clone repository
-git clone https://github.com/bacalhau-project/spot.git
-cd spot
+git clone https://github.com/bacalhau-project/aws-spot-deployer.git
+cd aws-spot-deployer
 
 # Set up development environment
 uv sync
@@ -334,11 +325,11 @@ uv run pre-commit install
 # Run pre-commit manually on all files
 uv run pre-commit run --all-files
 
-# Build Docker image locally
-./scripts/build-docker.sh
+# Run locally with uv
+uv run python -m spot_deployer help
 
-# Run tests
-docker run --rm spot-deployer:dev help
+# Or use the development wrapper
+./spot-dev help
 ```
 
 ### Code Quality
@@ -359,6 +350,6 @@ uv run pre-commit install
 
 ## 🤝 Support
 
-- **Issues**: [GitHub Issues](https://github.com/bacalhau-project/spot/issues)
-- **Documentation**: [DOCKER_USAGE.md](DOCKER_USAGE.md)
+- **Issues**: [GitHub Issues](https://github.com/bacalhau-project/aws-spot-deployer/issues)
+- **Configuration**: [config.yaml.example](config.yaml.example)
 - **Debug Guide**: [DEPLOYMENT_DEBUG_CHECKLIST.md](DEPLOYMENT_DEBUG_CHECKLIST.md)

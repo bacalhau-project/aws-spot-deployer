@@ -78,7 +78,7 @@ def main() -> None:
         or os.environ.get("SPOT_OUTPUT", DEFAULT_OUTPUT_DIR)
     )
 
-    # For backwards compatibility with Docker
+    # For backwards compatibility
     state_path = os.environ.get("SPOT_STATE_PATH")
     if not state_path:
         state_path = os.path.join(output_dir, "instances.json")
@@ -100,9 +100,7 @@ def main() -> None:
     elif args.command == "destroy":
         cmd_destroy(config, state, verbose=args.verbose)
     elif args.command == "nuke":
-        # Check for --force flag in remaining args
-        force = "--force" in remaining or "-f" in remaining
-        cmd_nuke(state, config, force=force)
+        cmd_nuke(state, config)
     elif args.command == "readme":
         cmd_readme()
     else:

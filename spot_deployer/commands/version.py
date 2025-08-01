@@ -7,42 +7,23 @@ from ..utils.display import console
 from ..version import __version__
 
 
-def get_docker_info():
-    """Get Docker container information if running in Docker."""
-    docker_info = {}
+def get_runtime_info():
+    """Get runtime environment information."""
+    runtime_info = {}
 
-    # Check if running in Docker
-    if os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER"):
-        # Try to get Docker image ID from environment or labels
-        docker_info["container"] = "yes"
-
-        # Get image ID if available
-        image_id = os.environ.get("DOCKER_IMAGE_ID", "unknown")
-        docker_info["image_id"] = image_id
-
-        # Get image tag if available
-        image_tag = os.environ.get("DOCKER_IMAGE_TAG", "unknown")
-        docker_info["image_tag"] = image_tag
-
-        # Try to get build info from Docker labels if available
-        try:
-            result = subprocess.run(
-                ["cat", "/proc/self/cgroup"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if result.returncode == 0 and "docker" in result.stdout:
-                docker_info["runtime"] = "docker"
-            else:
-                docker_info["runtime"] = "container"
-        except Exception:
-            docker_info["runtime"] = "container"
+    # Check if running via uvx
+    if os.environ.get("UV_PROJECT_ROOT") or os.environ.get("UV_CACHE_DIR"):
+        runtime_info["runtime"] = "uvx"
+        runtime_info["container"] = "no"
+    # Check if running in a container
+    elif os.path.exists("/.dockerenv") or os.environ.get("RUNNING_IN_CONTAINER"):
+        runtime_info["container"] = "yes"
+        runtime_info["runtime"] = "container"
     else:
-        docker_info["container"] = "no"
-        docker_info["runtime"] = "host"
+        runtime_info["container"] = "no"
+        runtime_info["runtime"] = "host"
 
-    return docker_info
+    return runtime_info
 
 
 def get_git_info():
@@ -101,20 +82,14 @@ def cmd_version() -> None:
     if console:
         console.print(f"[bold]spot-deployer[/bold] version [cyan]{__version__}[/cyan]\n")
 
-        # Docker information
-        docker_info = get_docker_info()
-        if docker_info["container"] == "yes":
-            console.print("[bold]Docker Information:[/bold]")
+        # Runtime information
+        runtime_info = get_runtime_info()
+        console.print("[bold]Runtime Information:[/bold]")
+        console.print(f"  Runtime: [cyan]{runtime_info['runtime']}[/cyan]")
+        if runtime_info["container"] == "yes":
             console.print("  Running in container: [green]Yes[/green]")
-            if docker_info.get("image_id") != "unknown":
-                console.print(f"  Image ID: [cyan]{docker_info['image_id']}[/cyan]")
-            if docker_info.get("image_tag") != "unknown":
-                console.print(f"  Image Tag: [cyan]{docker_info['image_tag']}[/cyan]")
-            console.print(f"  Runtime: [cyan]{docker_info['runtime']}[/cyan]")
         else:
-            console.print("[bold]Docker Information:[/bold]")
             console.print("  Running in container: [yellow]No[/yellow]")
-            console.print(f"  Runtime: [cyan]{docker_info['runtime']}[/cyan]")
 
         # Git information
         git_info = get_git_info()

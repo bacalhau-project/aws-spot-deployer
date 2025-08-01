@@ -1,5 +1,5 @@
 #!/bin/bash
-# spot-dev - Auto-rebuild and run for local development with AWS SSO
+# spot-dev - Development wrapper for running spot-deployer locally with uv
 
 set -e
 
@@ -10,13 +10,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Always rebuild the image for development
-echo -e "${BLUE}🔨 Rebuilding Docker image...${NC}"
-docker build -t spot-test:local . || {
-    echo -e "${RED}❌ Docker build failed${NC}"
+# Check if uv is available
+if ! command -v uv >/dev/null 2>&1; then
+    echo -e "${RED}❌ uv not found. Please install it first.${NC}"
+    echo "Run: curl -LsSf https://astral.sh/uv/install.sh | sh"
     exit 1
-}
-echo -e "${GREEN}✅ Docker image rebuilt${NC}"
+fi
 
 # Check if AWS CLI is available
 if ! command -v aws >/dev/null 2>&1; then
@@ -47,61 +46,36 @@ CONFIG_FILE="${SPOT_CONFIG:-./config.yaml}"
 FILES_DIR="${SPOT_FILES:-./files}"
 OUTPUT_DIR="${SPOT_OUTPUT:-./output}"
 
-# Build volume mounts
-VOLUMES=""
-
-# Mount SSH directory for key access
-if [ -d "$HOME/.ssh" ]; then
-    VOLUMES="$VOLUMES -v $HOME/.ssh:/root/.ssh:ro"
-fi
-
-# Mount config file if it exists (not needed for setup/help)
-if [ -f "$CONFIG_FILE" ]; then
-    VOLUMES="$VOLUMES -v $(realpath $CONFIG_FILE):/app/config/config.yaml:ro"
-fi
-
-# Mount files directory if it exists
-if [ -d "$FILES_DIR" ]; then
-    VOLUMES="$VOLUMES -v $(realpath $FILES_DIR):/app/files:ro"
-fi
-
-# Mount output directory
+# Create output directory
 mkdir -p "$OUTPUT_DIR"
-VOLUMES="$VOLUMES -v $(realpath $OUTPUT_DIR):/app/output"
 
-# Mount additional_commands.sh if it exists in current directory
+# Set environment variables for spot-deployer
+export SPOT_CONFIG_FILE="$CONFIG_FILE"
+export SPOT_FILES_DIR="$FILES_DIR"
+export SPOT_OUTPUT_DIR="$OUTPUT_DIR"
+
+# Check for additional_commands.sh
 if [ -f "./additional_commands.sh" ]; then
     echo -e "${GREEN}✓ Found additional_commands.sh - will be uploaded to instances${NC}"
-    VOLUMES="$VOLUMES -v $(realpath ./additional_commands.sh):/app/output/additional_commands.sh:ro"
+    mkdir -p "$FILES_DIR/scripts"
+    cp ./additional_commands.sh "$FILES_DIR/scripts/additional_commands.sh"
 else
     echo -e "${YELLOW}ℹ No additional_commands.sh found in current directory${NC}"
     echo -e "${YELLOW}  To run custom commands on instances, create additional_commands.sh${NC}"
 fi
 
-# Always let Rich determine terminal size
-TERM_VARS="-e TERM=xterm-256color"
-
 # Pass through Bacalhau environment variables if set
-BACALHAU_VARS=""
 if [ -n "$BACALHAU_API_HOST" ]; then
-    BACALHAU_VARS="$BACALHAU_VARS -e BACALHAU_API_HOST=$BACALHAU_API_HOST"
+    export BACALHAU_API_HOST
 fi
 if [ -n "$BACALHAU_API_TOKEN" ]; then
-    BACALHAU_VARS="$BACALHAU_VARS -e BACALHAU_API_TOKEN=$BACALHAU_API_TOKEN"
+    export BACALHAU_API_TOKEN
 fi
 if [ -n "$BACALHAU_API_KEY" ]; then
-    BACALHAU_VARS="$BACALHAU_VARS -e BACALHAU_API_KEY=$BACALHAU_API_KEY"
+    export BACALHAU_API_KEY
 fi
 
-# Run the container with SSO credentials
-exec docker run --rm \
-    -e AWS_ACCESS_KEY_ID \
-    -e AWS_SECRET_ACCESS_KEY \
-    -e AWS_SESSION_TOKEN \
-    -e AWS_DEFAULT_REGION \
-    -e AWS_REGION \
-    $BACALHAU_VARS \
-    $TERM_VARS \
-    $VOLUMES \
-    spot-test:local \
-    "$@"
+echo -e "${BLUE}→ Running spot-deployer locally with uv...${NC}"
+
+# Run spot-deployer directly from the local code
+exec uv run python -m spot_deployer "$@"

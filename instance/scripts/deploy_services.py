@@ -174,16 +174,20 @@ def run_additional_commands():
 
 
 def fix_service_dependencies(service_file):
-    """Remove dependencies on configure-services.service from service files"""
+    """Remove Docker dependencies from service files"""
     try:
         with open(service_file, "r") as f:
             content = f.read()
 
-        # Remove configure-services.service from After= and Requires= lines
+        # Remove docker.service from After= and Requires= lines
         original_content = content
+        content = re.sub(r"(After=.*?)\s*docker\.service", r"\1", content)
+        content = re.sub(r"(Requires=.*?)\s*docker\.service", r"\1", content)
+        content = re.sub(r"^Requires=\s*$", "", content, flags=re.MULTILINE)
+
+        # Remove configure-services.service dependencies too
         content = re.sub(r"(After=.*?)\s*configure-services\.service", r"\1", content)
         content = re.sub(r"(Requires=.*?)\s*configure-services\.service", r"\1", content)
-        content = re.sub(r"^Requires=\s*$", "", content, flags=re.MULTILINE)
 
         if content != original_content:
             with open(service_file, "w") as f:

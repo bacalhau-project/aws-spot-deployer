@@ -21,16 +21,11 @@ try:
     RICH_AVAILABLE = True
     # Force Rich to use full width regardless of terminal detection
     import os
-    import shutil
     import sys
 
     # Clear any environment variables that might affect width detection
     os.environ.pop("COLUMNS", None)
     os.environ.pop("LINES", None)
-
-    # Get terminal height with minimum of 30
-    term_size = shutil.get_terminal_size(fallback=(140, 30))
-    height = max(term_size.lines, 30)
 
     console = Console(
         force_terminal=True,
@@ -38,7 +33,7 @@ try:
         legacy_windows=False,
         color_system="auto",
         width=140,  # Fixed width of 140 as requested
-        height=height,  # Use terminal height, minimum 30
+        # Remove height constraint to allow full display
         file=sys.stdout,
         _environ={},  # Empty environment to avoid detection
     )
@@ -65,22 +60,42 @@ def rich_print(message: str, style: Optional[str] = None) -> None:
 
 def rich_status(message: str) -> None:
     """Print status message with Rich styling."""
-    rich_print(f"ℹ️  {message}", "blue")
+    if RICH_AVAILABLE:
+        from .ui_manager import UIManager
+
+        UIManager().print_info(message)
+    else:
+        print(f"ℹ️  {message}")
 
 
 def rich_success(message: str) -> None:
     """Print success message with Rich styling."""
-    rich_print(f"✅ {message}", "green")
+    if RICH_AVAILABLE:
+        from .ui_manager import UIManager
+
+        UIManager().print_success(message)
+    else:
+        print(f"✅ {message}")
 
 
 def rich_error(message: str) -> None:
     """Print error message with Rich styling."""
-    rich_print(f"❌ {message}", "red")
+    if RICH_AVAILABLE:
+        from .ui_manager import UIManager
+
+        UIManager().print_error(message)
+    else:
+        print(f"❌ {message}")
 
 
 def rich_warning(message: str) -> None:
     """Print warning message with Rich styling."""
-    rich_print(f"⚠️  {message}", "yellow")
+    if RICH_AVAILABLE:
+        from .ui_manager import UIManager
+
+        UIManager().print_warning(message)
+    else:
+        print(f"⚠️  {message}")
 
 
 def create_progress_bar(description: str, total: int = 100):

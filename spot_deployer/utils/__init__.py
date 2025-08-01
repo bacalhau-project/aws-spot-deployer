@@ -13,6 +13,8 @@ from .display import (
 )
 from .logging import ConsoleLogger, setup_logger
 from .ssh import transfer_files_scp, wait_for_ssh_only
+from .ssh_manager import BatchSSHManager, SSHManager
+from .ui_manager import UIManager
 
 __all__ = [
     "rich_print",
@@ -31,4 +33,7 @@ __all__ = [
     "transfer_files_scp",
     "generate_minimal_cloud_init",
     "generate_full_cloud_init",
+    "UIManager",
+    "SSHManager",
+    "BatchSSHManager",
 ]

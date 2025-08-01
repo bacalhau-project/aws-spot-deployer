@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Simplified run script for spot-deployer container
+# Simplified run script for spot-deployer using uvx
 
 set -e
 
 # Default values
-IMAGE=${SPOT_IMAGE:-"ghcr.io/yourusername/spot-deployer:latest"}
+GITHUB_REPO=${SPOT_GITHUB_REPO:-"bacalhau-project/aws-spot-deployer"}
 CONFIG_FILE=${SPOT_CONFIG_FILE:-"./config.yaml"}
 FILES_DIR=${SPOT_FILES_DIR:-"./files"}
 OUTPUT_DIR=${SPOT_OUTPUT_DIR:-"./output"}
@@ -19,23 +19,10 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 
-# Pull latest image
-echo "Pulling latest image..."
-docker pull "$IMAGE"
+# Set environment variables for spot-deployer
+export SPOT_CONFIG_FILE="$CONFIG_FILE"
+export SPOT_FILES_DIR="$FILES_DIR"
+export SPOT_OUTPUT_DIR="$OUTPUT_DIR"
 
-# Run the container
-docker run --rm \
-    -v "$HOME/.ssh:/root/.ssh:ro" \
-    -v "$(realpath "$CONFIG_FILE"):/app/config/config.yaml:ro" \
-    -v "$(realpath "$FILES_DIR"):/app/files:ro" \
-    -v "$(realpath "$OUTPUT_DIR"):/app/output" \
-    -e AWS_ACCESS_KEY_ID \
-    -e AWS_SECRET_ACCESS_KEY \
-    -e AWS_SESSION_TOKEN \
-    -e AWS_DEFAULT_REGION \
-    -e AWS_REGION \
-    -e BACALHAU_API_HOST \
-    -e BACALHAU_API_TOKEN \
-    -e BACALHAU_API_KEY \
-    -e TERM=xterm-256color \
-    "$IMAGE" "$@"
+# Run spot-deployer using uvx
+exec uvx --from git+https://github.com/${GITHUB_REPO} spot-deployer "$@"

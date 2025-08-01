@@ -2,8 +2,6 @@
 
 from concurrent.futures import ThreadPoolExecutor
 
-import boto3
-
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth
 from ..utils.display import RICH_AVAILABLE, console, rich_print
@@ -13,14 +11,10 @@ from ..utils.tables import add_instance_row, create_instance_table
 def get_instance_state(instance_id: str, region: str) -> str:
     """Get current state of an instance from AWS."""
     try:
-        ec2 = boto3.client("ec2", region_name=region)
-        response = ec2.describe_instances(InstanceIds=[instance_id])
+        from ..utils.aws_manager import AWSResourceManager
 
-        for reservation in response.get("Reservations", []):
-            for instance in reservation.get("Instances", []):
-                return instance.get("State", {}).get("Name", "unknown")
-
-        return "not-found"
+        aws_manager = AWSResourceManager(region)
+        return aws_manager.get_instance_state(instance_id)
     except Exception:
         return "error"
 
@@ -30,14 +24,32 @@ def cmd_list(state: SimpleStateManager) -> None:
     if not check_aws_auth():
         return
 
+    # Show we're checking state file
+    rich_print("[dim]Checking local state file for instances...[/dim]")
+
     instances = state.load_instances()
     if not instances:
         rich_print("No instances found in state file.", style="yellow")
         return
 
+    # Show what we found
+    rich_print(f"[green]Found {len(instances)} instances in state file[/green]")
+
+    # Group by region for summary
+    instances_by_region = {}
+    for instance in instances:
+        region = instance["region"]
+        if region not in instances_by_region:
+            instances_by_region[region] = 0
+        instances_by_region[region] += 1
+
+    # Show summary by region
+    for region, count in instances_by_region.items():
+        rich_print(f"  • {region}: {count} instances")
+
     # Show status while fetching
     if RICH_AVAILABLE and console:
-        console.print("[dim]Fetching current instance states from AWS...[/dim]")
+        console.print("\n[dim]Fetching current instance states from AWS...[/dim]")
 
     # Update instance states from AWS in parallel
     with ThreadPoolExecutor(max_workers=10) as executor:

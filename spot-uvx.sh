@@ -1,11 +1,8 @@
-#!/bin/bash
-# spot - Universal wrapper for spot-deployer using uvx
+#!/usr/bin/env bash
+# spot-uvx.sh - Universal wrapper for spot-deployer using uvx
 #
-# This script automatically detects and uses the appropriate AWS credentials:
-# - Environment variables (AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY)
-# - AWS SSO session
-# - AWS Profile
-# - IAM Instance Role
+# This script runs spot-deployer directly using uvx without Docker
+# Usage: uvx https://tada.wang <VERB>
 
 set -e
 
@@ -36,14 +33,12 @@ detect_aws_credentials() {
     # 1. Check environment variables
     if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
         echo -e "${GREEN}✓ Using AWS credentials from environment variables${NC}"
-        CREDENTIAL_METHOD="env"
         return 0
     fi
 
     # 2. Check if running on EC2 with instance role
     if is_ec2_instance; then
         echo -e "${GREEN}✓ Using EC2 instance role${NC}"
-        CREDENTIAL_METHOD="instance"
         return 0
     fi
 
@@ -51,14 +46,8 @@ detect_aws_credentials() {
     if command -v aws >/dev/null 2>&1; then
         if aws sts get-caller-identity >/dev/null 2>&1; then
             echo -e "${GREEN}✓ Using AWS SSO session${NC}"
-            CREDENTIAL_METHOD="sso"
             # Export SSO credentials as environment variables
             eval $(aws configure export-credentials --format env 2>/dev/null || true)
-            if [ -z "$AWS_ACCESS_KEY_ID" ]; then
-                echo -e "${YELLOW}⚠️  Failed to export SSO credentials${NC}"
-                echo -e "${YELLOW}   Mounting AWS config directory instead${NC}"
-                CREDENTIAL_METHOD="config"
-            fi
             return 0
         fi
     fi
@@ -69,7 +58,6 @@ detect_aws_credentials() {
         if [ -n "$AWS_PROFILE" ]; then
             echo -e "${BLUE}  Profile: $AWS_PROFILE${NC}"
         fi
-        CREDENTIAL_METHOD="config"
         return 0
     fi
 
@@ -92,11 +80,11 @@ detect_aws_credentials() {
     return 1
 }
 
-
 # Main execution
 main() {
     # Show help for certain commands without credential check
     if [[ "$1" == "help" ]] || [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]] || [[ -z "$1" ]]; then
+        # Run spot-deployer directly with uvx
         uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer help
         exit 0
     fi
@@ -125,7 +113,6 @@ main() {
     # If additional_commands.sh exists, copy it to the files directory
     if [ -f "./additional_commands.sh" ]; then
         echo -e "${GREEN}✓ Found additional_commands.sh${NC}"
-        mkdir -p "$FILES_DIR/scripts"
         cp ./additional_commands.sh "$FILES_DIR/scripts/additional_commands.sh"
     fi
 

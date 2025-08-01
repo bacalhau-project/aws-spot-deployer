@@ -60,6 +60,7 @@ jobs:
         # Update the HTML with the correct domain (tada.wang)
         PAGES_URL="https://tada.wang"
         sed -i "s|https://yourdomain.com|${PAGES_URL}|g" docs/index.html
+        sed -i "s|https://tada.wang|${PAGES_URL}|g" docs/index.html
 
         # Update version in install script to use this specific tag
         sed -i "s|VERSION=\"latest\"|VERSION=\"${{ steps.get_tag.outputs.tag }}\"|g" docs/install.sh
@@ -92,8 +93,9 @@ jobs:
       run: |
         mkdir -p /tmp/gh-pages
         cp -r docs/* /tmp/gh-pages/
-        # Copy placeholder.html as index.html for root domain
-        cp /tmp/gh-pages/placeholder.html /tmp/gh-pages/index.html || true
+
+        # Remove any temporary files we don't need
+        rm -f /tmp/gh-pages/placeholder.html /tmp/gh-pages/web.html
 
     - name: Checkout gh-pages branch
       run: |

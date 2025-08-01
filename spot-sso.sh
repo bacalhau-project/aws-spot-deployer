@@ -1,5 +1,5 @@
 #!/bin/bash
-# spot-sso - AWS SSO wrapper for spot-deployer Docker container
+# spot-sso - AWS SSO wrapper for spot-deployer using uvx
 
 set -e
 
@@ -10,10 +10,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-REGISTRY="${SPOT_REGISTRY:-ghcr.io}"
-IMAGE_NAME="${SPOT_IMAGE:-bacalhau-project/aws-spot-deployer}"
-VERSION="${SPOT_VERSION:-latest}"
-FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${VERSION}"
+GITHUB_REPO="${SPOT_GITHUB_REPO:-bacalhau-project/aws-spot-deployer}"
 
 # Check if AWS CLI is available
 if ! command -v aws >/dev/null 2>&1; then
@@ -44,36 +41,13 @@ CONFIG_FILE="${SPOT_CONFIG:-./config.yaml}"
 FILES_DIR="${SPOT_FILES:-./files}"
 OUTPUT_DIR="${SPOT_OUTPUT:-./output}"
 
-# Build volume mounts
-VOLUMES=""
-
-# Mount SSH directory for key access
-if [ -d "$HOME/.ssh" ]; then
-    VOLUMES="$VOLUMES -v $HOME/.ssh:/root/.ssh:ro"
-fi
-
-# Mount config file if it exists (not needed for setup/help)
-if [ -f "$CONFIG_FILE" ]; then
-    VOLUMES="$VOLUMES -v $(realpath $CONFIG_FILE):/app/config/config.yaml:ro"
-fi
-
-# Mount files directory if it exists
-if [ -d "$FILES_DIR" ]; then
-    VOLUMES="$VOLUMES -v $(realpath $FILES_DIR):/app/files:ro"
-fi
-
-# Mount output directory
+# Create output directory
 mkdir -p "$OUTPUT_DIR"
-VOLUMES="$VOLUMES -v $(realpath $OUTPUT_DIR):/app/output"
 
-# Run the container with SSO credentials
-exec docker run --rm \
-    -e AWS_ACCESS_KEY_ID \
-    -e AWS_SECRET_ACCESS_KEY \
-    -e AWS_SESSION_TOKEN \
-    -e AWS_DEFAULT_REGION \
-    -e AWS_REGION \
-    -e TERM=xterm-256color \
-    $VOLUMES \
-    "$FULL_IMAGE" \
-    "$@"
+# Set environment variables for spot-deployer
+export SPOT_CONFIG_FILE="$CONFIG_FILE"
+export SPOT_FILES_DIR="$FILES_DIR"
+export SPOT_OUTPUT_DIR="$OUTPUT_DIR"
+
+# Run spot-deployer with SSO credentials using uvx
+exec uvx --from git+https://github.com/${GITHUB_REPO} spot-deployer "$@"

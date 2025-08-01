@@ -4,6 +4,11 @@ from typing import Optional
 
 from rich.table import Table
 
+from .ui_manager import UIManager
+
+# Create a module-level UI manager instance
+_ui_manager = UIManager()
+
 
 def create_instance_table(
     title: str,
@@ -13,26 +18,12 @@ def create_instance_table(
     header_style: Optional[str] = None,
 ) -> Table:
     """Create a standardized instance table with common columns."""
-    table = Table(
+    return _ui_manager.create_instance_table(
         title=title,
         show_header=show_header,
-        expand=False,  # Don't expand to full console width
         show_lines=show_lines,
-        padding=padding,
         header_style=header_style,
-        width=134,  # Table width = console width (140) - 6
     )
-
-    # Add standard columns with fixed widths that fit in 134 total
-    # Total content width: 18+22+25+12+18+28 = 123 (leaving 11 for borders/padding)
-    table.add_column("Region", style="magenta", width=18, no_wrap=True)
-    table.add_column("Instance ID", style="cyan", width=22, no_wrap=True)
-    table.add_column("Status", style="yellow", width=25, no_wrap=True)
-    table.add_column("Type", style="green", width=12, no_wrap=True)
-    table.add_column("Public IP", style="blue", width=18, no_wrap=True)
-    table.add_column("Created", style="dim", width=28, no_wrap=True)
-
-    return table
 
 
 def add_instance_row(
@@ -45,13 +36,8 @@ def add_instance_row(
     created: str,
 ) -> None:
     """Add a row to an instance table with proper string conversion."""
-    table.add_row(
-        str(region),
-        str(instance_id),
-        str(status),
-        str(instance_type),
-        str(public_ip),
-        str(created),
+    _ui_manager.add_instance_row(
+        table, region, instance_id, status, instance_type, public_ip, created
     )
 
 

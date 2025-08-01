@@ -9,6 +9,42 @@ from ..core.constants import DEFAULT_SSH_TIMEOUT
 from .bacalhau_config import generate_bacalhau_config_with_credentials
 
 
+def _run_scp_with_retry(
+    scp_cmd: list, log_function: Optional[Callable], description: str, timeout: int = 120
+) -> bool:
+    """Run SCP command with retry logic."""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            result = subprocess.run(scp_cmd, capture_output=True, text=True, timeout=timeout)
+            if result.returncode == 0:
+                return True
+            elif attempt < max_retries - 1:
+                if log_function:
+                    log_function(
+                        f"{description} failed (attempt {attempt + 1}/{max_retries}), retrying..."
+                    )
+                time.sleep(2**attempt)  # Exponential backoff
+            else:
+                if log_function:
+                    log_function(
+                        f"ERROR: {description} failed after {max_retries} attempts: {result.stderr}"
+                    )
+                return False
+        except subprocess.TimeoutExpired:
+            if attempt < max_retries - 1:
+                if log_function:
+                    log_function(
+                        f"{description} timed out (attempt {attempt + 1}/{max_retries}), retrying..."
+                    )
+                time.sleep(2**attempt)
+            else:
+                if log_function:
+                    log_function(f"ERROR: {description} timed out after {max_retries} attempts")
+                return False
+    return False
+
+
 def wait_for_ssh_only(
     hostname: str,
     username: str,
@@ -90,10 +126,32 @@ def transfer_files_scp(
         # Create directories in /tmp (where ubuntu user has permissions)
         mkdir_cmd = ssh_base + ["mkdir -p /tmp/uploaded_files/scripts /tmp/uploaded_files/config"]
 
-        result = subprocess.run(mkdir_cmd, capture_output=True, text=True, timeout=30)
-        if result.returncode != 0:
-            log_error(f"Failed to create remote directories: {result.stderr}")
-            return False
+        # Retry logic for directory creation
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                result = subprocess.run(mkdir_cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode == 0:
+                    break
+                elif attempt < max_retries - 1:
+                    log_message(
+                        f"Directory creation failed (attempt {attempt + 1}/{max_retries}), retrying..."
+                    )
+                    time.sleep(2**attempt)  # Exponential backoff
+                else:
+                    log_error(
+                        f"Failed to create remote directories after {max_retries} attempts: {result.stderr}"
+                    )
+                    return False
+            except subprocess.TimeoutExpired:
+                if attempt < max_retries - 1:
+                    log_message(
+                        f"Directory creation timed out (attempt {attempt + 1}/{max_retries}), retrying..."
+                    )
+                    time.sleep(2**attempt)
+                else:
+                    log_error(f"Directory creation timed out after {max_retries} attempts")
+                    return False
 
         update_progress("SCP: Directories", 20, "Remote directories created")
 
@@ -113,21 +171,16 @@ def transfer_files_scp(
         if os.path.exists(scripts_directory):
             update_progress("SCP: Scripts", 40, "Uploading scripts...")
 
-            result = subprocess.run(
-                scp_base
-                + [
-                    f"{scripts_directory}/.",
-                    f"{username}@{hostname}:/tmp/uploaded_files/scripts/",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
+            scp_cmd = scp_base + [
+                f"{scripts_directory}/.",
+                f"{username}@{hostname}:/tmp/uploaded_files/scripts/",
+            ]
 
-            if result.returncode != 0:
-                log_error(f"Failed to upload scripts: {result.stderr}")
-            else:
+            if _run_scp_with_retry(scp_cmd, log_function, "Script upload"):
                 log_message("Scripts uploaded successfully")
+            else:
+                # Error already logged by retry function
+                pass
 
             update_progress("SCP: Scripts", 60, "Scripts uploaded")
 

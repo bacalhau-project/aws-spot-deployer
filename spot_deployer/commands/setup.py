@@ -5,6 +5,7 @@ import os
 import yaml
 
 from ..core.config import SimpleConfig
+from ..utils.config_validator import ConfigValidator
 from ..utils.display import console, rich_error, rich_success, rich_warning
 
 
@@ -24,8 +25,7 @@ def merge_configs(existing: dict, defaults: dict) -> dict:
 
 def cmd_setup(config: SimpleConfig) -> None:
     """Guide user through creating or updating config.yaml."""
-    # When running in Docker, the config is always in the current directory
-    # The docker wrapper mounts $(pwd) to /app/output
+    # When running via uvx, the config is in the current directory
     # So we always want to show paths relative to where the user is running the command
 
     # First ensure the directory structure exists
@@ -99,6 +99,14 @@ def cmd_setup(config: SimpleConfig) -> None:
             rich_success("Created default config.yaml")
         else:
             rich_success("Updated config.yaml")
+
+        # Validate the configuration
+        validator = ConfigValidator()
+        is_valid, _ = validator.validate_config_file(config.config_file)
+
+        if not is_valid:
+            console.print("\n[bold red]Configuration has issues that need to be fixed:[/bold red]")
+            validator.suggest_fixes()
 
         if console:
             console.print("""

@@ -3,13 +3,12 @@
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List
 
-import boto3
 from botocore.exceptions import ClientError
 
 from ..core.config import SimpleConfig
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth
-from ..utils.display import console, rich_error, rich_success
+from ..utils.display import console, rich_success
 
 # AWS regions to scan
 AWS_REGIONS = [
@@ -39,7 +38,10 @@ AWS_REGIONS = [
 def find_spot_instances_in_region(region: str) -> List[Dict[str, Any]]:
     """Find all spot instances in a specific region."""
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        from ..utils.aws_manager import AWSResourceManager
+
+        aws_manager = AWSResourceManager(region)
+        ec2 = aws_manager.ec2
 
         # Find all instances with lifecycle=spot
         response = ec2.describe_instances(
@@ -90,7 +92,10 @@ def terminate_instances_in_region(region: str, instance_ids: List[str]) -> Dict[
         return {}
 
     try:
-        ec2 = boto3.client("ec2", region_name=region)
+        from ..utils.aws_manager import AWSResourceManager
+
+        aws_manager = AWSResourceManager(region)
+        ec2 = aws_manager.ec2
 
         # Terminate instances
         response = ec2.terminate_instances(InstanceIds=instance_ids)
@@ -109,7 +114,7 @@ def terminate_instances_in_region(region: str, instance_ids: List[str]) -> Dict[
         return {inst_id: f"ERROR: {str(e)}" for inst_id in instance_ids}
 
 
-def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = False) -> None:
+def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
     """Find and destroy ALL spot instances across all AWS regions."""
     if not check_aws_auth():
         return
@@ -122,9 +127,11 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
 
     # Phase 1: Scan all regions for spot instances
     console.print("\n[cyan]Phase 1: Scanning all AWS regions for spot instances...[/cyan]")
+    console.print(f"[dim]Scanning {len(AWS_REGIONS)} regions in parallel...[/dim]\n")
 
     all_instances: List[Dict[str, Any]] = []
     region_errors: List[tuple[str, str]] = []
+    completed_regions = 0
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit all region scans
@@ -135,18 +142,21 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
         # Process results as they complete
         for future in as_completed(scan_future_to_region):
             region = scan_future_to_region[future]
+            completed_regions += 1
+            progress = f"[{completed_regions}/{len(AWS_REGIONS)}]"
+
             try:
                 instances = future.result()
                 if instances:
                     all_instances.extend(instances)
                     console.print(
-                        f"  [green]✓[/green] {region}: Found {len(instances)} spot instances"
+                        f"  {progress} [green]✓[/green] {region}: Found {len(instances)} spot instances"
                     )
                 else:
-                    console.print(f"  [dim]✓[/dim] {region}: No spot instances")
+                    console.print(f"  {progress} [dim]✓[/dim] {region}: No spot instances")
             except Exception as e:
                 region_errors.append((region, str(e)))
-                console.print(f"  [red]✗[/red] {region}: Error - {str(e)}")
+                console.print(f"  {progress} [red]✗[/red] {region}: Error - {str(e)}")
 
     if region_errors:
         console.print(f"\n[yellow]⚠️  Failed to scan {len(region_errors)} regions[/yellow]")
@@ -184,16 +194,10 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
             if tags_str:
                 console.print(f"    [dim]Tags: {tags_str}[/dim]")
 
-    # Phase 2: Confirm and terminate
-    console.print(f"\n[bold red]About to terminate {len(all_instances)} instances![/bold red]")
-
-    if not force:
-        final_confirm = input("Type 'YES' to proceed with termination: ")
-        if final_confirm != "YES":
-            rich_error("Aborted. No instances were terminated.")
-            return
-
-    console.print("\n[cyan]Phase 2: Terminating instances...[/cyan]")
+    # Phase 2: Terminate all instances
+    console.print(
+        f"\n[bold red]🔥 Terminating {len(all_instances)} instances across all regions![/bold red]"
+    )
 
     # Group instances by region for termination
     termination_groups: Dict[str, List[str]] = {}
@@ -203,8 +207,11 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
             termination_groups[region] = []
         termination_groups[region].append(inst["id"])
 
+    console.print(f"[dim]Terminating instances in {len(termination_groups)} regions...[/dim]\n")
+
     terminated_count = 0
     failed_count = 0
+    completed_terminations = 0
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit termination requests
@@ -216,6 +223,9 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
         # Process results
         for future in as_completed(terminate_future_to_region):
             region = terminate_future_to_region[future]
+            completed_terminations += 1
+            progress = f"[{completed_terminations}/{len(termination_groups)}]"
+
             try:
                 results = future.result()
                 success = sum(1 for status in results.values() if "ERROR" not in status)
@@ -226,16 +236,18 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig, force: bool = Fals
 
                 if failed > 0:
                     console.print(
-                        f"  [yellow]⚠[/yellow] {region}: {success} terminated, {failed} failed"
+                        f"  {progress} [yellow]⚠[/yellow] {region}: {success} terminated, {failed} failed"
                     )
                     for inst_id, status in results.items():
                         if "ERROR" in status:
-                            console.print(f"    [red]✗[/red] {inst_id}: {status}")
+                            console.print(f"       [red]✗[/red] {inst_id}: {status}")
                 else:
-                    console.print(f"  [green]✓[/green] {region}: {success} instances terminated")
+                    console.print(
+                        f"  {progress} [green]✓[/green] {region}: {success} instances terminated"
+                    )
 
             except Exception as e:
-                console.print(f"  [red]✗[/red] {region}: Failed - {str(e)}")
+                console.print(f"  {progress} [red]✗[/red] {region}: Failed - {str(e)}")
                 failed_count += len(termination_groups[region])
 
     # Summary

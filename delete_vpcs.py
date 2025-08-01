@@ -696,10 +696,10 @@ class AwsVpcCleaner:
             # All tasks are now complete
             return results
 
-        except* AuthenticationError:
+        except AuthenticationError:
             logger.error("Authentication error during processing")
             raise
-        except* Exception as e:
+        except Exception as e:
             logger.error(f"Error processing regions: {str(e)}")
             raise
 

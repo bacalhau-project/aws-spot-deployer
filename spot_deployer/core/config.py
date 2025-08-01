@@ -70,37 +70,7 @@ class SimpleConfig:
         return self.data.get("aws", {}).get("public_ssh_key_path")
 
     def _resolve_ssh_path(self, path: str) -> str:
-        """Resolve SSH path for both local and container environments."""
-        # If running in Docker container (detected by SPOT_CONFIG_PATH env var)
-        if os.environ.get("SPOT_CONFIG_PATH"):
-            # First expand any ~ references
-            expanded_path = os.path.expanduser(path)
-
-            # Extract just the .ssh part of the path
-            if "/.ssh/" in expanded_path:
-                ssh_part = expanded_path[expanded_path.index("/.ssh/") :]
-                return f"/root{ssh_part}"
-            elif expanded_path.endswith("/.ssh"):
-                return "/root/.ssh"
-
-            # Fallback mapping for other paths
-            path_mappings = {
-                "/Users/": "/root/",  # macOS home to container root
-                "/home/": "/root/",  # Linux home to container root
-            }
-
-            for local_prefix, container_prefix in path_mappings.items():
-                if expanded_path.startswith(local_prefix):
-                    # Extract username and rest of path
-                    remaining = expanded_path[len(local_prefix) :]
-                    if "/" in remaining:
-                        # Skip the username part
-                        rest = remaining[remaining.index("/") :]
-                        return container_prefix + rest.lstrip("/")
-                    else:
-                        return container_prefix
-
-        # For local execution, just expand user
+        """Resolve SSH path - just expand user paths."""
         return os.path.expanduser(path)
 
     def public_ssh_key_content(self) -> Optional[str]:

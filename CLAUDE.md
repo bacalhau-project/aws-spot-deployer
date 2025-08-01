@@ -13,7 +13,7 @@ A **modern AWS spot instance deployment tool** for deploying Bacalhau compute no
 - **Configuration**: YAML-based (`config.yaml`) with sensible defaults
 - **Caching**: File-based AMI caching (`.aws_cache/`)
 - **UI**: Rich library for beautiful terminal tables and live progress
-- **Docker-first**: Distributed as Docker container via `spot-dev` script
+- **uvx-first**: Distributed via uvx for instant execution without containers
 - **Node Identity**: Deterministic sensor identity generation for Bacalhau integration
 
 ## Deployment Philosophy
@@ -100,10 +100,13 @@ uv run ruff format spot_deployer/
 
 ### Main Entry Points
 - `spot_deployer/` - Main package directory
-- `spot-dev` - Docker-based CLI wrapper
+- `spot-dev` - Local development CLI wrapper using uv
 - `delete_vpcs.py` - Advanced VPC cleanup utility
 
-### Key Classes
+### Key Manager Classes (NEW)
+- `AWSResourceManager` - Centralized AWS operations with retry logic
+- `SSHManager` - SSH operations and file transfers with retries
+- `UIManager` - Unified terminal UI management
 - `SimpleConfig` - YAML configuration management
 - `SimpleStateManager` - JSON-based instance state tracking
 - `NodeIdentityGenerator` - Deterministic sensor identity creation
@@ -117,7 +120,7 @@ uv run ruff format spot_deployer/
 ├── instance/
 │   ├── scripts/                # Scripts deployed to instances
 │   └── config/                 # Configuration templates
-├── spot-dev                    # Docker CLI wrapper
+├── spot-dev                    # Local development CLI wrapper
 ├── delete_vpcs.py              # VPC cleanup utility
 ├── config.yaml                 # Runtime configuration
 ├── config.yaml.example         # Comprehensive example
@@ -170,10 +173,16 @@ Create these files in the `files/` directory before deployment:
 2. The `bacalhau.service` runs `generate_bacalhau_config.sh` which:
    - Reads the credential files
    - Generates a complete `/bacalhau_node/config.yaml` with orchestrator endpoint and token injected
-3. Docker Compose mounts the generated config.yaml directly into the container
+3. Bacalhau service reads the generated config.yaml directly
    - No environment variables needed - all configuration is in the YAML file
 
 ## Key Design Patterns
+
+### Manager Pattern (NEW)
+- **AWSResourceManager**: All AWS operations go through this manager
+- **SSHManager**: All SSH operations use this for consistent retry logic
+- **UIManager**: All UI operations for consistent terminal output
+- Managers handle retries, timeouts, and error handling internally
 
 ### Immutable Infrastructure
 - **NEVER** modify running instances
@@ -205,11 +214,16 @@ Create these files in the `files/` directory before deployment:
 - VPC/subnet auto-discovery
 - Spot instance lifecycle management
 
-### Error Handling
-- Graceful degradation when regions fail
-- Clear error messages with guidance
-- Automatic cleanup on failure
-- Retry logic for transient issues
+### Error Handling (ENHANCED)
+- **Retry Logic**: All network operations retry 3 times with exponential backoff
+- **Specific Error Codes**: Handles AWS error codes like `InsufficientInstanceCapacity`
+- **Graceful Degradation**: When regions fail, continues with others
+- **Clear Error Messages**: Shows specific error codes and guidance
+- **Automatic Cleanup**: On failure, cleans up partial resources
+- **Timeout Configuration**:
+  - Connection timeout: 10 seconds
+  - Read timeout: 60 seconds
+  - SSH timeout: 300 seconds (configurable)
 
 ### Node Identity System
 - Deterministic generation based on EC2 instance ID

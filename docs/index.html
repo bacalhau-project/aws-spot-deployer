@@ -54,6 +54,14 @@
             border-radius: 5px;
             margin: 20px 0;
         }
+        .curl-notice {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -61,11 +69,23 @@
         <h1>🚀 Spot Deployer</h1>
         <p>Deploy AWS Spot Instances with a single command!</p>
 
+        <div class="curl-notice">
+            <strong>Quick Install:</strong> Run this command in your terminal
+            <pre style="background: #229954; margin-top: 10px;"><code>curl -sSL https://tada.wang/install.sh | bash</code></pre>
+        </div>
+
         <h2>Quick Start</h2>
-        <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- create</code></pre>
+        <pre><code># One-line deployment
+curl -sSL https://tada.wang/install.sh | bash -s -- create
+
+# Initial setup
+curl -sSL https://tada.wang/install.sh | bash -s -- setup</code></pre>
+
+        <h2>No Docker Required!</h2>
+        <p>The deployment tool runs directly via <code>uvx</code> (Python package runner) - no Docker installation needed on your machine!</p>
 
         <h2>Installation</h2>
-        <p>No installation needed! Just run the commands directly:</p>
+        <p>The installer automatically handles everything for you:</p>
 
         <h3>1. Initial Setup</h3>
         <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- setup</code></pre>
@@ -80,45 +100,82 @@
 
         <h2>Commands</h2>
         <ul>
-            <li><code>create</code> - Create spot instances</li>
-            <li><code>destroy</code> - Destroy all spot instances</li>
-            <li><code>list</code> - List running instances</li>
             <li><code>setup</code> - Initial configuration setup</li>
+            <li><code>create</code> - Create spot instances</li>
+            <li><code>list</code> - List running instances</li>
+            <li><code>destroy</code> - Destroy all spot instances</li>
             <li><code>help</code> - Show help message</li>
         </ul>
 
-        <h2>Environment Variables</h2>
-        <p>Set your AWS credentials:</p>
-        <pre><code>export AWS_ACCESS_KEY_ID="your-key-id"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_DEFAULT_REGION="us-west-2"</code></pre>
+        <h2>Architecture</h2>
+        <p><strong>On Your Machine:</strong></p>
+        <ul>
+            <li>No Docker required - runs via uvx</li>
+            <li>Automatic dependency management</li>
+            <li>Direct execution from GitHub</li>
+        </ul>
+
+        <p><strong>On EC2 Instances:</strong></p>
+        <ul>
+            <li><strong>Bacalhau:</strong> Runs as Docker container (<code>ghcr.io/bacalhau-project/bacalhau:latest-dind</code>)</li>
+            <li><strong>Sensor Generator:</strong> Runs as Docker container (<code>ghcr.io/bacalhau-project/sensor-log-generator:latest</code>)</li>
+            <li>Docker is automatically installed via cloud-init</li>
+        </ul>
+
+        <h2>AWS Authentication</h2>
+        <p>The tool automatically detects AWS credentials from:</p>
+        <ul>
+            <li>Environment variables (AWS_ACCESS_KEY_ID, etc.)</li>
+            <li>AWS SSO sessions - just run <code>aws sso login</code> first!</li>
+            <li>AWS config files (~/.aws/credentials)</li>
+            <li>EC2 instance roles</li>
+        </ul>
 
         <div class="highlight">
-            <strong>Pro Tip:</strong> Use AWS SSO? The script automatically detects and uses your SSO credentials!
+            <strong>Pro Tip:</strong> The installer will tell you exactly which credentials it's using!
         </div>
 
         <h2>Advanced Usage</h2>
-        <h3>Use Specific Version</h3>
-        <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- create --version 1.0.0</code></pre>
+        <h3>Direct uvx Usage</h3>
+        <pre><code># Run directly without the installer
+uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer create</code></pre>
 
-        <h3>Dry Run</h3>
-        <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- create --dry-run</code></pre>
+        <h3>Local Installation</h3>
+        <pre><code># Clone and use locally
+git clone https://github.com/bacalhau-project/aws-spot-deployer.git
+cd aws-spot-deployer
+./spot create</code></pre>
 
-        <h2>Configuration</h2>
-        <p>The configuration file supports:</p>
+        <h2>Configuration Options</h2>
+        <p>The <code>config.yaml</code> file supports:</p>
         <ul>
             <li>Multiple AWS regions</li>
             <li>Custom instance types</li>
-            <li>Tagging for organization</li>
+            <li>Dedicated VPCs per deployment</li>
+            <li>Tagging for cost tracking</li>
             <li>SSH key management</li>
+            <li>Bacalhau orchestrator credentials</li>
+            <li>Custom scripts and commands</li>
         </ul>
 
         <div class="warning">
             <strong>Security Note:</strong> Never commit your AWS credentials or private keys to version control!
         </div>
 
+        <h2>Bacalhau Integration</h2>
+        <p>To connect to a Bacalhau orchestrator, create these files before deployment:</p>
+        <pre><code>mkdir -p files
+echo "nats://orchestrator.example.com:4222" > files/orchestrator_endpoint
+echo "your-secret-token" > files/orchestrator_token</code></pre>
+
         <h2>Source Code</h2>
         <p>View the project on GitHub: <a href="https://github.com/bacalhau-project/aws-spot-deployer">github.com/bacalhau-project/aws-spot-deployer</a></p>
+
+        <h2>Direct Links</h2>
+        <ul>
+            <li><a href="/install.sh">Install Script</a> - The raw installation script</li>
+            <li><a href="/VERSION">Version Info</a> - Current version information</li>
+        </ul>
     </div>
 </body>
 </html>

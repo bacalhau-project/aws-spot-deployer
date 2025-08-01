@@ -9,20 +9,26 @@ from datetime import datetime
 from typing import Any, Dict, List, Set, cast
 
 import boto3
+from botocore.exceptions import ClientError
+from rich.layout import Layout
+from rich.panel import Panel
 
 from ..core.config import SimpleConfig
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth
 from ..utils.cloud_init import generate_minimal_cloud_init
+from ..utils.config_validator import ConfigValidator
 from ..utils.display import (
     Live,
     Table,
     console,
     rich_error,
+    rich_print,
     rich_success,
     rich_warning,
 )
 from ..utils.logging import ConsoleLogger, setup_logger
+from ..utils.shutdown_handler import ShutdownContext
 from ..utils.ssh import transfer_files_scp, wait_for_ssh_only
 from ..utils.tables import add_instance_row, create_instance_table
 from ..version import __version__
@@ -169,85 +175,41 @@ def create_instances_in_region_with_table(
         update_status_func(key, "Finding VPC")
 
     try:
-        from botocore.config import Config as BotoConfig
+        from ..utils.aws_manager import AWSResourceManager
 
-        # Configure boto3 to not retry capacity errors
-        boto_config = BotoConfig(
-            retries={
-                "max_attempts": 1,  # No retries, fail fast
-                "mode": "standard",
-            }
-        )
+        # Use the new AWS manager
+        aws_manager = AWSResourceManager(region)
+        ec2 = aws_manager.ec2
 
-        ec2 = boto3.client("ec2", region_name=region, config=boto_config)
+        # Find or create VPC
+        vpc_status = "Creating dedicated VPC" if config.use_dedicated_vpc() else "Finding VPC"
+        for key in instance_keys:
+            update_status_func(key, vpc_status)
 
-        # Check if we should use dedicated VPC
-        if config.use_dedicated_vpc():
-            for key in instance_keys:
-                update_status_func(key, "Creating dedicated VPC")
-
-            # Create dedicated VPC for this deployment
-            from ..utils.aws import create_deployment_vpc
-
-            # Generate a deployment ID that's shared across all regions
-            deployment_id = config.get_deployment_id()
-
-            try:
-                vpc_id, subnet_id, igw_id = create_deployment_vpc(ec2, region, deployment_id)
-                log_message(f"Created dedicated VPC in {region}: {vpc_id}")
-                log_message(f"Created subnet: {subnet_id}, IGW: {igw_id}")
-            except Exception as e:
-                log_message(f"Failed to create VPC in {region}: {e}")
-                for key in instance_keys:
-                    update_status_func(key, "ERROR: VPC creation failed", is_final=True)
-                return []
-        else:
-            # Use default VPC (old behavior)
-            vpcs = ec2.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
-
-            typed_vpcs = cast(List[Dict[str, Any]], vpcs["Vpcs"])
-            if not typed_vpcs:
-                log_message(f"No default VPC found in {region}")
-                for key in instance_keys:
-                    update_status_func(key, "ERROR: No default VPC", is_final=True)
-                return []
-
-            vpc_id = typed_vpcs[0]["VpcId"]
-            log_message(f"Found VPC in {region}: {vpc_id}")
-
-            for key in instance_keys:
-                update_status_func(key, "Finding subnet")
-
-            # Get subnet
-            subnets = ec2.describe_subnets(
-                Filters=[
-                    {"Name": "vpc-id", "Values": [vpc_id]},
-                    {"Name": "default-for-az", "Values": ["true"]},
-                ]
+        try:
+            vpc_id, subnet_id = aws_manager.find_or_create_vpc(
+                use_dedicated=config.use_dedicated_vpc(), deployment_id=deployment_id
             )
-            if not subnets["Subnets"]:
-                log_message(f"No default subnets found in {region}")
-                for key in instance_keys:
-                    update_status_func(key, "ERROR: No subnets", is_final=True)
-                return []
-
-            typed_subnets = cast(List[Dict[str, Any]], subnets["Subnets"])
-            if not typed_subnets:
-                log_message(f"No default subnets found in {region}")
-                for key in instance_keys:
-                    update_status_func(key, "ERROR: No subnets", is_final=True)
-                return []
-            subnet_id = typed_subnets[0]["SubnetId"]
+            log_message(f"Using VPC in {region}: {vpc_id}")
             log_message(f"Using subnet in {region}: {subnet_id}")
+        except Exception as e:
+            log_message(f"Failed to setup VPC in {region}: {e}")
+            for key in instance_keys:
+                update_status_func(key, f"ERROR: {str(e)}", is_final=True)
+            return []
 
         for key in instance_keys:
             update_status_func(key, "Creating security group")
 
         # Create security group
-        from ..utils.aws import create_simple_security_group
-
-        sg_id = create_simple_security_group(ec2, vpc_id)
-        log_message(f"Security group in {region}: {sg_id}")
+        try:
+            sg_id = aws_manager.create_security_group(vpc_id)
+            log_message(f"Security group in {region}: {sg_id}")
+        except Exception as e:
+            log_message(f"Failed to create security group: {e}")
+            for key in instance_keys:
+                update_status_func(key, "ERROR: Security group failed", is_final=True)
+            return []
 
         # Get region config
         region_cfg = config.region_config(region)
@@ -259,10 +221,9 @@ def create_instances_in_region_with_table(
         # Get AMI
         ami_id = None
         if region_cfg.get("image") == "auto":
-            from ..utils.aws import get_latest_ubuntu_ami
-
-            cache_dir = os.path.join(config.output_directory(), ".aws_cache")
-            ami_id = get_latest_ubuntu_ami(region, log_function=log_message, cache_dir=cache_dir)
+            ami_id = aws_manager.find_ubuntu_ami()
+            if ami_id:
+                log_message(f"Found Ubuntu AMI: {ami_id}")
         else:
             ami_id = region_cfg.get("image")
 
@@ -338,7 +299,38 @@ def create_instances_in_region_with_table(
         }
 
         # We don't use AWS KeyName - SSH key is injected via cloud-init
-        result = ec2.run_instances(**run_params)
+
+        # Add retry logic for instance creation
+        max_retries = 3
+        retry_count = 0
+        result = None
+        last_error = None
+
+        while retry_count < max_retries:
+            try:
+                result = ec2.run_instances(**run_params)
+                break  # Success, exit retry loop
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                if error_code in ["InsufficientInstanceCapacity", "SpotMaxPriceTooLow"]:
+                    # These are terminal errors, don't retry
+                    raise
+                elif error_code in ["RequestLimitExceeded", "Throttling"]:
+                    # These are retryable errors
+                    retry_count += 1
+                    last_error = e
+                    if retry_count < max_retries:
+                        wait_time = 2**retry_count  # Exponential backoff: 2, 4, 8 seconds
+                        log_message(f"Rate limited in {region}, retrying in {wait_time} seconds...")
+                        time.sleep(wait_time)
+                    else:
+                        raise
+                else:
+                    # Unknown error, don't retry
+                    raise
+
+        if not result and last_error:
+            raise last_error
 
         # Wait for instances to get public IPs
         created_instances: List[Dict[str, Any]] = []
@@ -489,6 +481,15 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     if not check_aws_auth():
         return
 
+    # Validate configuration first
+    validator = ConfigValidator()
+    config_path = config.config_file
+    is_valid, _ = validator.validate_config_file(config_path)
+
+    if not is_valid:
+        validator.suggest_fixes()
+        return
+
     # Initial header will be shown in the Live display
 
     # Setup local logging
@@ -542,6 +543,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         rich_error("No regions configured. Run 'setup' first.")
         return
 
+    # Show configuration summary
+    rich_print("[dim]Reading configuration...[/dim]")
+
     # Calculate instance distribution
     total_instances = config.instance_count()
     instances_per_region = total_instances // len(regions)
@@ -559,6 +563,17 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     if total_instances_to_create == 0:
         rich_warning("No instances configured to be created.")
         return
+
+    # Show deployment plan
+    rich_print(
+        f"\n[green]Planning to create {total_instances_to_create} instances across {len(region_instance_map)} regions:[/green]"
+    )
+    for region, count in region_instance_map.items():
+        region_cfg = config.region_config(region)
+        instance_type = region_cfg.get("machine_type", "t3.medium")
+        rich_print(f"  • {region}: {count} × {instance_type}")
+
+    rich_print("\n[dim]Preparing deployment resources...[/dim]")
 
     # Track regions that were skipped due to capacity
     skipped_regions: Set[str] = set()
@@ -582,7 +597,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 "created": "pending...",
             }
 
-    def generate_table():
+    def generate_layout():
         # Count active (non-skipped) instances
         active_count = sum(
             1 for item in creation_status.values() if "SKIPPED" not in item["status"]
@@ -638,18 +653,32 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 item["created"],
             )
 
-        # Add log information directly to the table
+        # Create layout with table taking most space and logs at bottom
+        layout = Layout()
+
+        # Create log panel
+        log_content = ""
         try:
             with open(log_filename, "r") as f:
-                # Read only last 5 lines for compact display
-                lines = [line.rstrip() for line in f.readlines()[-5:]]
+                # Read last 10 lines for the log panel
+                lines = [line.rstrip() for line in f.readlines()[-10:]]
                 log_content = "\n".join(lines)
-                if log_content:
-                    table.caption = f"[dim]Log: {log_filename}[/dim]\n[dim]{log_content}[/dim]"
         except (FileNotFoundError, IOError):
-            pass
+            log_content = "Log file not available yet..."
 
-        return table
+        log_panel = Panel(
+            log_content if log_content else "[dim]Waiting for logs...[/dim]",
+            title=f"[dim]Log: {log_filename}[/dim]",
+            border_style="dim",
+        )
+
+        # Split layout: table takes most space, log panel at bottom
+        layout.split_column(
+            Layout(table, ratio=4),
+            Layout(log_panel, size=12),  # Fixed size for log panel
+        )
+
+        return layout
 
     def update_status(key, status, instance_id=None, ip=None, created=None, is_final=False):
         with lock:
@@ -666,53 +695,83 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 log_id = instance_id if instance_id else key
                 logger.info(f"[{log_id} @ {log_ip}] {status}")
 
-    with Live(
-        generate_table(), refresh_per_second=4, console=console, screen=True, redirect_stdout=False
-    ) as live:
+    # Set up graceful shutdown handling
+    with ShutdownContext("Cleaning up spot instance creation...") as shutdown_ctx:
+        # Define cleanup function
+        def cleanup_on_shutdown():
+            logger.warning("Shutdown requested - cleaning up...")
+            # Save any instances that were created
+            if all_instances:
+                state.save_instances(all_instances)
+                logger.info(f"Saved state for {len(all_instances)} instances")
+            # Update status for any pending instances
+            with lock:
+                for key, item in creation_status.items():
+                    if "Waiting" in item["status"] or "Creating" in item["status"]:
+                        item["status"] = "INTERRUPTED"
 
-        def create_region_instances(region, count):
-            try:
-                instances = create_instances_in_region_with_table(
-                    config,
-                    region,
-                    count,
-                    creation_status,
-                    lock,
-                    logger,
-                    update_status,
-                    instance_ip_map,
-                    deployment_id,
-                    timestamp,
-                    creator,
-                    state,
-                )
-                with lock:
-                    all_instances.extend(instances)
-            except Exception as e:
-                logger.error(f"Error in create_region_instances for {region}: {e}")
+        shutdown_ctx.add_cleanup(cleanup_on_shutdown)
 
-        with ThreadPoolExecutor(max_workers=len(regions), thread_name_prefix="Create") as executor:
-            futures = [
-                executor.submit(create_region_instances, r, c)
-                for r, c in region_instance_map.items()
-            ]
-            while any(f.running() for f in futures):
-                live.update(generate_table())
-                time.sleep(0.25)
+        with Live(
+            generate_layout(),
+            refresh_per_second=4,
+            console=console,
+            screen=True,
+            redirect_stdout=False,
+        ) as live:
 
-        live.update(generate_table())  # Final update after creation phase
+            def create_region_instances(region, count):
+                try:
+                    # Check for shutdown before starting
+                    if shutdown_ctx.shutdown_requested:
+                        logger.warning(f"Skipping {region} due to shutdown request")
+                        return
 
-        if all_instances:
-            # Status will be shown in the layout, not printed separately
-            live.update(generate_table())
+                    instances = create_instances_in_region_with_table(
+                        config,
+                        region,
+                        count,
+                        creation_status,
+                        lock,
+                        logger,
+                        update_status,
+                        instance_ip_map,
+                        deployment_id,
+                        timestamp,
+                        creator,
+                        state,
+                    )
+                    with lock:
+                        all_instances.extend(instances)
+                except Exception as e:
+                    logger.error(f"Error in create_region_instances for {region}: {e}")
 
-            # Always run post-creation setup to upload files
-            post_creation_setup(all_instances, config, update_status, logger)
+            with ThreadPoolExecutor(
+                max_workers=len(regions), thread_name_prefix="Create"
+            ) as executor:
+                futures = [
+                    executor.submit(create_region_instances, r, c)
+                    for r, c in region_instance_map.items()
+                ]
+                while any(f.running() for f in futures) and not shutdown_ctx.shutdown_requested:
+                    live.update(generate_layout())
+                    time.sleep(0.25)
 
-            # Keep the live display running during setup
-            live.update(generate_table())
-        else:
-            rich_error("No instances were successfully created.")
+            live.update(generate_layout())  # Final update after creation phase
+
+            if all_instances and not shutdown_ctx.shutdown_requested:
+                # Status will be shown in the layout, not printed separately
+                live.update(generate_layout())
+
+                # Always run post-creation setup to upload files
+                post_creation_setup(all_instances, config, update_status, logger)
+
+                # Keep the live display running during setup
+                live.update(generate_layout())
+            elif not all_instances:
+                rich_error("No instances were successfully created.")
+            else:
+                rich_warning("Creation interrupted by shutdown request")
 
     # Show summary
     rich_success(f"Deployment process complete for {len(all_instances)} instances.")
