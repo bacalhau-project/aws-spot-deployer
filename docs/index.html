@@ -9,173 +9,492 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             line-height: 1.6;
             color: #333;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
-            background: #f4f4f4;
+            background: #f8f9fa;
         }
         .container {
             background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
-        h1, h2 {
+        h1 {
             color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 0.5em;
+            text-align: center;
+        }
+        h2 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 0.5em;
+            margin-top: 2em;
+        }
+        h3 {
+            color: #34495e;
+            margin-top: 1.5em;
         }
         pre {
             background: #2c3e50;
             color: #fff;
-            padding: 15px;
-            border-radius: 5px;
+            padding: 20px;
+            border-radius: 8px;
             overflow-x: auto;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
         }
         code {
             background: #ecf0f1;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.9em;
         }
         pre code {
             background: none;
             padding: 0;
+            font-size: 0.9em;
         }
         .highlight {
-            background: #3498db;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        .warning {
-            background: #e74c3c;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        .curl-notice {
-            background: #27ae60;
+            background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
             padding: 15px;
-            border-radius: 5px;
+            border-radius: 8px;
             margin: 20px 0;
+            border-left: 4px solid #2980b9;
+        }
+        .warning {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #c0392b;
+        }
+        .success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #229954;
+        }
+        .curl-notice {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
             text-align: center;
+            font-size: 1.1em;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #6c757d;
+        }
+        .toc h3 {
+            margin-top: 0;
+        }
+        .toc ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .toc a {
+            color: #2c3e50;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            color: #3498db;
+        }
+        ul, ol {
+            padding-left: 20px;
+        }
+        li {
+            margin: 5px 0;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 20px 0;
+        }
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 20px;
+            }
+        }
+        .config-example {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .step-number {
+            background: #3498db;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3em;
+            padding-top: 2em;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🚀 Spot Deployer</h1>
-        <p>Deploy AWS Spot Instances with a single command!</p>
+        <p style="text-align: center; font-size: 1.2em; color: #7f8c8d;">Deploy AWS Spot Instances with Bacalhau compute nodes in seconds</p>
 
         <div class="curl-notice">
-            <strong>Quick Install:</strong> Run this command in your terminal
-            <pre style="background: #229954; margin-top: 10px;"><code>curl -sSL https://tada.wang/install.sh | bash</code></pre>
+            <strong>🎯 Quick Deploy:</strong> Get started in 30 seconds
+            <pre style="background: #229954; margin-top: 10px;"><code>curl -sSL https://tada.wang/install.sh | bash -s -- create</code></pre>
         </div>
 
-        <h2>Quick Start</h2>
-        <pre><code># One-line deployment
-curl -sSL https://tada.wang/install.sh | bash -s -- create
+        <div class="toc">
+            <h3>📋 Table of Contents</h3>
+            <ul>
+                <li><a href="#quick-start">Quick Start</a></li>
+                <li><a href="#installation">Installation Guide</a></li>
+                <li><a href="#commands">Commands Reference</a></li>
+                <li><a href="#configuration">Configuration</a></li>
+                <li><a href="#aws-auth">AWS Authentication</a></li>
+                <li><a href="#bacalhau">Bacalhau Integration</a></li>
+                <li><a href="#architecture">Architecture</a></li>
+                <li><a href="#troubleshooting">Troubleshooting</a></li>
+                <li><a href="#advanced">Advanced Usage</a></li>
+            </ul>
+        </div>
 
-# Initial setup
-curl -sSL https://tada.wang/install.sh | bash -s -- setup</code></pre>
+        <h2 id="quick-start">⚡ Quick Start</h2>
+        <p>Deploy AWS Spot instances running Bacalhau compute nodes with these simple commands:</p>
 
-        <h2>No Docker Required!</h2>
-        <p>The deployment tool runs directly via <code>uvx</code> (Python package runner) - no Docker installation needed on your machine!</p>
+        <div class="two-column">
+            <div>
+                <h3><span class="step-number">1</span>Setup</h3>
+                <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- setup</code></pre>
+                <p>Creates configuration files</p>
+            </div>
+            <div>
+                <h3><span class="step-number">2</span>Deploy</h3>
+                <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- create</code></pre>
+                <p>Launches spot instances</p>
+            </div>
+        </div>
 
-        <h2>Installation</h2>
-        <p>The installer automatically handles everything for you:</p>
+        <div class="success">
+            <strong>✨ No Docker Required!</strong> The deployment tool runs directly via <code>uvx</code> (Python package runner) - no Docker installation needed on your machine!
+        </div>
 
-        <h3>1. Initial Setup</h3>
-        <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- setup</code></pre>
-        <p>This will create a <code>config.yaml</code> file in your current directory</p>
+        <h2 id="installation">📦 Installation Guide</h2>
 
-        <h3>2. Configure</h3>
-        <p>Edit the configuration file with your settings:</p>
-        <pre><code>nano config.yaml</code></pre>
-
-        <h3>3. Deploy</h3>
-        <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- create</code></pre>
-
-        <h2>Commands</h2>
+        <h3>Prerequisites</h3>
         <ul>
-            <li><code>setup</code> - Initial configuration setup</li>
-            <li><code>create</code> - Create spot instances</li>
-            <li><code>list</code> - List running instances</li>
-            <li><code>destroy</code> - Destroy all spot instances</li>
-            <li><code>help</code> - Show help message</li>
+            <li><strong>Python 3.8+</strong> (uv/uvx installed automatically if needed)</li>
+            <li><strong>AWS Account</strong> with EC2, VPC, and Security Group permissions</li>
+            <li><strong>AWS Credentials</strong> configured (see <a href="#aws-auth">Authentication section</a>)</li>
+            <li><strong>SSH Key Pair</strong> for instance access</li>
         </ul>
 
-        <h2>Architecture</h2>
-        <p><strong>On Your Machine:</strong></p>
+        <h3>Step-by-Step Installation</h3>
+
+        <div class="config-example">
+            <h4><span class="step-number">1</span>Initial Setup</h4>
+            <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- setup</code></pre>
+            <p>This creates a <code>config.yaml</code> file in your current directory with sensible defaults.</p>
+        </div>
+
+        <div class="config-example">
+            <h4><span class="step-number">2</span>Configure Your Settings</h4>
+            <pre><code>nano config.yaml</code></pre>
+            <p>Edit the configuration file with your SSH key paths and preferences.</p>
+        </div>
+
+        <div class="config-example">
+            <h4><span class="step-number">3</span>Deploy Instances</h4>
+            <pre><code>curl -sSL https://tada.wang/install.sh | bash -s -- create</code></pre>
+            <p>Launches your spot instances across multiple regions.</p>
+        </div>
+
+        <h2 id="commands">🔧 Commands Reference</h2>
+
+        <div class="two-column">
+            <div>
+                <h3>Core Commands</h3>
+                <ul>
+                    <li><code><strong>setup</strong></code> - Initial configuration setup</li>
+                    <li><code><strong>create</strong></code> - Create and deploy spot instances</li>
+                    <li><code><strong>list</strong></code> - List running instances with status</li>
+                    <li><code><strong>destroy</strong></code> - Destroy all spot instances</li>
+                    <li><code><strong>help</strong></code> - Show detailed help message</li>
+                </ul>
+            </div>
+            <div>
+                <h3>Command Examples</h3>
+                <pre><code># List all running instances
+curl -sSL https://tada.wang/install.sh | bash -s -- list
+
+# Destroy all instances
+curl -sSL https://tada.wang/install.sh | bash -s -- destroy
+
+# Get help
+curl -sSL https://tada.wang/install.sh | bash -s -- help</code></pre>
+            </div>
+        </div>
+
+        <h2 id="configuration">⚙️ Configuration</h2>
+
+        <p>The <code>config.yaml</code> file controls all aspects of your deployment:</p>
+
+        <div class="config-example">
+            <h4>Sample Configuration</h4>
+            <pre><code>aws:
+  total_instances: 6
+  username: ubuntu
+  public_ssh_key_path: ~/.ssh/id_ed25519.pub
+  private_ssh_key_path: ~/.ssh/id_ed25519
+  instance_storage_gb: 20
+  tags:
+    Project: MyProject
+    Environment: Development
+
+regions:
+  - us-west-2:
+      machine_type: t3.medium
+      image: auto
+  - us-east-1:
+      machine_type: t3.medium
+      image: auto</code></pre>
+        </div>
+
+        <h3>Configuration Options</h3>
         <ul>
-            <li>No Docker required - runs via uvx</li>
-            <li>Automatic dependency management</li>
-            <li>Direct execution from GitHub</li>
+            <li><strong>Multiple AWS regions</strong> - Deploy across regions for redundancy</li>
+            <li><strong>Custom instance types</strong> - Choose optimal instance sizes</li>
+            <li><strong>Dedicated VPCs</strong> - Isolated networking per deployment</li>
+            <li><strong>Resource tagging</strong> - Organize and track costs</li>
+            <li><strong>SSH key management</strong> - Secure instance access</li>
+            <li><strong>Storage configuration</strong> - Customize disk space</li>
         </ul>
 
-        <p><strong>On EC2 Instances:</strong></p>
-        <ul>
-            <li><strong>Bacalhau:</strong> Runs as Docker container (<code>ghcr.io/bacalhau-project/bacalhau:latest-dind</code>)</li>
-            <li><strong>Sensor Generator:</strong> Runs as Docker container (<code>ghcr.io/bacalhau-project/sensor-log-generator:latest</code>)</li>
-            <li>Docker is automatically installed via cloud-init</li>
-        </ul>
+        <h2 id="aws-auth">🔐 AWS Authentication</h2>
 
-        <h2>AWS Authentication</h2>
-        <p>The tool automatically detects AWS credentials from:</p>
-        <ul>
-            <li>Environment variables (AWS_ACCESS_KEY_ID, etc.)</li>
-            <li>AWS SSO sessions - just run <code>aws sso login</code> first!</li>
-            <li>AWS config files (~/.aws/credentials)</li>
-            <li>EC2 instance roles</li>
-        </ul>
+        <p>The tool automatically detects your AWS credentials in this order:</p>
+
+        <div class="two-column">
+            <div>
+                <h3>Detection Methods</h3>
+                <ol>
+                    <li><strong>Environment Variables</strong><br><code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code></li>
+                    <li><strong>EC2 Instance Role</strong><br>When running on EC2</li>
+                    <li><strong>AWS SSO</strong><br>Active SSO sessions</li>
+                    <li><strong>AWS Config Files</strong><br><code>~/.aws/credentials</code>, <code>~/.aws/config</code></li>
+                </ol>
+            </div>
+            <div>
+                <h3>Setup Examples</h3>
+                <pre><code># AWS SSO (Recommended)
+aws sso login
+
+# Environment Variables
+export AWS_ACCESS_KEY_ID=your-key
+export AWS_SECRET_ACCESS_KEY=your-secret
+
+# AWS CLI
+aws configure</code></pre>
+            </div>
+        </div>
 
         <div class="highlight">
-            <strong>Pro Tip:</strong> The installer will tell you exactly which credentials it's using!
+            <strong>💡 Pro Tip:</strong> The installer shows exactly which credentials it's using before deployment!
         </div>
 
-        <h2>Advanced Usage</h2>
-        <h3>Direct uvx Usage</h3>
-        <pre><code># Run directly without the installer
-uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer create</code></pre>
+        <h2 id="bacalhau">🌊 Bacalhau Integration</h2>
 
-        <h3>Local Installation</h3>
+        <p>Spot Deployer automatically configures Bacalhau compute nodes on each instance. To connect to your orchestrator:</p>
+
+        <div class="config-example">
+            <h4>Orchestrator Credentials</h4>
+            <p>Create these files in your project directory before deployment:</p>
+            <pre><code>mkdir -p files
+echo "nats://your-orchestrator.example.com:4222" > files/orchestrator_endpoint
+echo "your-secret-token-here" > files/orchestrator_token</code></pre>
+        </div>
+
+        <div class="two-column">
+            <div>
+                <h3>What Gets Deployed</h3>
+                <ul>
+                    <li><strong>Bacalhau compute nodes</strong> with Docker-in-Docker support</li>
+                    <li><strong>Sensor data generators</strong> for testing workloads</li>
+                    <li><strong>Automated node registration</strong> with your orchestrator</li>
+                    <li><strong>Health monitoring</strong> and automatic restarts</li>
+                </ul>
+            </div>
+            <div>
+                <h3>After Deployment</h3>
+                <pre><code># Check your nodes
+bacalhau node list
+
+# Test with a job
+bacalhau docker run ubuntu echo "Hello from spot instance!"</code></pre>
+            </div>
+        </div>
+
+        <h2 id="architecture">🏗️ Architecture</h2>
+
+        <div class="two-column">
+            <div>
+                <h3>On Your Machine</h3>
+                <ul>
+                    <li>✅ <strong>No Docker required</strong> - runs via uvx</li>
+                    <li>🔄 <strong>Automatic dependency management</strong></li>
+                    <li>🚀 <strong>Direct execution from GitHub</strong></li>
+                    <li>🔒 <strong>Uses your AWS credentials securely</strong></li>
+                    <li>📊 <strong>Beautiful Rich terminal UI</strong></li>
+                </ul>
+            </div>
+            <div>
+                <h3>On EC2 Instances</h3>
+                <ul>
+                    <li>🐳 <strong>Bacalhau:</strong> Docker container with DIND support</li>
+                    <li>📈 <strong>Sensor Generator:</strong> Test data generation</li>
+                    <li>⚙️ <strong>Docker:</strong> Automatically installed via cloud-init</li>
+                    <li>🔧 <strong>SystemD services:</strong> Automatic startup and monitoring</li>
+                    <li>📝 <strong>Deterministic node identity:</strong> US city-based naming</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2 id="troubleshooting">🔍 Troubleshooting</h2>
+
+        <h3>Common Issues</h3>
+
+        <div class="config-example">
+            <h4>❌ "No AWS credentials found"</h4>
+            <p><strong>Solution:</strong> Configure AWS authentication first</p>
+            <pre><code># Try AWS SSO
+aws sso login
+
+# Or set environment variables
+export AWS_ACCESS_KEY_ID=your-key
+export AWS_SECRET_ACCESS_KEY=your-secret
+
+# Then retry
+curl -sSL https://tada.wang/install.sh | bash -s -- create</code></pre>
+        </div>
+
+        <div class="config-example">
+            <h4>❌ "SSH key not found"</h4>
+            <p><strong>Solution:</strong> Create SSH keys or update config paths</p>
+            <pre><code># Generate new SSH keys
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''
+
+# Or update config.yaml with correct paths
+nano config.yaml</code></pre>
+        </div>
+
+        <div class="config-example">
+            <h4>❌ "InsufficientInstanceCapacity"</h4>
+            <p><strong>Solution:</strong> Spot instances unavailable, try different regions/types</p>
+            <pre><code># Edit config.yaml to add more regions or change instance types
+regions:
+  - us-west-2:
+      machine_type: t3.small  # Try smaller instances
+  - us-east-1:
+      machine_type: t3.small
+  - eu-west-1:
+      machine_type: t3.small</code></pre>
+        </div>
+
+        <h2 id="advanced">🚀 Advanced Usage</h2>
+
+        <h3>Direct uvx Usage</h3>
+        <p>Skip the installer and run directly:</p>
+        <pre><code># Run directly from GitHub
+uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer create
+
+# Install globally
+uvx install --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer
+spot-deployer list</code></pre>
+
+        <h3>Local Development</h3>
         <pre><code># Clone and use locally
 git clone https://github.com/bacalhau-project/aws-spot-deployer.git
 cd aws-spot-deployer
-./spot create</code></pre>
 
-        <h2>Configuration Options</h2>
-        <p>The <code>config.yaml</code> file supports:</p>
-        <ul>
-            <li>Multiple AWS regions</li>
-            <li>Custom instance types</li>
-            <li>Dedicated VPCs per deployment</li>
-            <li>Tagging for cost tracking</li>
-            <li>SSH key management</li>
-            <li>Bacalhau orchestrator credentials</li>
-            <li>Custom scripts and commands</li>
-        </ul>
+# Use local wrapper (detects AWS credentials automatically)
+./spot create
+
+# Or run directly with uv
+uv run python -m spot_deployer create</code></pre>
+
+        <h3>Version Pinning</h3>
+        <pre><code># Use specific version
+curl -sSL https://tada.wang/install.sh | bash -s -- create --version v1.2.0
+
+# Use latest development version
+curl -sSL https://tada.wang/install.sh | bash -s -- create --version main</code></pre>
+
+        <h3>Dry Run Mode</h3>
+        <pre><code># See what would be deployed without actually doing it
+curl -sSL https://tada.wang/install.sh | bash -s -- create --dry-run</code></pre>
 
         <div class="warning">
-            <strong>Security Note:</strong> Never commit your AWS credentials or private keys to version control!
+            <strong>⚠️ Security Note:</strong> Never commit AWS credentials, private SSH keys, or Bacalhau tokens to version control!
         </div>
 
-        <h2>Bacalhau Integration</h2>
-        <p>To connect to a Bacalhau orchestrator, create these files before deployment:</p>
-        <pre><code>mkdir -p files
-echo "nats://orchestrator.example.com:4222" > files/orchestrator_endpoint
-echo "your-secret-token" > files/orchestrator_token</code></pre>
+        <h2>📚 Additional Resources</h2>
 
-        <h2>Source Code</h2>
-        <p>View the project on GitHub: <a href="https://github.com/bacalhau-project/aws-spot-deployer">github.com/bacalhau-project/aws-spot-deployer</a></p>
+        <div class="two-column">
+            <div>
+                <h3>Links</h3>
+                <ul>
+                    <li><a href="https://github.com/bacalhau-project/aws-spot-deployer">📂 Source Code on GitHub</a></li>
+                    <li><a href="https://pypi.org/project/spot-deployer/">📦 PyPI Package</a></li>
+                    <li><a href="/install.sh">📜 Raw Install Script</a></li>
+                    <li><a href="/VERSION">ℹ️ Version Information</a></li>
+                </ul>
+            </div>
+            <div>
+                <h3>Related Projects</h3>
+                <ul>
+                    <li><a href="https://github.com/bacalhau-project/bacalhau">🌊 Bacalhau</a> - Compute over data</li>
+                    <li><a href="https://docs.astral.sh/uv/">⚡ uv</a> - Python package manager</li>
+                    <li><a href="https://aws.amazon.com/ec2/spot/">☁️ AWS EC2 Spot</a> - Cost-effective compute</li>
+                </ul>
+            </div>
+        </div>
 
-        <h2>Direct Links</h2>
-        <ul>
-            <li><a href="/install.sh">Install Script</a> - The raw installation script</li>
-            <li><a href="/VERSION">Version Info</a> - Current version information</li>
-        </ul>
+        <div class="footer">
+            <p>Made with ❤️ by the <a href="https://github.com/bacalhau-project">Bacalhau Project</a></p>
+            <p>Deployed via <strong>uvx</strong> • No containers needed • Open source</p>
+        </div>
     </div>
 </body>
 </html>

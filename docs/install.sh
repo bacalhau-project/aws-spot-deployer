@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 #
 # Spot Deployer Installation Script
-# Usage: curl -sSL https://tada.wang/install.sh | bash -s -- [OPTIONS]
+# Usage: curl -sSL https://tada.wang/install.sh | bash -s -- [COMMAND] [OPTIONS]
 #
-# Options:
+# Commands:
 #   create    - Create spot instances
 #   destroy   - Destroy all spot instances
 #   list      - List running instances
 #   setup     - Initial setup
+#   help      - Show help
+#
+# Options:
 #   --version VERSION - Use specific version (default: latest)
 #   --dry-run - Show what would be done without doing it
 #
@@ -17,19 +20,22 @@ set -e
 # Configuration
 REPO_OWNER="bacalhau-project"
 REPO_NAME="aws-spot-deployer"
-DEFAULT_IMAGE="ghcr.io/${REPO_OWNER}/${REPO_NAME}"
+GITHUB_REPO="https://github.com/${REPO_OWNER}/${REPO_NAME}"
 GITHUB_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-VERSION="stable"  # Will be resolved to latest release
+VERSION="latest"
 DRY_RUN=false
 COMMAND=""
+CONFIG_DIR="$HOME/.config/spot-deployer"
+FILES_DIR="$PWD/files"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -42,265 +48,247 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
-        create|destroy|list|setup|help)
+        create|destroy|list|setup|help|version)
             COMMAND="$1"
             shift
             ;;
         *)
             echo "Unknown option: $1"
+            echo "Usage: $0 [create|destroy|list|setup|help] [--version VERSION] [--dry-run]"
             exit 1
             ;;
     esac
 done
 
-# Default to help if no command specified
-COMMAND=${COMMAND:-help}
-
-# Functions
+# Logging functions
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+log_success() {
+    echo -e "${GREEN}✅ $1${NC}"
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}❌ $1${NC}"
 }
 
-check_prerequisites() {
-    local missing=()
-
-    # Check Docker
-    if ! command -v docker &> /dev/null; then
-        missing+=("docker")
+# Check if uvx is available
+check_uvx() {
+    if command -v uvx &> /dev/null; then
+        log_success "uvx is available"
+        return 0
     fi
 
-    # Check AWS CLI or environment variables
-    if ! command -v aws &> /dev/null; then
-        if [[ -z "$AWS_ACCESS_KEY_ID" ]] || [[ -z "$AWS_SECRET_ACCESS_KEY" ]]; then
-            log_warn "AWS CLI not found and AWS credentials not in environment"
-            log_warn "You'll need to provide AWS credentials when running"
+    log_warn "uvx not found, checking for uv..."
+
+    if command -v uv &> /dev/null; then
+        log_info "Found uv, uvx should be available"
+        return 0
+    fi
+
+    log_warn "uv/uvx not found, attempting to install..."
+
+    # Try to install uv which includes uvx
+    if command -v curl &> /dev/null; then
+        log_info "Installing uv (includes uvx)..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+
+        # Source the shell profile to get uv in PATH
+        if [[ -f "$HOME/.cargo/env" ]]; then
+            source "$HOME/.cargo/env"
+        fi
+
+        # Add to current session PATH
+        export PATH="$HOME/.cargo/bin:$PATH"
+
+        if command -v uvx &> /dev/null; then
+            log_success "uvx installed successfully"
+            return 0
         fi
     fi
 
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        log_error "Missing prerequisites: ${missing[*]}"
-        log_error "Please install missing tools and try again"
-        exit 1
-    fi
+    log_error "Failed to install uvx. Please install uv manually:"
+    log_error "curl -LsSf https://astral.sh/uv/install.sh | sh"
+    exit 1
 }
 
-setup_directories() {
-    log_info "Setting up directories..."
+# Check AWS credentials
+check_aws_credentials() {
+    log_info "Checking AWS credentials..."
 
-    # Use current directory for config and files
-    WORK_DIR="${SPOT_WORK_DIR:-$(pwd)}"
-    CONFIG_FILE="${SPOT_CONFIG_FILE:-$WORK_DIR/config.yaml}"
-    FILES_DIR="${SPOT_FILES_DIR:-$WORK_DIR/files}"
-    OUTPUT_DIR="${SPOT_OUTPUT_DIR:-$WORK_DIR/output}"
+    # Check environment variables
+    if [[ -n "$AWS_ACCESS_KEY_ID" ]] && [[ -n "$AWS_SECRET_ACCESS_KEY" ]]; then
+        log_success "Found AWS credentials in environment variables"
+        return 0
+    fi
 
-    # Create output directory if it doesn't exist
-    mkdir -p "$OUTPUT_DIR"
-
-    # Check if config file exists
-    if [[ ! -f "$CONFIG_FILE" ]]; then
-        if [[ "$COMMAND" == "setup" ]]; then
-            log_info "Creating example config.yaml in current directory..."
-            curl -sSL "https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/config.yaml.example" -o config.yaml.example
-            cp config.yaml.example config.yaml
-            log_info "Created config.yaml - please edit it with your settings"
-        else
-            log_error "No config.yaml found in current directory"
-            log_error "Run 'setup' first to create a configuration file:"
-            log_error "  curl -sSL https://tada.wang/install.sh | bash -s -- setup"
-            exit 1
+    # Check AWS CLI
+    if command -v aws &> /dev/null; then
+        if aws sts get-caller-identity &> /dev/null; then
+            log_success "AWS credentials available via AWS CLI"
+            return 0
         fi
     fi
 
-    # Create files directory if referenced in config
-    if [[ -f "$CONFIG_FILE" ]] && grep -q "files_directory:" "$CONFIG_FILE"; then
-        mkdir -p "$FILES_DIR"
+    # Check for AWS config files
+    if [[ -f "$HOME/.aws/credentials" ]] || [[ -f "$HOME/.aws/config" ]]; then
+        log_success "AWS configuration files found"
+        return 0
     fi
+
+    log_warn "No AWS credentials detected"
+    log_warn "Please configure AWS credentials before running deployment commands"
+    log_warn "Options:"
+    log_warn "  1. AWS SSO: aws sso login"
+    log_warn "  2. Environment: export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=..."
+    log_warn "  3. AWS CLI: aws configure"
+
+    return 1
 }
 
-get_latest_version() {
-    if [[ "$VERSION" == "stable" ]]; then
-        # Get latest stable release from GitHub API
-        local latest_release
-        latest_release=$(curl -s "${GITHUB_API}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || echo "")
+# Resolve version
+resolve_version() {
+    if [[ "$VERSION" == "latest" ]]; then
+        log_info "Resolving latest version..."
 
-        if [[ -n "$latest_release" ]]; then
-            VERSION="$latest_release"
-            log_info "Using latest stable version: $VERSION"
-
-            # Also show all available versions
-            local all_tags
-            all_tags=$(curl -s "${GITHUB_API}/tags" | grep '"name":' | sed -E 's/.*"([^"]+)".*/\1/' | head -5 || echo "")
-            if [[ -n "$all_tags" ]]; then
-                log_info "Recent versions available:"
-                echo "$all_tags" | while read -r tag; do
-                    echo "  - $tag"
-                done
+        if command -v curl &> /dev/null; then
+            LATEST=$(curl -s "$GITHUB_API/releases/latest" | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+            if [[ -n "$LATEST" ]]; then
+                VERSION="$LATEST"
+                log_info "Using latest version: $VERSION"
+            else
+                log_warn "Could not resolve latest version, using main branch"
+                VERSION="main"
             fi
         else
-            log_warn "Could not determine latest stable version, using 'latest' tag"
-            VERSION="latest"
+            log_warn "curl not available, using main branch"
+            VERSION="main"
         fi
-    elif [[ "$VERSION" == "latest" ]]; then
-        log_info "Using latest development version from main branch"
-    else
-        log_info "Using specified version: $VERSION"
     fi
 }
 
-run_docker() {
-    local docker_image="${DEFAULT_IMAGE}:${VERSION}"
-
-    # Create a temporary directory for AWS SSO cache
-    # This prevents the "Read-only file system" error when AWS SDK tries to refresh SSO tokens
-    # We copy the AWS config to a temp dir to allow writes while keeping the original files safe
-    local temp_aws_dir=$(mktemp -d)
-    trap "rm -rf $temp_aws_dir" EXIT
-
-    # Copy AWS config files (including SSO cache)
-    if [[ -d "$HOME/.aws" ]]; then
-        cp -r "$HOME/.aws/." "$temp_aws_dir/"
+# Create config directory
+setup_config_dir() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        log_info "Creating config directory: $CONFIG_DIR"
+        mkdir -p "$CONFIG_DIR"
     fi
+}
 
-    # Prepare docker run command
-    local docker_cmd=(
-        "docker" "run" "--rm"
-    )
+# Run spot-deployer with uvx
+run_spot_deployer() {
+    local uvx_source
 
-    docker_cmd+=(
-        "-v" "$HOME/.ssh:/root/.ssh:ro"
-        "-v" "$temp_aws_dir:/root/.aws"
-        "-v" "$(realpath "$CONFIG_FILE"):/app/config/config.yaml:ro"
-        "-v" "$(realpath "$OUTPUT_DIR"):/app/output"
-    )
-
-    # Add files directory if it exists
-    if [[ -d "$FILES_DIR" ]]; then
-        docker_cmd+=("-v" "$(realpath "$FILES_DIR"):/app/files:ro")
-    fi
-
-    # Add AWS credentials if available
-    if [[ -n "$AWS_ACCESS_KEY_ID" ]]; then
-        docker_cmd+=("-e" "AWS_ACCESS_KEY_ID")
-    fi
-    if [[ -n "$AWS_SECRET_ACCESS_KEY" ]]; then
-        docker_cmd+=("-e" "AWS_SECRET_ACCESS_KEY")
-    fi
-    if [[ -n "$AWS_SESSION_TOKEN" ]]; then
-        docker_cmd+=("-e" "AWS_SESSION_TOKEN")
-    fi
-    if [[ -n "$AWS_PROFILE" ]]; then
-        docker_cmd+=("-e" "AWS_PROFILE")
-    fi
-    if [[ -n "$AWS_DEFAULT_REGION" ]]; then
-        docker_cmd+=("-e" "AWS_DEFAULT_REGION")
+    if [[ "$VERSION" == "main" ]] || [[ "$VERSION" == "latest" ]]; then
+        uvx_source="git+${GITHUB_REPO}"
     else
-        docker_cmd+=("-e" "AWS_DEFAULT_REGION=us-west-2")
+        uvx_source="git+${GITHUB_REPO}@${VERSION}"
     fi
 
-    # Add terminal settings
-    docker_cmd+=("-e" "TERM=${TERM:-xterm-256color}")
+    local uvx_cmd=(
+        "uvx"
+        "--from" "$uvx_source"
+        "spot-deployer"
+    )
 
-    # Add Bacalhau environment variables if they exist
-    if [[ -n "$BACALHAU_API_HOST" ]]; then
-        docker_cmd+=("-e" "BACALHAU_API_HOST")
-    fi
-    if [[ -n "$BACALHAU_API_KEY" ]]; then
-        docker_cmd+=("-e" "BACALHAU_API_KEY")
-    fi
-    if [[ -n "$BACALHAU_API_TOKEN" ]]; then
-        docker_cmd+=("-e" "BACALHAU_API_TOKEN")
+    # Add the command
+    if [[ -n "$COMMAND" ]]; then
+        uvx_cmd+=("$COMMAND")
     fi
 
-    # Add image and command
-    docker_cmd+=("$docker_image" "$COMMAND")
+    # Add dry-run flag if set
+    if [[ "$DRY_RUN" == "true" ]]; then
+        uvx_cmd+=("--dry-run")
+    fi
+
+    log_info "Running: ${uvx_cmd[*]}"
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "Would run: ${docker_cmd[*]}"
-    else
-        log_info "Pulling Docker image..."
-        docker pull "$docker_image"
-
-        log_info "Running: spot-deployer $COMMAND"
-        "${docker_cmd[@]}"
+        log_info "DRY RUN: Would execute the above command"
+        return 0
     fi
+
+    # Set environment variables for spot-deployer
+    export SPOT_CONFIG_DIR="$CONFIG_DIR"
+    export SPOT_FILES_DIR="$FILES_DIR"
+
+    # Run the command
+    "${uvx_cmd[@]}"
 }
 
-show_help() {
-    cat << EOF
-Spot Deployer - Easy AWS Spot Instance Deployment
-
-Usage:
-  curl -sSL https://tada.wang/install.sh | bash -s -- [COMMAND] [OPTIONS]
-
-Commands:
-  create    Create spot instances
-  destroy   Destroy all spot instances
-  list      List running instances
-  setup     Initial configuration setup
-  help      Show this help message
-
-Options:
-  --version VERSION  Use specific version (default: latest)
-  --dry-run         Show what would be done without doing it
-
-Examples:
-  # Initial setup
-  curl -sSL https://tada.wang/install.sh | bash -s -- setup
-
-  # Create instances
-  curl -sSL https://tada.wang/install.sh | bash -s -- create
-
-  # List instances
-  curl -sSL https://tada.wang/install.sh | bash -s -- list
-
-  # Destroy all instances
-  curl -sSL https://tada.wang/install.sh | bash -s -- destroy
-
-Environment Variables:
-  SPOT_WORK_DIR      Working directory (default: current directory)
-  SPOT_CONFIG_FILE   Config file path (default: ./config.yaml)
-  SPOT_FILES_DIR     Files directory (default: ./files)
-  SPOT_OUTPUT_DIR    Output directory (default: ./output)
-  AWS_ACCESS_KEY_ID  AWS access key
-  AWS_SECRET_ACCESS_KEY AWS secret key
-  AWS_SESSION_TOKEN  AWS session token (optional)
-  AWS_PROFILE        AWS profile name (for SSO/named profiles)
-  AWS_DEFAULT_REGION AWS region (default: us-west-2)
-  BACALHAU_API_HOST  Bacalhau orchestrator endpoint
-  BACALHAU_API_KEY   Bacalhau authentication key
-  BACALHAU_API_TOKEN Bacalhau authentication token
-
-Files:
-  Config: ./config.yaml
-  Files:  ./files/
-  Output: ./output/
-
-EOF
+# Print banner
+print_banner() {
+    echo -e "${BLUE}"
+    echo "🚀 Spot Deployer Installation Script"
+    echo "════════════════════════════════════"
+    echo -e "${NC}"
+    echo "Repository: $GITHUB_REPO"
+    echo "Version: $VERSION"
+    if [[ -n "$COMMAND" ]]; then
+        echo "Command: $COMMAND"
+    fi
+    echo ""
 }
 
 # Main execution
 main() {
-    echo "🚀 Spot Deployer Installer"
-    echo "========================="
+    print_banner
 
-    if [[ "$COMMAND" == "help" ]]; then
-        show_help
+    # Show help if no command provided
+    if [[ -z "$COMMAND" ]]; then
+        echo "Available commands:"
+        echo "  setup   - Create initial configuration"
+        echo "  create  - Create spot instances"
+        echo "  list    - List running instances"
+        echo "  destroy - Destroy all instances"
+        echo "  help    - Show detailed help"
+        echo ""
+        echo "Usage examples:"
+        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- setup"
+        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- create"
+        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- list"
+        echo ""
         exit 0
     fi
 
-    check_prerequisites
-    setup_directories
-    get_latest_version
-    run_docker
+    # Check prerequisites
+    check_uvx
+
+    # Check AWS credentials for commands that need them
+    if [[ "$COMMAND" != "setup" ]] && [[ "$COMMAND" != "help" ]] && [[ "$COMMAND" != "version" ]]; then
+        check_aws_credentials
+    fi
+
+    # Resolve version
+    resolve_version
+
+    # Setup config directory
+    setup_config_dir
+
+    # Create files directory if it doesn't exist
+    if [[ ! -d "$FILES_DIR" ]]; then
+        log_info "Creating files directory: $FILES_DIR"
+        mkdir -p "$FILES_DIR"
+    fi
+
+    # Run spot-deployer
+    run_spot_deployer
+
+    log_success "Command completed successfully!"
+
+    if [[ "$COMMAND" == "setup" ]]; then
+        echo ""
+        log_info "Next steps:"
+        log_info "1. Edit your configuration: $CONFIG_DIR/config.yaml"
+        log_info "2. Add any files to upload: $FILES_DIR/"
+        log_info "3. Deploy instances: curl -sSL https://tada.wang/install.sh | bash -s -- create"
+    fi
 }
 
 # Run main function
-main
+main "$@"

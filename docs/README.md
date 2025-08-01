@@ -14,9 +14,9 @@ This branch (`gh-pages`) hosts the installation scripts and documentation for Sp
 
 1. Create a new tag in the main branch: `git tag v1.0.0 && git push origin v1.0.0`
 2. GitHub Actions will automatically:
-   - Build and publish Docker images with the version tag
-   - Update this branch with the latest install scripts
-   - Deploy to GitHub Pages
+- Publish the Python package to PyPI with the version tag
+- Update this branch with the latest install scripts
+- Deploy to GitHub Pages
 
 ## Files
 

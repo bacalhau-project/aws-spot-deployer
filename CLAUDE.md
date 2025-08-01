@@ -85,13 +85,13 @@ uv run pre-commit run --all-files
 #### Manual Checks
 ```bash
 # Linting - ALWAYS run before committing
-uv run ruff check spot_deployer/
+uv run ruff check .
 
 # Auto-fix linting issues where possible
-uv run ruff check spot_deployer/ --fix
+uv run ruff check . --fix
 
 # Format code
-uv run ruff format spot_deployer/
+uv run ruff format .
 ```
 
 **Important:** Pre-commit hooks will automatically run `ruff` checks on every commit. If you have a global git hooks path configured, you may need to run checks manually with `uv run pre-commit run --all-files`.

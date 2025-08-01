@@ -7,11 +7,11 @@ echo "🔍 Running code quality checks..."
 
 # Run ruff linting
 echo "📝 Running ruff lint..."
-uv run ruff check spot_deployer/
+uv run ruff check .
 
 # Run ruff formatting check
 echo "🎨 Checking code formatting..."
-uv run ruff format --check spot_deployer/
+uv run ruff format --check .
 
 # Run mypy type checking
 echo "🔎 Running type checks..."

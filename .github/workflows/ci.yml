@@ -28,8 +28,12 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          uv run ruff check spot_deployer/
-          uv run ruff format --check spot_deployer/
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run tests
+        run: |
+          uv run python run_tests.py
 
       - name: Run smoke tests
         run: |
@@ -39,30 +43,9 @@ jobs:
           # Test version command
           uv run python -m spot_deployer --version
 
-  docker-build:
-    name: Build Docker Image
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+          # Test setup command
+          uv run python -m spot_deployer setup
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          load: true
-          tags: test-spot-deployer:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Test Docker image
+      - name: Run pre-commit hooks
         run: |
-          # Test that setup command works without config
-          docker run --rm -v /tmp/test-output:/app/output test-spot-deployer:ci setup
-
-          # Verify config was created
-          test -f /tmp/test-output/config.yaml || exit 1
+          uv run pre-commit run --all-files

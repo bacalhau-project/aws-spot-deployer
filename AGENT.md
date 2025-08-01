@@ -3,8 +3,8 @@
 ## Build/Test/Lint Commands
 - **Test all**: `uv run python run_tests.py` (with coverage)
 - **Single test**: `uv run python -m pytest tests/test_aws_manager.py::TestAWSResourceManager::test_initialization -v`
-- **Lint check**: `uv run ruff check spot_deployer/`
-- **Format**: `uv run ruff format spot_deployer/`
+- **Lint check**: `uv run ruff check .`
+- **Format**: `uv run ruff format .`
 - **Type check**: `uv run pyright` or `uv run mypy spot_deployer/`
 - **Pre-commit**: `uv run pre-commit run --all-files`
 
