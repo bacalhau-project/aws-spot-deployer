@@ -3,8 +3,7 @@
 
 import os
 import tempfile
-
-import pytest
+from unittest.mock import patch
 
 from spot_deployer.utils.config_validator import ConfigValidator
 
@@ -322,7 +321,7 @@ regions:
         """Test runtime environment validation without AWS credentials."""
         validator = ConfigValidator()
 
-        with pytest.patch("boto3.client") as mock_client:
+        with patch("boto3.client") as mock_client:
             mock_client.side_effect = Exception("No credentials")
 
             is_valid = validator.validate_runtime_environment()

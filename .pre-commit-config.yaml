@@ -1,15 +1,20 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+  - repo: local
     hooks:
-      # First check without fixing to show errors
-      - id: ruff
+      # Custom ruff lint check with helpful error messages
+      - id: ruff-lint-check
         name: ruff lint check
-        args: [--no-fix]
-      # Then format check without modifying
-      - id: ruff-format
+        entry: bash -c 'if ! uv run ruff check . --no-fix; then echo ""; echo "🔧 To fix linting issues, run:"; echo "   uv run ruff check . --fix"; echo ""; exit 1; fi'
+        language: system
+        types: [python]
+        pass_filenames: false
+      # Custom ruff format check with helpful error messages
+      - id: ruff-format-check
         name: ruff format check
-        args: [--check, --diff]
+        entry: bash -c 'if ! uv run ruff format . --check --diff; then echo ""; echo "🔧 To fix formatting issues, run:"; echo "   uv run ruff format ."; echo ""; exit 1; fi'
+        language: system
+        types: [python]
+        pass_filenames: false
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

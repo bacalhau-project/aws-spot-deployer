@@ -3,10 +3,10 @@
 ## Build/Test/Lint Commands
 - **Test all**: `uv run python run_tests.py` (with coverage)
 - **Single test**: `uv run python -m pytest tests/test_aws_manager.py::TestAWSResourceManager::test_initialization -v`
-- **Lint check**: `uv run ruff check .`
+- **Lint check**: `uv run ruff check .` (add `--fix` to auto-fix)
 - **Format**: `uv run ruff format .`
 - **Type check**: `uv run pyright` or `uv run mypy spot_deployer/`
-- **Pre-commit**: `uv run pre-commit run --all-files`
+- **Pre-commit**: `uv run pre-commit run --all-files` (shows exact fix commands on failure)
 
 ## Architecture & Structure
 - **Package**: `spot_deployer/` - modular Python package with commands/, core/, utils/

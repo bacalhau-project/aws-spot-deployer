@@ -180,7 +180,9 @@ class TestShutdownContext:
 
                 # Trigger cleanup manually (normally done by signal)
                 with patch.object(ctx.handler.ui, "print_warning"):
-                    ctx.handler._handle_shutdown(signal.SIGINT, None)
+                    with patch("sys.exit") as mock_exit:
+                        ctx.handler._handle_shutdown(signal.SIGINT, None)
+                        mock_exit.assert_called_once_with(1)
 
         # Cleanup should have been called
         assert len(cleanup_called) == 1
