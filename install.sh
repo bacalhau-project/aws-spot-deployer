@@ -31,7 +31,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-VERSION="latest"
+VERSION="v1.0.34"
 DRY_RUN=false
 COMMAND=""
 CONFIG_DIR="$HOME/.config/spot-deployer"
