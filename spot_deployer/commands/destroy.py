@@ -467,7 +467,7 @@ class DestroyManager:
             deleted = self.cleanup_all_disconnected_nodes()
             if deleted > 0:
                 self.console.print(
-                    f"[green]✅ Deleted {deleted} disconnected Bacalhau nodes[/green]"
+                    f"[green]✅ Cleaned up {deleted} disconnected Bacalhau nodes[/green]"
                 )
             else:
                 self.console.print("[dim]No disconnected nodes found[/dim]")
@@ -617,20 +617,23 @@ class DestroyManager:
         if self.has_bacalhau_env() and completed > 0:
             # Wait for nodes to disconnect
             self.console.print(
-                """\n[dim]Waiting 10 seconds for Bacalhau nodes to disconnect...[/dim]"""
+                f"""\n[dim]Waiting 10 seconds for Bacalhau nodes to disconnect...[/dim]
+[dim]Note: {completed} Bacalhau nodes should disconnect automatically when instances terminate[/dim]"""
             )
             import time
 
             time.sleep(10)
 
-            self.console.print("[dim]Cleaning up disconnected Bacalhau nodes...[/dim]")
+            self.console.print(
+                "[dim]Cleaning up any remaining disconnected Bacalhau nodes...[/dim]"
+            )
             deleted = self.cleanup_all_disconnected_nodes()
             if deleted > 0:
                 self.console.print(
-                    f"[green]✅ Deleted {deleted} disconnected Bacalhau nodes[/green]"
+                    f"[green]✅ Cleaned up {deleted} remaining disconnected Bacalhau nodes[/green]"
                 )
             else:
-                self.console.print("[dim]No disconnected nodes found[/dim]")
+                self.console.print("[dim]No remaining disconnected nodes found[/dim]")
 
         self.console.print(f"\n[dim]Destruction log saved to: {log_filename}[/dim]")
 

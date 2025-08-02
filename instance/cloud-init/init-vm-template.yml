@@ -79,8 +79,6 @@ runcmd:
   - systemctl start docker
   - systemctl enable bacalhau.service
   - systemctl start bacalhau.service
-  - systemctl enable sensor-generator.service
-  - systemctl start sensor-generator.service
 
   - uv run /usr/local/bin/startup.py
 

@@ -54,9 +54,7 @@ def main():
     print(f"Next:    {next_tag}")
     print()
     print("Copy and run this command:")
-    print(
-        f"git commit -am 'Release {next_tag}' && git tag {next_tag} && git push && git push origin {next_tag}"
-    )
+    print(f"git tag {next_tag} && git push origin {next_tag}")
 
 
 if __name__ == "__main__":

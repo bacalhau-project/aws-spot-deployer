@@ -850,6 +850,52 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         console.print(summary_table)
         console.print("")
 
+    # Show Bacalhau configuration information
+    console.print("")
+    rich_print("[bold cyan]🌊 Bacalhau Configuration[/bold cyan]")
+    rich_print("Your compute nodes are now running with Bacalhau. Here's how to use them:")
+    console.print("")
+
+    # Directory structure info
+    rich_print("[bold yellow]📁 Available Directories for Jobs:[/bold yellow]")
+    rich_print("  • [green]/opt/sensor/data[/green] - Sensor data (read-only)")
+    rich_print("  • [green]/opt/sensor/exports[/green] - Output/exports (read-write)")
+    rich_print("  • [green]/tmp[/green] - Temporary files (read-write)")
+    rich_print("  • [green]/bacalhau_data[/green] - Bacalhau data (read-write)")
+    console.print("")
+
+    # Job examples
+    rich_print("[bold yellow]💡 Example Job Commands:[/bold yellow]")
+    rich_print("  # List your compute nodes:")
+    rich_print("  [dim]bacalhau node list[/dim]")
+    console.print("")
+    rich_print("  # Process sensor data:")
+    rich_print("  [dim]bacalhau docker run \\[/dim]")
+    rich_print("  [dim]    --input-path /opt/sensor/data \\[/dim]")
+    rich_print("  [dim]    --output-path /opt/sensor/exports \\[/dim]")
+    rich_print("  [dim]    python:3.11 -- python -c \"print('Processing data...')\"[/dim]")
+    console.print("")
+    rich_print("  # Run analysis with temporary storage:")
+    rich_print("  [dim]bacalhau docker run \\[/dim]")
+    rich_print("  [dim]    --input-path /opt/sensor/data \\[/dim]")
+    rich_print("  [dim]    --workdir /tmp \\[/dim]")
+    rich_print(
+        "  [dim]    ubuntu:latest -- bash -c \"ls /inputs && echo 'Analysis complete'\"[/dim]"
+    )
+    console.print("")
+
+    # Configuration info
+    rich_print("[bold yellow]⚙️ Configuration Details:[/bold yellow]")
+    rich_print("  • Sensor data generator running on each node")
+    rich_print("  • Docker-in-Docker (DIND) support enabled")
+    rich_print("  • Resource allocation: 70% CPU, 70% Memory, 50% Disk")
+    rich_print("  • API available on port 1234 (internal)")
+    rich_print("  • Logs: /var/log/bacalhau/ on each instance")
+    console.print("")
+
+    rich_print("[bold green]✅ Ready to submit Bacalhau jobs![/bold green]")
+    console.print("")
+
     # Import and call cmd_list to show final state
     from .list import cmd_list
 
