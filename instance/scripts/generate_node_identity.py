@@ -6,6 +6,7 @@
 # ]
 # ///
 
+import argparse
 import hashlib
 import json
 import os
@@ -260,7 +261,6 @@ class NodeIdentityGenerator:
     def save_identity(self, output_path: str) -> bool:
         """Save identity to JSON file."""
         try:
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
             identity = self.generate_identity()
 
             with open(output_path, "w") as f:
@@ -273,39 +273,91 @@ class NodeIdentityGenerator:
 
 
 def get_instance_id() -> str:
-    """Get EC2 instance ID from metadata service."""
+    """Get EC2 instance ID from metadata service or environment."""
     import subprocess
 
+    # Check environment variable first (for testing)
+    if "INSTANCE_ID" in os.environ:
+        return os.environ["INSTANCE_ID"]
+
     try:
+        # Use timeout to avoid hanging forever when not on EC2
         response = subprocess.check_output(
-            ["curl", "-s", "http://169.254.169.254/latest/meta-data/instance-id"]
+            [
+                "curl",
+                "-s",
+                "--max-time",
+                "2",
+                "http://169.254.169.254/latest/meta-data/instance-id",
+            ],
+            timeout=3,
         )
         return response.decode("utf-8").strip()
-    except Exception:
-        # Fallback for testing
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        # Not on EC2 or metadata service unavailable
+        print("Warning: Not running on EC2, using test instance ID")
+        return "i-1234567890abcdef0"
+    except Exception as e:
+        # Other errors
+        print(f"Warning: Could not get instance ID: {e}")
         return "i-1234567890abcdef0"
 
 
 def main():
     """Main function to generate and save node identity."""
-    instance_id = get_instance_id()
+
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Generate deterministic node identity for EC2 instances"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Output path for node identity JSON (default: /opt/sensor/config/node_identity.json)",
+        default=None,
+    )
+    parser.add_argument(
+        "-i", "--instance-id", help="Override instance ID (for testing)", default=None
+    )
+    parser.add_argument("--stdout", action="store_true", help="Output to stdout instead of file")
+
+    args = parser.parse_args()
+
+    # Get instance ID
+    if args.instance_id:
+        instance_id = args.instance_id
+    else:
+        instance_id = get_instance_id()
+
+    # Determine output path
+    if args.output:
+        output_path = args.output
+    elif "NODE_IDENTITY_PATH" in os.environ:
+        output_path = os.environ["NODE_IDENTITY_PATH"]
+    else:
+        output_path = "/opt/sensor/config/node_identity.json"
+
+    # Generate identity
     generator = NodeIdentityGenerator(instance_id)
-
-    output_path = "/opt/sensor/config/node_identity.json"
-
-    print(f"Generating node identity for instance: {instance_id}")
     identity = generator.generate_identity()
 
+    print(f"Generating node identity for instance: {instance_id}")
     print(f"Selected location: {identity['location']['address']}")
     print(f"Sensor ID: {identity['sensor_id']}")
     print(f"Device: {identity['device_info']['manufacturer']} {identity['device_info']['model']}")
 
-    if generator.save_identity(output_path):
-        print(f"Node identity saved to: {output_path}")
+    # Output to stdout or file
+    if args.stdout:
+        print("\nGenerated identity:")
+        print(json.dumps(identity, indent=2))
         return True
     else:
-        print("Failed to save node identity")
-        return False
+        if generator.save_identity(output_path):
+            print(f"Node identity saved to: {output_path}")
+            return True
+        else:
+            print("Failed to save node identity")
+            return False
 
 
 if __name__ == "__main__":
