@@ -18,6 +18,7 @@ class DeploymentConfig:
     scripts: List[Dict[str, Any]] = field(default_factory=list)
     uploads: List[Dict[str, Any]] = field(default_factory=list)
     services: List[Dict[str, Any]] = field(default_factory=list)
+    template: Optional[str] = None  # Optional template name or path
 
     # Paths to actual files
     spot_dir: Path = field(default_factory=Path)
@@ -74,6 +75,7 @@ class DeploymentConfig:
         config.scripts = deployment.get("scripts", []) or []
         config.uploads = deployment.get("uploads", []) or []
         config.services = deployment.get("services", []) or []
+        config.template = deployment.get("template", None)
 
         return config
 

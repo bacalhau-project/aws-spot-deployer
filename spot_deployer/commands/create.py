@@ -330,7 +330,25 @@ def create_instances_in_region_with_table(
             # Use portable cloud-init generator for portable deployments
             log_message("Using portable cloud-init generator")
             generator = PortableCloudInitGenerator(deployment_config)
-            cloud_init_script = generator.generate()
+
+            # Check if a template is specified
+            if deployment_config.template:
+                from pathlib import Path
+
+                # Check if it's a file path or template name
+                template_path = Path(deployment_config.template)
+                if template_path.exists():
+                    log_message(f"Using custom template file: {deployment_config.template}")
+                    cloud_init_script = generator.generate_with_template(
+                        template_path=template_path
+                    )
+                else:
+                    log_message(f"Using library template: {deployment_config.template}")
+                    cloud_init_script = generator.generate_with_template(
+                        template_name=deployment_config.template
+                    )
+            else:
+                cloud_init_script = generator.generate()
         else:
             # Use legacy cloud-init for backwards compatibility
             log_message("Using legacy cloud-init generator")

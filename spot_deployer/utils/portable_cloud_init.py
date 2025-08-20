@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from spot_deployer.core.deployment import DeploymentConfig
+from spot_deployer.templates.cloud_init_templates import CloudInitTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -194,34 +195,33 @@ touch /opt/deployment.complete
 
         return "\n".join(yaml_lines)
 
-    def generate_with_template(self, template_path: Optional[Path] = None) -> str:
-        """Generate cloud-init using a template file.
+    def generate_with_template(
+        self, template_path: Optional[Path] = None, template_name: Optional[str] = None
+    ) -> str:
+        """Generate cloud-init using a template file or library template.
 
         Args:
             template_path: Path to cloud-init template file
+            template_name: Name of library template to use
 
         Returns:
             String containing the cloud-init YAML
         """
         if template_path and template_path.exists():
+            # Use provided template file
+            template = CloudInitTemplate(template_path)
+            logger.info(f"Using custom template: {template_path}")
+            return template.render(self.config)
+        elif template_name:
+            # Use library template
+            from spot_deployer.templates.cloud_init_templates import TemplateLibrary
+
             try:
-                with open(template_path, "r") as f:
-                    template = f.read()
-
-                # Replace template variables
-                replacements = {
-                    "{{PACKAGES}}": self._generate_packages_list(),
-                    "{{SCRIPTS}}": self._generate_scripts_list(),
-                    "{{SERVICES}}": self._generate_services_list(),
-                }
-
-                for key, value in replacements.items():
-                    template = template.replace(key, value)
-
-                logger.info(f"Generated cloud-init from template: {template_path}")
-                return template
-            except Exception as e:
-                logger.warning(f"Could not use template {template_path}: {e}")
+                template = TemplateLibrary.get_template(template_name)
+                logger.info(f"Using library template: {template_name}")
+                return template.render(self.config)
+            except FileNotFoundError as e:
+                logger.warning(f"Template not found: {e}")
 
         # Fall back to regular generation
         return self.generate()
