@@ -19,7 +19,7 @@ class DeploymentConfig:
     uploads: List[Dict[str, Any]] = field(default_factory=list)
     services: List[Dict[str, Any]] = field(default_factory=list)
     template: Optional[str] = None  # Optional template name or path
-    tarball_url: Optional[str] = None  # Optional tarball URL or path
+    tarball_source: Optional[str] = None  # Optional directory to create tarball from
 
     # Paths to actual files
     spot_dir: Path = field(default_factory=Path)
@@ -77,7 +77,7 @@ class DeploymentConfig:
         config.uploads = deployment.get("uploads", []) or []
         config.services = deployment.get("services", []) or []
         config.template = deployment.get("template", None)
-        config.tarball_url = deployment.get("tarball_url", None)
+        config.tarball_source = deployment.get("tarball_source", None)
 
         return config
 

@@ -4,7 +4,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from spot_deployer.core.deployment import DeploymentConfig
 from spot_deployer.utils.service_installer import ServiceInstaller

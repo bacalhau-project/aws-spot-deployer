@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Validate command - validates deployment configuration before deployment."""
 
+from pathlib import Path
+
 from ..core.config import SimpleConfig
 from ..core.deployment_discovery import DeploymentDiscovery, DeploymentMode
 from ..core.state import SimpleStateManager
 from ..utils.config_validator import ConfigValidator
 from ..utils.display import console, rich_error, rich_print, rich_success, rich_warning
 from ..utils.file_uploader import FileUploader
-from ..utils.tarball_handler import TarballHandler
 
 
 def cmd_validate(config: SimpleConfig, state: SimpleStateManager) -> None:
@@ -103,17 +104,19 @@ def cmd_validate(config: SimpleConfig, state: SimpleStateManager) -> None:
     else:
         rich_success("✅ All referenced files exist")
 
-    # 5. Validate tarball if specified
-    if hasattr(deployment_config, "tarball_url") and deployment_config.tarball_url:
-        console.print("\nValidating tarball...")
-        handler = TarballHandler()
-        is_valid, error_msg = handler.validate_tarball(deployment_config.tarball_url)
+    # 5. Validate tarball source if specified
+    if hasattr(deployment_config, "tarball_source") and deployment_config.tarball_source:
+        console.print("\nValidating tarball source...")
+        source_path = Path(deployment_config.tarball_source)
 
-        if is_valid:
-            rich_success(f"✅ Tarball is valid: {deployment_config.tarball_url}")
+        if not source_path.exists():
+            errors.append(f"Tarball source not found: {source_path}")
+            rich_error(f"❌ Tarball source not found: {source_path}")
+        elif not source_path.is_dir():
+            errors.append(f"Tarball source must be a directory: {source_path}")
+            rich_error(f"❌ Tarball source must be a directory: {source_path}")
         else:
-            errors.append(f"Tarball error: {error_msg}")
-            rich_error(f"❌ Tarball error: {error_msg}")
+            rich_success(f"✅ Tarball source is valid: {source_path}")
 
     # 6. Check file upload configuration
     if deployment_config.uploads:

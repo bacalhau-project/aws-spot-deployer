@@ -82,12 +82,17 @@ Legacy support for `deployment/` directory at project root.
 
 ### 3. Tarball Deployments
 
-Deploy from remote tarballs:
+Deploy by automatically creating tarballs from local directories:
 
 ```yaml
 # In deployment.yaml
-tarball_url: https://example.com/deployment.tar.gz
+tarball_source: ./my-app  # Local directory to bundle
 ```
+
+The deployer will:
+1. Create a tarball from the specified directory
+2. Upload it to instances
+3. Extract and deploy automatically
 
 ## Deployment Manifest Schema
 
@@ -118,8 +123,8 @@ uploads:
     destination: /remote/path
     permissions: "644"  # Optional, default: 644
 
-# Optional: Remote tarball
-tarball_url: https://example.com/package.tar.gz
+# Optional: Create tarball from local directory
+tarball_source: ./application  # Directory to bundle and deploy
 
 # Optional: Template to extend
 template: minimal  # or 'docker', or custom

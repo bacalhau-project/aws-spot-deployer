@@ -6,6 +6,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Set, cast
 
 import boto3
@@ -37,17 +38,61 @@ from ..version import __version__
 
 
 def transfer_portable_files(
-    host, username, key_path, deployment_config, progress_callback=None, log_function=None
+    host: str,
+    username: str,
+    key_path: str,
+    deployment_config,
+    progress_callback=None,
+    log_function=None,
 ):
     """Transfer files for portable deployment based on deployment config."""
 
     from ..utils.file_uploader import FileUploader
+    from ..utils.ssh_manager import SSHManager
+    from ..utils.tarball_handler import TarballHandler
 
     if not log_function:
         log_function = print
 
     try:
-        # If no uploads defined, return success
+        # Check if we should create and upload a tarball
+        if hasattr(deployment_config, "tarball_source") and deployment_config.tarball_source:
+            log_function(f"Creating tarball from {deployment_config.tarball_source}...")
+
+            handler = TarballHandler()
+            source_path = Path(deployment_config.tarball_source)
+
+            if not source_path.exists():
+                log_function(f"ERROR: Tarball source not found: {source_path}")
+                return False
+
+            # Create the tarball
+            tarball_path = handler.create_deployment_tarball(source_path)
+            log_function(f"Created tarball: {tarball_path}")
+
+            # Upload the tarball
+            if progress_callback:
+                progress_callback("Uploading", 0, "Uploading deployment tarball...")
+
+            # Use ssh_manager with proper initialization
+            ssh_manager = SSHManager(host, username, key_path)
+            success = ssh_manager.transfer_file(str(tarball_path), "/tmp/deployment.tar.gz")
+
+            if not success:
+                log_function("ERROR: Failed to upload tarball")
+                return False
+
+            log_function("Tarball uploaded successfully")
+
+            # Clean up local tarball
+            handler.cleanup()
+
+            if progress_callback:
+                progress_callback("Uploading", 100, "Tarball uploaded")
+
+            return True
+
+        # Otherwise use manifest-based uploads
         if not deployment_config.uploads:
             log_function("No files to upload (no uploads defined in deployment config)")
             return True

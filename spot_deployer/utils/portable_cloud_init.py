@@ -8,7 +8,6 @@ from typing import Optional
 from ..core.deployment import DeploymentConfig
 from ..templates.cloud_init_templates import CloudInitTemplate
 from ..utils.service_installer import ServiceInstaller
-from ..utils.tarball_handler import TarballHandler
 
 logger = logging.getLogger(__name__)
 
@@ -181,40 +180,25 @@ touch /opt/deployment.complete
         )
 
         # Handle tarball deployment if specified
-        if hasattr(self.config, "tarball_url") and self.config.tarball_url:
-            handler = TarballHandler()
-
-            # Validate tarball
-            is_valid, error_msg = handler.validate_tarball(self.config.tarball_url)
-            if is_valid:
-                # Add download commands
-                download_cmds = handler.generate_download_commands(
-                    self.config.tarball_url, "/tmp/deployment.tar.gz"
-                )
-                # Add extraction commands
-                extract_cmds = handler.generate_extraction_commands(
-                    "/tmp/deployment.tar.gz", "/opt/deployment", cleanup=True
-                )
-
-                # Add as a single command block
-                tarball_script = f"""cat > /tmp/download_tarball.sh << 'EOF'
-#!/bin/bash
-set -e
-{download_cmds}
-{extract_cmds}
-# Make scripts executable
-find /opt/deployment -name "*.sh" -type f -exec chmod +x {{}} \\;
-# Run setup if exists
-if [ -f /opt/deployment/setup.sh ]; then
-    cd /opt/deployment && ./setup.sh
+        if hasattr(self.config, "tarball_source") and self.config.tarball_source:
+            # Note: Tarball will be created and uploaded during deployment
+            # Add extraction commands for the tarball that will be uploaded
+            extract_script = """
+# Extract deployment tarball
+echo "Extracting deployment package..."
+mkdir -p /opt/deployment
+if [ -f /tmp/deployment.tar.gz ]; then
+    tar -xzf /tmp/deployment.tar.gz -C /opt/deployment
+    rm -f /tmp/deployment.tar.gz
+    chown -R ubuntu:ubuntu /opt/deployment
+    chmod -R 755 /opt/deployment/scripts/ 2>/dev/null || true
+    echo "Deployment package extracted"
+else
+    echo "Warning: Deployment tarball not found at /tmp/deployment.tar.gz"
 fi
-EOF
-chmod +x /tmp/download_tarball.sh
-/tmp/download_tarball.sh"""
-
-                commands.append(tarball_script)
-            else:
-                logger.warning(f"Invalid tarball URL: {error_msg}")
+"""
+            # Add extraction script to commands
+            commands.append(extract_script)
 
         # Install services if defined
         if self.config.services:
