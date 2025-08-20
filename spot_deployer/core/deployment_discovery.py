@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from ..core.deployment import DeploymentConfig
+from ..core.convention_scanner import ConventionScanner
 
 logger = logging.getLogger(__name__)
 
@@ -282,6 +283,21 @@ class DeploymentDiscovery:
 
         is_valid, errors = self.validate_discovered_structure(
             DeploymentMode.CONVENTION, project_root
+        )
+
+        # Build deployment config from conventions using scanner
+        deployment_config = None
+        if is_valid:
+            scanner = ConventionScanner(project_root / "deployment")
+            deployment_config = scanner.scan()
+            if not deployment_config:
+                errors.append("Failed to build configuration from conventions")
+
+        return DeploymentDiscoveryResult(
+            mode=DeploymentMode.CONVENTION,
+            project_root=project_root,
+            deployment_config=deployment_config,
+            validation_errors=errors,
         )
 
         # Build deployment config from conventions (will be implemented later)

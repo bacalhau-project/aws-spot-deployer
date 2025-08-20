@@ -268,8 +268,12 @@ scripts:
         self.assertIsNotNone(result.project_root)
         if result.project_root:
             self.assertEqual(result.project_root.resolve(), self.temp_dir.resolve())
-        # Convention config builder not implemented yet
-        self.assertIsNone(result.deployment_config)
+        # Convention scanner now works!
+        self.assertIsNotNone(result.deployment_config)
+        if result.deployment_config:
+            self.assertEqual(result.deployment_config.version, 1)
+            # Should have found the setup.sh script
+            self.assertEqual(len(result.deployment_config.scripts), 1)
         self.assertTrue(result.is_valid)
         self.assertEqual(len(result.validation_errors), 0)
 
