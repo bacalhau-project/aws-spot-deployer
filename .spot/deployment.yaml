@@ -1,0 +1,33 @@
+# Deployment Manifest
+# This file defines what gets deployed to your instances
+
+version: 1
+
+deployment:
+  # System packages to install via apt
+  packages:
+    - curl
+    - wget
+    - git
+    - python3
+    - python3-pip
+  
+  # Scripts to run during setup
+  scripts:
+    - name: setup
+      path: scripts/setup.sh
+      order: 1
+  
+  # Files to upload (source:destination:permissions)
+  uploads:
+    # Example: Upload all files from files/ directory
+    # - source: files/
+    #   dest: /opt/uploaded_files/
+    #   permissions: "0644"
+  
+  # SystemD services to install and start
+  services:
+    # Example service configuration
+    # - name: my-app
+    #   file: services/my-app.service
+    #   enabled: true

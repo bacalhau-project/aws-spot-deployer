@@ -2,6 +2,7 @@
 
 from .create import cmd_create
 from .destroy import cmd_destroy
+from .generate import main as cmd_generate
 from .help import cmd_help
 from .list import cmd_list
 from .nuke import cmd_nuke
@@ -12,6 +13,7 @@ from .version import cmd_version
 __all__ = [
     "cmd_create",
     "cmd_destroy",
+    "cmd_generate",
     "cmd_list",
     "cmd_nuke",
     "cmd_setup",

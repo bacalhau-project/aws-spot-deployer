@@ -17,7 +17,7 @@ def log(message):
     """Log with timestamp"""
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}")
-    # Write to /opt/deployment.log for compatibility and to home dir for access
+    # Write to /opt/deployment.log and to home dir for access
     log_paths = ["/opt/deployment.log", "/home/ubuntu/deployment.log"]
     for log_path in log_paths:
         try:

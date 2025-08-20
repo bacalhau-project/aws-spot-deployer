@@ -12,6 +12,7 @@ import sys
 from .commands import (
     cmd_create,
     cmd_destroy,
+    cmd_generate,
     cmd_help,
     cmd_list,
     cmd_nuke,
@@ -93,6 +94,8 @@ def main() -> None:
 
     if args.command == "setup":
         cmd_setup(config)
+    elif args.command == "generate":
+        cmd_generate()
     elif args.command == "create":
         cmd_create(config, state)
     elif args.command == "list":

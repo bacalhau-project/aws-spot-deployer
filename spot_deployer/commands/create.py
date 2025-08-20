@@ -6,6 +6,7 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Set, cast
 
 import boto3
@@ -14,6 +15,7 @@ from rich.layout import Layout
 from rich.panel import Panel
 
 from ..core.config import SimpleConfig
+from ..core.deployment import DeploymentConfig, DeploymentValidator
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth
 from ..utils.cloud_init import generate_minimal_cloud_init
@@ -329,8 +331,11 @@ def create_instances_in_region_with_table(
                     # Unknown error, don't retry
                     raise
 
-        if not result and last_error:
-            raise last_error
+        if not result:
+            if last_error:
+                raise last_error
+            else:
+                raise Exception(f"Failed to create instances in {region}")
 
         # Wait for instances to get public IPs
         created_instances: List[Dict[str, Any]] = []
@@ -480,6 +485,33 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     """Create spot instances across configured regions with enhanced real-time progress tracking."""
     if not check_aws_auth():
         return
+
+    # Check for .spot directory structure first (portable deployment)
+    spot_dir = Path.cwd() / ".spot"
+    if spot_dir.exists():
+        # Portable deployment mode - validate .spot structure
+        is_valid, missing = DeploymentValidator.check_spot_directory()
+        if not is_valid:
+            rich_error("❌ Missing required files in .spot/ directory:")
+            for item in missing:
+                rich_error(f"   • {item}")
+            rich_print("\n[yellow]Run 'spot generate' to create the required structure.[/yellow]")
+            return
+
+        # Load and validate deployment configuration
+        try:
+            deployment_config = DeploymentConfig.from_spot_dir(spot_dir)
+            is_valid, errors = deployment_config.validate()
+            if not is_valid:
+                rich_error("❌ Deployment configuration errors:")
+                for error in errors:
+                    rich_error(f"   • {error}")
+                return
+        except Exception as e:
+            rich_error(f"❌ Failed to load deployment configuration: {e}")
+            return
+
+        rich_success("✅ Validated .spot deployment structure")
 
     # Validate configuration first
     validator = ConfigValidator()

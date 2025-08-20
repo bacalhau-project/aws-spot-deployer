@@ -279,7 +279,6 @@ Example output:
 ### Configuration Changes
 - Always provide sensible defaults
 - Update `config.yaml.example` for new options
-- Maintain backward compatibility
 - Test with minimal configuration
 
 ### Working with Node Identities

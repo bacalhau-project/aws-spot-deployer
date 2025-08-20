@@ -38,3 +38,10 @@ output/
 
 data/
 instance/config/sample-identity.json
+
+# Spot Deployer
+.spot/files/orchestrator_*
+.spot/files/credentials*
+.spot/files/secrets*
+*.key
+*.pem

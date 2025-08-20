@@ -14,6 +14,7 @@ def cmd_help() -> None:
 
 [bold]Commands:[/bold]
   [green]setup[/green]      - Create a default 'config.yaml' file and directory structure.
+  [green]generate[/green]   - Generate standard deployment structure in .spot/ directory.
   [green]create[/green]     - Create and deploy spot instances based on 'config.yaml'.
   [green]list[/green]       - List all currently managed instances from 'instances.json'.
   [green]destroy[/green]    - Terminate all managed instances and clean up resources.
@@ -40,5 +41,5 @@ def cmd_help() -> None:
         console.print(Panel(help_text, title="Help", border_style="blue"))
     else:
         print(
-            "Usage: ./deploy_spot.py [setup|create|list|destroy|nuke|readme|help] [--config PATH] [--files PATH] [--output PATH]"
+            "Usage: ./deploy_spot.py [setup|generate|create|list|destroy|nuke|readme|help] [--config PATH] [--files PATH] [--output PATH]"
         )
