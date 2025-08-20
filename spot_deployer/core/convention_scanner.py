@@ -236,9 +236,10 @@ class ConventionScanner:
         """Scan for systemd service files.
 
         Returns:
-            List of service file paths
+            List of service dictionaries with 'path' key
         """
         services = []
+        seen_paths = set()
 
         # Check for services directory
         services_dir = self.deployment_dir / "services"
@@ -247,8 +248,11 @@ class ConventionScanner:
             service_files = sorted(services_dir.glob("*.service"))
 
             for service_file in service_files:
-                services.append(str(service_file))
-                logger.debug(f"Found service: {service_file.name}")
+                path_str = str(service_file)
+                if path_str not in seen_paths:
+                    services.append({"path": path_str})
+                    seen_paths.add(path_str)
+                    logger.debug(f"Found service: {service_file.name}")
 
         # Check for systemd directory (alternative location)
         systemd_dir = self.deployment_dir / "systemd"
@@ -256,15 +260,19 @@ class ConventionScanner:
             service_files = sorted(systemd_dir.glob("*.service"))
 
             for service_file in service_files:
-                if str(service_file) not in services:  # Avoid duplicates
-                    services.append(str(service_file))
+                path_str = str(service_file)
+                if path_str not in seen_paths:  # Avoid duplicates
+                    services.append({"path": path_str})
+                    seen_paths.add(path_str)
                     logger.debug(f"Found service in systemd/: {service_file.name}")
 
         # Check for individual service files in root of deployment
         root_services = sorted(self.deployment_dir.glob("*.service"))
         for service_file in root_services:
-            if str(service_file) not in services:
-                services.append(str(service_file))
+            path_str = str(service_file)
+            if path_str not in seen_paths:
+                services.append({"path": path_str})
+                seen_paths.add(path_str)
                 logger.debug(f"Found service in root: {service_file.name}")
 
         return services
@@ -296,7 +304,11 @@ class ConventionScanner:
 
         logger.info(f"  - Services: {len(services)} found")
         for service in services:
-            logger.debug(f"    - {Path(service).name}")
+            if isinstance(service, dict):
+                service_path = service.get("path", "")
+            else:
+                service_path = service
+            logger.debug(f"    - {Path(service_path).name}")
 
     def validate(self) -> tuple[bool, list[str]]:
         """Validate that deployment directory has deployable content.

@@ -61,3 +61,10 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 check_untyped_defs = true
 warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    # Ignore deprecation warnings from botocore about datetime.utcnow()
+    # This is an issue in the AWS SDK, not our code
+    "ignore::DeprecationWarning:botocore.*",
+]

@@ -146,7 +146,8 @@ class TestConventionScanner(unittest.TestCase):
         config = scanner.scan()
 
         self.assertEqual(len(config.services), 2)
-        service_names = [Path(s).name for s in config.services]
+        service_paths = [s.get("path") for s in config.services if isinstance(s, dict)]
+        service_names = [Path(p).name for p in service_paths if p]
         self.assertIn("app.service", service_names)
         self.assertIn("worker.service", service_names)
 
@@ -161,7 +162,12 @@ class TestConventionScanner(unittest.TestCase):
         config = scanner.scan()
 
         self.assertEqual(len(config.services), 1)
-        self.assertIn("daemon.service", Path(config.services[0]).name)
+        service_path = (
+            config.services[0].get("path")
+            if isinstance(config.services[0], dict)
+            else config.services[0]
+        )
+        self.assertIn("daemon.service", Path(service_path).name)
 
     def test_scan_root_service_files(self):
         """Test scanning service files in deployment root."""
@@ -171,7 +177,12 @@ class TestConventionScanner(unittest.TestCase):
         config = scanner.scan()
 
         self.assertEqual(len(config.services), 1)
-        self.assertIn("main.service", Path(config.services[0]).name)
+        service_path = (
+            config.services[0].get("path")
+            if isinstance(config.services[0], dict)
+            else config.services[0]
+        )
+        self.assertIn("main.service", Path(service_path).name)
 
     def test_scan_configs_directory(self):
         """Test scanning configs directory."""

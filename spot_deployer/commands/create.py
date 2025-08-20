@@ -6,7 +6,6 @@ import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Set, cast
 
 import boto3
@@ -15,7 +14,8 @@ from rich.layout import Layout
 from rich.panel import Panel
 
 from ..core.config import SimpleConfig
-from ..core.deployment import DeploymentConfig, DeploymentValidator
+from ..core.deployment import DeploymentConfig
+from ..core.deployment_discovery import DeploymentDiscovery, DeploymentMode
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth
 from ..utils.cloud_init import generate_minimal_cloud_init
@@ -30,13 +30,70 @@ from ..utils.display import (
     rich_warning,
 )
 from ..utils.logging import ConsoleLogger, setup_logger
+from ..utils.portable_cloud_init import PortableCloudInitGenerator
 from ..utils.shutdown_handler import ShutdownContext
 from ..utils.ssh import transfer_files_scp, wait_for_ssh_only
 from ..utils.tables import add_instance_row, create_instance_table
 from ..version import __version__
 
 
-def post_creation_setup(instances, config, update_status_func, logger):
+def transfer_portable_files(
+    host, username, key_path, deployment_config, progress_callback=None, log_function=None
+):
+    """Transfer files for portable deployment based on deployment config."""
+    import os
+    import subprocess
+
+    if not log_function:
+        log_function = print
+
+    try:
+        # Create a marker file to indicate uploads are complete
+        marker_cmd = f"ssh -o StrictHostKeyChecking=no -i {key_path} {username}@{host} 'touch /opt/uploads.complete'"
+
+        # Upload each file/directory specified in deployment config
+        for upload in deployment_config.uploads:
+            source = upload.get("source", "")
+            destination = upload.get("destination", "")
+
+            if not source or not destination:
+                continue
+
+            if not os.path.exists(source):
+                log_function(f"Warning: Source not found: {source}")
+                continue
+
+            # Create destination directory
+            mkdir_cmd = f"ssh -o StrictHostKeyChecking=no -i {key_path} {username}@{host} 'sudo mkdir -p {os.path.dirname(destination)}'"
+            subprocess.run(mkdir_cmd, shell=True, check=False)
+
+            # Upload the file/directory
+            scp_cmd = f"scp -r -o StrictHostKeyChecking=no -i {key_path} {source} {username}@{host}:{destination}"
+            log_function(f"Uploading {source} to {destination}")
+            result = subprocess.run(scp_cmd, shell=True, capture_output=True, text=True)
+
+            if result.returncode != 0:
+                log_function(f"Failed to upload {source}: {result.stderr}")
+                return False
+
+            # Set permissions if specified
+            permissions = upload.get("permissions", "755")
+            if permissions:
+                chmod_cmd = f"ssh -o StrictHostKeyChecking=no -i {key_path} {username}@{host} 'sudo chmod -R {permissions} {destination}'"
+                subprocess.run(chmod_cmd, shell=True, check=False)
+
+        # Create the upload complete marker
+        subprocess.run(marker_cmd, shell=True, check=False)
+        log_function("File uploads completed")
+        return True
+
+    except Exception as e:
+        if log_function:
+            log_function(f"Error during file transfer: {e}")
+        return False
+
+
+def post_creation_setup(instances, config, update_status_func, logger, deployment_config=None):
     """Handle post-creation setup for all instances."""
     if not instances:
         return
@@ -52,8 +109,15 @@ def post_creation_setup(instances, config, update_status_func, logger):
         return
 
     username = config.username()
-    files_directory = config.files_directory()
-    scripts_directory = config.scripts_directory()
+
+    # For portable deployments, we'll handle file uploads differently
+    if deployment_config:
+        files_directory = None  # Will be handled by deployment config
+        scripts_directory = None
+    else:
+        # Legacy mode - use config directories
+        files_directory = config.files_directory()
+        scripts_directory = config.scripts_directory()
 
     # Check for additional_commands.sh in current directory
     additional_commands_path = os.path.join(os.getcwd(), "additional_commands.sh")
@@ -103,16 +167,36 @@ def post_creation_setup(instances, config, update_status_func, logger):
                 # Show detailed progress
                 update_status_func(instance_key, f"{phase} ({progress}%): {status}")
 
-            success = transfer_files_scp(
-                instance_ip,
-                username,
-                expanded_key_path,
-                files_directory,
-                scripts_directory,
-                additional_commands_path=additional_commands_path,
-                progress_callback=progress_callback,
-                log_function=lambda msg: logger.info(f"[{instance_id} @ {instance_ip}] {msg}"),
-            )
+            if deployment_config:
+                # Portable deployment - upload based on deployment config
+                success = transfer_portable_files(
+                    instance_ip,
+                    username,
+                    expanded_key_path,
+                    deployment_config,
+                    progress_callback=progress_callback,
+                    log_function=lambda msg: logger.info(f"[{instance_id} @ {instance_ip}] {msg}"),
+                )
+            else:
+                # Legacy deployment - use existing transfer function
+                if files_directory and scripts_directory:
+                    success = transfer_files_scp(
+                        instance_ip,
+                        username,
+                        expanded_key_path,
+                        files_directory,
+                        scripts_directory,
+                        additional_commands_path=additional_commands_path,
+                        progress_callback=progress_callback,
+                        log_function=lambda msg: logger.info(
+                            f"[{instance_id} @ {instance_ip}] {msg}"
+                        ),
+                    )
+                else:
+                    logger.error(
+                        f"[{instance_id} @ {instance_ip}] No files/scripts directories configured"
+                    )
+                    success = False
 
             if not success:
                 logger.error(f"[{instance_id} @ {instance_ip}] File transfer failed")
@@ -162,6 +246,7 @@ def create_instances_in_region_with_table(
     created_at: str,
     creator: str,
     state: SimpleStateManager,
+    deployment_config: DeploymentConfig | None = None,
 ) -> List[dict]:
     """Create spot instances in a specific region with live table updates."""
     if count <= 0:
@@ -241,7 +326,15 @@ def create_instances_in_region_with_table(
             update_status_func(key, "Launching instance")
 
         # Generate cloud-init script
-        cloud_init_script = generate_minimal_cloud_init(config)
+        if deployment_config:
+            # Use portable cloud-init generator for portable deployments
+            log_message("Using portable cloud-init generator")
+            generator = PortableCloudInitGenerator(deployment_config)
+            cloud_init_script = generator.generate()
+        else:
+            # Use legacy cloud-init for backwards compatibility
+            log_message("Using legacy cloud-init generator")
+            cloud_init_script = generate_minimal_cloud_init(config)
 
         # Create instances
         market_options = {
@@ -486,32 +579,53 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     if not check_aws_auth():
         return
 
-    # Check for .spot directory structure first (portable deployment)
-    spot_dir = Path.cwd() / ".spot"
-    if spot_dir.exists():
-        # Portable deployment mode - validate .spot structure
-        is_valid, missing = DeploymentValidator.check_spot_directory()
-        if not is_valid:
-            rich_error("❌ Missing required files in .spot/ directory:")
-            for item in missing:
-                rich_error(f"   • {item}")
+    # Initialize deployment_config as None (for legacy mode)
+    deployment_config = None
+
+    # Use deployment discovery to detect mode
+    discovery = DeploymentDiscovery()
+    discovery_result = discovery.discover()
+
+    if discovery_result.mode == DeploymentMode.PORTABLE:
+        # Portable deployment mode
+        if not discovery_result.is_valid:
+            rich_error("❌ Invalid portable deployment structure:")
+            for error in discovery_result.validation_errors:
+                rich_error(f"   • {error}")
             rich_print("\n[yellow]Run 'spot generate' to create the required structure.[/yellow]")
             return
 
-        # Load and validate deployment configuration
-        try:
-            deployment_config = DeploymentConfig.from_spot_dir(spot_dir)
-            is_valid, errors = deployment_config.validate()
-            if not is_valid:
-                rich_error("❌ Deployment configuration errors:")
-                for error in errors:
-                    rich_error(f"   • {error}")
-                return
-        except Exception as e:
-            rich_error(f"❌ Failed to load deployment configuration: {e}")
+        deployment_config = discovery_result.deployment_config
+        if deployment_config:
+            rich_success("✅ Using portable deployment (.spot directory)")
+        else:
+            rich_error("❌ Failed to load deployment configuration")
             return
 
-        rich_success("✅ Validated .spot deployment structure")
+    elif discovery_result.mode == DeploymentMode.CONVENTION:
+        # Convention-based deployment mode
+        if not discovery_result.is_valid:
+            rich_error("❌ Invalid convention deployment structure:")
+            for error in discovery_result.validation_errors:
+                rich_error(f"   • {error}")
+            return
+
+        deployment_config = discovery_result.deployment_config
+        if deployment_config:
+            rich_success("✅ Using convention-based deployment (deployment/ directory)")
+        else:
+            rich_error("❌ Failed to build deployment configuration from conventions")
+            return
+
+    elif discovery_result.mode == DeploymentMode.LEGACY:
+        # Legacy mode - use existing cloud-init
+        rich_success("✅ Using legacy deployment mode")
+        deployment_config = None
+
+    else:
+        # No deployment structure found - use legacy for backward compatibility
+        rich_warning("⚠️ No deployment structure found, using legacy mode")
+        deployment_config = None
 
     # Validate configuration first
     validator = ConfigValidator()
@@ -772,6 +886,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                         timestamp,
                         creator,
                         state,
+                        deployment_config,
                     )
                     with lock:
                         all_instances.extend(instances)
@@ -796,7 +911,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 live.update(generate_layout())
 
                 # Always run post-creation setup to upload files
-                post_creation_setup(all_instances, config, update_status, logger)
+                post_creation_setup(all_instances, config, update_status, logger, deployment_config)
 
                 # Keep the live display running during setup
                 live.update(generate_layout())
