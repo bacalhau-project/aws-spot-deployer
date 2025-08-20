@@ -1,0 +1,50 @@
+# Bacalhau Compute Node Configuration
+# This node will connect to the orchestrator and join the cluster
+
+API:
+  Host: 147.135.16.87
+  Port: 1234
+  TLS:
+    UseTLS: true
+    Insecure: false
+
+# Compute node configuration
+Compute:
+  Enabled: true
+  Orchestrators:
+    - nats://147.135.16.87:4222
+  Auth:
+    Token: 9847fc83-f353-4cf6-8001-b82da00bacf5
+  
+  # Resources this node offers
+  Resources:
+    CPU: ""      # Empty means use all available
+    Memory: ""   # Empty means use all available
+    Disk: ""     # Empty means use all available
+    GPU: ""      # Empty means no GPU
+
+# Engines to enable
+Engines:
+  Types:
+    - docker
+    - wasm
+  
+  Docker:
+    ManifestCache:
+      Size: 1000
+      Duration: 1h
+
+# Name provider - generates unique node names
+NameProvider: puuid
+
+# Logging
+Logging:
+  Level: info
+  Mode: default
+
+# Update configuration
+UpdateConfig:
+  Interval: 24h
+
+# Disable telemetry
+DisableAnalytics: true

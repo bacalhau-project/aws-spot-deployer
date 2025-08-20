@@ -1,16 +1,32 @@
-# Spot Deployer - Universal AWS Spot Instance Deployment Tool
+# Spot Deployer - Bacalhau Compute Cluster on AWS Spot Instances
 
-A production-ready, universal deployment tool for AWS spot instances. Deploy any application with portable deployment manifests, beautiful Rich terminal UI, and comprehensive state management. Originally built for Bacalhau, now supports any workload.
+A production-ready deployment tool for creating Bacalhau compute clusters on AWS spot instances. Each deployed instance automatically joins a Bacalhau cluster as a compute node, ready to process distributed computing jobs. Features portable deployment manifests, beautiful Rich terminal UI, and comprehensive state management.
 
 ## ✨ What's New
 
-- **Universal Deployments**: Deploy any application, not just Bacalhau
+- **Default Bacalhau Integration**: Each instance automatically joins the Bacalhau cluster
+- **Compute Node Ready**: Instances connect to orchestrator at 147.135.16.87
+- **Docker-based Deployment**: Bacalhau runs as a Docker container for easy management
 - **Portable Manifests**: Define deployments with `.spot/deployment.yaml`
-- **Template System**: Extend from minimal, Docker, or custom templates
 - **Validation**: Pre-deployment validation with `spot validate`
 - **Service Management**: Automatic SystemD service installation
 - **File Uploads**: Manifest-based file upload with permissions
-- **Tarball Support**: Deploy from remote tarballs
+- **Tarball Support**: Bundle and deploy local directories
+
+## 🎯 Default: Bacalhau Compute Cluster
+
+By default, every instance deployed will:
+1. **Install Docker and Docker Compose**
+2. **Run Bacalhau as a compute node** in a Docker container
+3. **Connect to the orchestrator** at 147.135.16.87
+4. **Join the cluster** using authentication token
+5. **Start processing jobs** immediately
+
+The Bacalhau compute nodes support:
+- **Docker jobs** - Run any Docker container as a job
+- **WASM jobs** - Execute WebAssembly workloads
+- **Distributed computing** - Process jobs across the cluster
+- **Auto-scaling** - Add more nodes as needed
 
 ## 🚀 Quick Start
 
