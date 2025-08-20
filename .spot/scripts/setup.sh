@@ -12,7 +12,7 @@ echo "Starting deployment setup at $(date)"
 if [ -d /opt/deployer ]; then
     echo "Found /opt/deployer directory from tarball"
     ls -la /opt/deployer/
-    
+
     # Run setup script from tarball if it exists
     if [ -f /opt/deployer/node/setup.sh ]; then
         echo "Running setup script from tarball..."

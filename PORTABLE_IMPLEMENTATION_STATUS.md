@@ -58,7 +58,7 @@ Based on analysis of the codebase against PORTABLE_REARCHITECTURE.md, here's wha
 - ❌ **Item 1**: Create deployment discovery module
   - No `spot_deployer/core/deployment_discovery.py`
   - No mode detection (portable/convention/legacy)
-  
+
 - ❌ **Item 4**: Implement convention scanner
   - No auto-detection of deployment/ directory
   - No convention-based discovery
@@ -66,10 +66,10 @@ Based on analysis of the codebase against PORTABLE_REARCHITECTURE.md, here's wha
 ### Phase 2: Cloud-Init Generation Refactor
 - ❌ **Item 5**: Create portable cloud-init generator
   - No `spot_deployer/utils/portable_cloud_init.py`
-  
+
 - ❌ **Item 6**: Create cloud-init template system
   - No template directory
-  
+
 - ❌ **Item 7**: Implement tarball handler
   - No `spot_deployer/utils/tarball_handler.py`
   - No external tarball support
@@ -77,17 +77,17 @@ Based on analysis of the codebase against PORTABLE_REARCHITECTURE.md, here's wha
 ### Phase 3: File Transfer Refactor
 - ❌ **Item 8**: Create generic file uploader
   - No `spot_deployer/utils/file_uploader.py`
-  
+
 - ❌ **Item 9**: Implement deployment bundler
   - No bundling capability
-  
+
 - ❌ **Item 10**: Create secrets handler
   - No special secrets handling
 
 ### Phase 4: Service Management Refactor
 - ❌ **Item 11**: Create service installer
   - No dedicated service installer
-  
+
 - ❌ **Item 12**: Implement service orchestrator
   - No service orchestration
 

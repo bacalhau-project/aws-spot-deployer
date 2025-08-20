@@ -23,11 +23,11 @@ CONFIG_TEMPLATE = """# Spot Deployer Configuration
 aws:
   # Total number of instances to deploy
   total_instances: 1
-  
+
   # SSH settings
   username: ubuntu
   ssh_key_name: YOUR-SSH-KEY-NAME  # REQUIRED: Replace with your AWS SSH key name
-  
+
   # Directories (relative to .spot/)
   files_directory: "files"
   scripts_directory: "scripts"
@@ -54,7 +54,7 @@ deployment:
     - git
     - python3
     - python3-pip
-  
+
   # Scripts to run during setup
   scripts:
     - name: setup
@@ -63,14 +63,14 @@ deployment:
     - name: additional
       path: scripts/additional_commands.sh
       order: 2
-  
+
   # Files to upload (source:destination:permissions)
   uploads:
     # Example: Upload all files from files/ directory
     # - source: files/
     #   dest: /opt/uploaded_files/
     #   permissions: "0644"
-  
+
   # SystemD services to install and start
   services:
     # Example service configuration
@@ -91,7 +91,7 @@ echo "Starting deployment setup..."
 # Add your setup commands here
 # Examples:
 # - Clone repositories
-# - Install application dependencies  
+# - Install application dependencies
 # - Configure environment
 # - Build your application
 
