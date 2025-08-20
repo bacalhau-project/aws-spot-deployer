@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Deployment discovery module for detecting and validating deployment structures."""
 
+import logging
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple
 
 from ..core.deployment import DeploymentConfig
+
+logger = logging.getLogger(__name__)
 
 
 class DeploymentMode(Enum):
@@ -14,6 +18,22 @@ class DeploymentMode(Enum):
     PORTABLE = "portable"  # .spot/ directory with deployment.yaml
     CONVENTION = "convention"  # deployment/ directory with convention-based structure
     LEGACY = "legacy"  # Old instance/scripts structure
+    NONE = "none"  # No deployment structure found
+
+
+@dataclass
+class DeploymentDiscoveryResult:
+    """Result of deployment discovery."""
+
+    mode: DeploymentMode
+    project_root: Optional[Path]
+    deployment_config: Optional[DeploymentConfig]
+    validation_errors: list[str]
+
+    @property
+    def is_valid(self) -> bool:
+        """Check if the discovery result is valid."""
+        return len(self.validation_errors) == 0 and self.mode != DeploymentMode.NONE
 
 
 class DeploymentDiscovery:
@@ -26,6 +46,32 @@ class DeploymentDiscovery:
             start_path: Starting path for discovery (defaults to current directory)
         """
         self.start_path = Path(start_path) if start_path else Path.cwd()
+
+    def discover(self) -> DeploymentDiscoveryResult:
+        """Discover deployment mode and configuration.
+
+        Returns:
+            DeploymentDiscoveryResult with discovered information
+        """
+        # Check for portable mode (.spot directory)
+        if self._has_spot_directory():
+            return self._discover_portable()
+
+        # Check for convention mode (deployment directory)
+        if self._has_deployment_directory():
+            return self._discover_convention()
+
+        # Check for legacy mode (instance/scripts)
+        if self._has_legacy_structure():
+            return self._discover_legacy()
+
+        # No deployment structure found
+        return DeploymentDiscoveryResult(
+            mode=DeploymentMode.NONE,
+            project_root=None,
+            deployment_config=None,
+            validation_errors=["No deployment structure found"],
+        )
 
     def detect_deployment_mode(self) -> DeploymentMode:
         """Detect the deployment mode based on directory structure.
@@ -50,8 +96,8 @@ class DeploymentDiscovery:
         if instance_dir.exists() and (instance_dir / "scripts").exists():
             return DeploymentMode.LEGACY
 
-        # Default to legacy if nothing else found
-        return DeploymentMode.LEGACY
+        # No deployment structure found
+        return DeploymentMode.NONE
 
     def find_project_root(self, max_depth: int = 5) -> Optional[Path]:
         """Find the project root by looking for deployment markers.
@@ -191,3 +237,75 @@ class DeploymentDiscovery:
 
         # For legacy mode, return None (will use legacy handling)
         return None
+
+    def _has_spot_directory(self) -> bool:
+        """Check if .spot directory exists."""
+        return (self.start_path / ".spot").is_dir()
+
+    def _has_deployment_directory(self) -> bool:
+        """Check if deployment directory exists."""
+        return (self.start_path / "deployment").is_dir()
+
+    def _has_legacy_structure(self) -> bool:
+        """Check if legacy instance/scripts structure exists."""
+        return (self.start_path / "instance" / "scripts").is_dir()
+
+    def _discover_portable(self) -> DeploymentDiscoveryResult:
+        """Discover portable deployment (.spot directory)."""
+        project_root = self.find_project_root()
+        if not project_root:
+            project_root = self.start_path
+
+        errors = []
+        is_valid, errors = self.validate_discovered_structure(DeploymentMode.PORTABLE, project_root)
+
+        # Try to load deployment config
+        deployment_config = None
+        if is_valid:
+            try:
+                deployment_config = DeploymentConfig.from_spot_dir(project_root / ".spot")
+            except Exception as e:
+                errors.append(f"Failed to load deployment config: {e}")
+
+        return DeploymentDiscoveryResult(
+            mode=DeploymentMode.PORTABLE,
+            project_root=project_root,
+            deployment_config=deployment_config,
+            validation_errors=errors,
+        )
+
+    def _discover_convention(self) -> DeploymentDiscoveryResult:
+        """Discover convention-based deployment (deployment directory)."""
+        project_root = self.find_project_root()
+        if not project_root:
+            project_root = self.start_path
+
+        is_valid, errors = self.validate_discovered_structure(
+            DeploymentMode.CONVENTION, project_root
+        )
+
+        # Build deployment config from conventions (will be implemented later)
+        deployment_config = None
+
+        return DeploymentDiscoveryResult(
+            mode=DeploymentMode.CONVENTION,
+            project_root=project_root,
+            deployment_config=deployment_config,
+            validation_errors=errors,
+        )
+
+    def _discover_legacy(self) -> DeploymentDiscoveryResult:
+        """Discover legacy deployment (instance/scripts)."""
+        project_root = self.find_project_root()
+        if not project_root:
+            project_root = self.start_path
+
+        is_valid, errors = self.validate_discovered_structure(DeploymentMode.LEGACY, project_root)
+
+        # Legacy mode doesn't use DeploymentConfig
+        return DeploymentDiscoveryResult(
+            mode=DeploymentMode.LEGACY,
+            project_root=project_root,
+            deployment_config=None,
+            validation_errors=errors,
+        )

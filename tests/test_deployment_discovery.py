@@ -6,7 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from spot_deployer.core.deployment_discovery import DeploymentDiscovery, DeploymentMode
+from spot_deployer.core.deployment_discovery import (
+    DeploymentDiscovery,
+    DeploymentDiscoveryResult,
+    DeploymentMode,
+)
 
 
 class TestDeploymentDiscovery(unittest.TestCase):
@@ -68,12 +72,12 @@ class TestDeploymentDiscovery(unittest.TestCase):
 
         self.assertEqual(mode, DeploymentMode.LEGACY)
 
-    def test_detect_default_to_legacy(self):
-        """Test that discovery defaults to legacy when no structure found."""
+    def test_detect_none_when_no_structure(self):
+        """Test that discovery returns NONE when no structure found."""
         discovery = DeploymentDiscovery(self.temp_dir)
         mode = discovery.detect_deployment_mode()
 
-        self.assertEqual(mode, DeploymentMode.LEGACY)
+        self.assertEqual(mode, DeploymentMode.NONE)
 
     def test_find_project_root_with_spot(self):
         """Test finding project root with .spot directory."""
@@ -88,7 +92,9 @@ class TestDeploymentDiscovery(unittest.TestCase):
         root = discovery.find_project_root()
 
         # Resolve both paths for comparison
-        self.assertEqual(root.resolve(), self.temp_dir.resolve())
+        self.assertIsNotNone(root)
+        if root:
+            self.assertEqual(root.resolve(), self.temp_dir.resolve())
 
     def test_find_project_root_with_config(self):
         """Test finding project root with config.yaml."""
@@ -102,7 +108,9 @@ class TestDeploymentDiscovery(unittest.TestCase):
         root = discovery.find_project_root()
 
         # Resolve both paths for comparison
-        self.assertEqual(root.resolve(), self.temp_dir.resolve())
+        self.assertIsNotNone(root)
+        if root:
+            self.assertEqual(root.resolve(), self.temp_dir.resolve())
 
     def test_find_project_root_not_found(self):
         """Test when project root cannot be found."""
@@ -207,8 +215,9 @@ deployment:
         config = discovery.get_deployment_config()
 
         self.assertIsNotNone(config)
-        self.assertEqual(config.version, 1)
-        self.assertEqual(config.packages, ["python3"])
+        if config:
+            self.assertEqual(config.version, 1)
+            self.assertEqual(config.packages, ["python3"])
 
     def test_get_deployment_config_no_root(self):
         """Test getting deployment config when no root found."""
@@ -217,6 +226,83 @@ deployment:
         config = discovery.get_deployment_config()
 
         self.assertIsNone(config)
+
+    def test_discover_portable_result(self):
+        """Test complete discovery result for portable mode."""
+        # Create valid .spot directory
+        spot_dir = self.temp_dir / ".spot"
+        spot_dir.mkdir()
+        (spot_dir / "deployment.yaml").write_text("""
+version: 1
+packages:
+  - python3
+scripts:
+  - command: echo "test"
+""")
+        (spot_dir / "config.yaml").write_text("aws:\n  total_instances: 1\n")
+
+        discovery = DeploymentDiscovery(self.temp_dir)
+        result = discovery.discover()
+
+        self.assertIsInstance(result, DeploymentDiscoveryResult)
+        self.assertEqual(result.mode, DeploymentMode.PORTABLE)
+        self.assertIsNotNone(result.project_root)
+        if result.project_root:
+            self.assertEqual(result.project_root.resolve(), self.temp_dir.resolve())
+        self.assertIsNotNone(result.deployment_config)
+        self.assertTrue(result.is_valid)
+        self.assertEqual(len(result.validation_errors), 0)
+
+    def test_discover_convention_result(self):
+        """Test complete discovery result for convention mode."""
+        # Create valid deployment directory
+        deployment_dir = self.temp_dir / "deployment"
+        deployment_dir.mkdir()
+        (deployment_dir / "setup.sh").write_text("#!/bin/bash\necho 'setup'\n")
+
+        discovery = DeploymentDiscovery(self.temp_dir)
+        result = discovery.discover()
+
+        self.assertIsInstance(result, DeploymentDiscoveryResult)
+        self.assertEqual(result.mode, DeploymentMode.CONVENTION)
+        self.assertIsNotNone(result.project_root)
+        if result.project_root:
+            self.assertEqual(result.project_root.resolve(), self.temp_dir.resolve())
+        # Convention config builder not implemented yet
+        self.assertIsNone(result.deployment_config)
+        self.assertTrue(result.is_valid)
+        self.assertEqual(len(result.validation_errors), 0)
+
+    def test_discover_legacy_result(self):
+        """Test complete discovery result for legacy mode."""
+        # Create instance/scripts directory
+        instance_dir = self.temp_dir / "instance"
+        scripts_dir = instance_dir / "scripts"
+        scripts_dir.mkdir(parents=True)
+
+        discovery = DeploymentDiscovery(self.temp_dir)
+        result = discovery.discover()
+
+        self.assertIsInstance(result, DeploymentDiscoveryResult)
+        self.assertEqual(result.mode, DeploymentMode.LEGACY)
+        self.assertIsNotNone(result.project_root)
+        if result.project_root:
+            self.assertEqual(result.project_root.resolve(), self.temp_dir.resolve())
+        self.assertIsNone(result.deployment_config)
+        # Legacy structure validation is lenient
+        self.assertTrue(result.is_valid)
+
+    def test_discover_none_result(self):
+        """Test discovery result when no structure found."""
+        discovery = DeploymentDiscovery(self.temp_dir)
+        result = discovery.discover()
+
+        self.assertIsInstance(result, DeploymentDiscoveryResult)
+        self.assertEqual(result.mode, DeploymentMode.NONE)
+        self.assertIsNone(result.project_root)
+        self.assertIsNone(result.deployment_config)
+        self.assertFalse(result.is_valid)
+        self.assertGreater(len(result.validation_errors), 0)
 
 
 if __name__ == "__main__":
