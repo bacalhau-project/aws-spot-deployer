@@ -77,6 +77,7 @@ class DeploymentConfig:
         config.uploads = deployment.get("uploads", []) or []
         config.services = deployment.get("services", []) or []
         config.template = deployment.get("template", None)
+        config.tarball_url = deployment.get("tarball_url", None)
 
         return config
 

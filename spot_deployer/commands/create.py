@@ -40,51 +40,43 @@ def transfer_portable_files(
     host, username, key_path, deployment_config, progress_callback=None, log_function=None
 ):
     """Transfer files for portable deployment based on deployment config."""
-    import os
-    import subprocess
+    from ..utils.file_uploader import FileUploader
+    from pathlib import Path
 
     if not log_function:
         log_function = print
 
     try:
-        # Create a marker file to indicate uploads are complete
-        marker_cmd = f"ssh -o StrictHostKeyChecking=no -i {key_path} {username}@{host} 'touch /opt/uploads.complete'"
+        # If no uploads defined, return success
+        if not deployment_config.uploads:
+            log_function("No files to upload (no uploads defined in deployment config)")
+            return True
 
-        # Upload each file/directory specified in deployment config
-        for upload in deployment_config.uploads:
-            source = upload.get("source", "")
-            destination = upload.get("destination", "")
+        # Use FileUploader for manifest-based uploads
+        uploader = FileUploader(deployment_config, deployment_config.spot_dir)
 
-            if not source or not destination:
-                continue
+        # Create a progress wrapper if callback provided
+        def progress_wrapper(message, percent):
+            if progress_callback:
+                progress_callback("Uploading", int(percent), message)
 
-            if not os.path.exists(source):
-                log_function(f"Warning: Source not found: {source}")
-                continue
+        # Upload all files according to manifest
+        success, message = uploader.upload_all(
+            host=host,
+            username=username,
+            key_path=key_path,
+            progress_callback=progress_wrapper if progress_callback else None,
+        )
 
-            # Create destination directory
-            mkdir_cmd = f"ssh -o StrictHostKeyChecking=no -i {key_path} {username}@{host} 'sudo mkdir -p {os.path.dirname(destination)}'"
-            subprocess.run(mkdir_cmd, shell=True, check=False)
+        log_function(message)
 
-            # Upload the file/directory
-            scp_cmd = f"scp -r -o StrictHostKeyChecking=no -i {key_path} {source} {username}@{host}:{destination}"
-            log_function(f"Uploading {source} to {destination}")
-            result = subprocess.run(scp_cmd, shell=True, capture_output=True, text=True)
+        # Get and log statistics
+        stats = uploader.get_stats()
+        if stats["uploaded_files"] > 0:
+            size_mb = stats["total_bytes"] / (1024 * 1024)
+            log_function(f"Uploaded {stats['uploaded_files']} files ({size_mb:.1f} MB)")
 
-            if result.returncode != 0:
-                log_function(f"Failed to upload {source}: {result.stderr}")
-                return False
-
-            # Set permissions if specified
-            permissions = upload.get("permissions", "755")
-            if permissions:
-                chmod_cmd = f"ssh -o StrictHostKeyChecking=no -i {key_path} {username}@{host} 'sudo chmod -R {permissions} {destination}'"
-                subprocess.run(chmod_cmd, shell=True, check=False)
-
-        # Create the upload complete marker
-        subprocess.run(marker_cmd, shell=True, check=False)
-        log_function("File uploads completed")
-        return True
+        return success
 
     except Exception as e:
         if log_function:

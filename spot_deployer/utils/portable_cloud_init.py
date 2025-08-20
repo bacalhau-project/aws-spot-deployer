@@ -7,6 +7,8 @@ from typing import Optional
 
 from ..core.deployment import DeploymentConfig
 from ..templates.cloud_init_templates import CloudInitTemplate
+from ..utils.tarball_handler import TarballHandler
+from ..utils.service_installer import ServiceInstaller
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +162,7 @@ touch /opt/deployment.complete
         return "\n".join(yaml_lines)
 
     def _generate_runcmd_section(self) -> str:
-        """Generate minimal runcmd section for script execution.
+        """Generate runcmd section for script execution and tarball handling.
 
         Returns:
             YAML string for runcmd section
@@ -178,6 +180,66 @@ touch /opt/deployment.complete
             ]
         )
 
+        # Handle tarball deployment if specified
+        if hasattr(self.config, "tarball_url") and self.config.tarball_url:
+            handler = TarballHandler()
+
+            # Validate tarball
+            is_valid, error_msg = handler.validate_tarball(self.config.tarball_url)
+            if is_valid:
+                # Add download commands
+                download_cmds = handler.generate_download_commands(
+                    self.config.tarball_url, "/tmp/deployment.tar.gz"
+                )
+                # Add extraction commands
+                extract_cmds = handler.generate_extraction_commands(
+                    "/tmp/deployment.tar.gz", "/opt/deployment", cleanup=True
+                )
+
+                # Add as a single command block
+                tarball_script = f"""cat > /tmp/download_tarball.sh << 'EOF'
+#!/bin/bash
+set -e
+{download_cmds}
+{extract_cmds}
+# Make scripts executable
+find /opt/deployment -name "*.sh" -type f -exec chmod +x {{}} \\;
+# Run setup if exists
+if [ -f /opt/deployment/setup.sh ]; then
+    cd /opt/deployment && ./setup.sh
+fi
+EOF
+chmod +x /tmp/download_tarball.sh
+/tmp/download_tarball.sh"""
+
+                commands.append(tarball_script)
+            else:
+                logger.warning(f"Invalid tarball URL: {error_msg}")
+
+        # Install services if defined
+        if self.config.services:
+            installer = ServiceInstaller(self.config)
+            service_commands = installer.generate_install_commands()
+
+            if service_commands:
+                # Create service installation script
+                service_script = """cat > /tmp/install_services.sh << 'EOF'
+#!/bin/bash
+set -e
+# Wait for files to be uploaded
+while [ ! -f /opt/uploads.complete ] && [ ! -f /opt/deployment.complete ]; do
+    sleep 2
+done
+"""
+                for cmd in service_commands:
+                    if not cmd.startswith("#"):
+                        service_script += f"{cmd}\n"
+                service_script += """EOF
+chmod +x /tmp/install_services.sh
+nohup bash -c 'sleep 45; /tmp/install_services.sh' > /opt/services.log 2>&1 &"""
+
+                commands.append(service_script)
+
         # Run the deployment script in background after delay
         # This allows SSH to connect and upload files first
         commands.append("nohup bash -c 'sleep 30; /opt/deploy.sh' > /opt/deploy.log 2>&1 &")
@@ -188,9 +250,15 @@ touch /opt/deployment.complete
         # Build YAML
         yaml_lines = ["runcmd:"]
         for cmd in commands:
-            # Escape special characters in YAML
-            escaped_cmd = cmd.replace("'", "''")
-            yaml_lines.append(f"  - '{escaped_cmd}'")
+            # For multi-line commands, use the literal style
+            if "\n" in cmd:
+                yaml_lines.append("  - |")
+                for line in cmd.split("\n"):
+                    yaml_lines.append(f"    {line}")
+            else:
+                # Escape special characters in YAML
+                escaped_cmd = cmd.replace("'", "''")
+                yaml_lines.append(f"  - '{escaped_cmd}'")
 
         return "\n".join(yaml_lines)
 

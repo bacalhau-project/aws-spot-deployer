@@ -1,0 +1,29 @@
+# Deployment Manifest
+version: 1
+
+deployment:
+  # Packages to install via apt
+  packages:
+    - nginx
+    - curl
+    - htop
+  
+  # Files to upload
+  uploads:
+    - source: scripts/
+      dest: /opt/deployment/scripts/
+      permissions: "755"
+    - source: configs/
+      dest: /opt/deployment/configs/
+      permissions: "644"
+  
+  # Scripts to execute
+  scripts:
+    - path: scripts/setup.sh
+      name: Main setup script
+  
+  # Services to install
+  services:
+    - file: services/webapp.service
+      name: webapp
+      enabled: true
