@@ -40,8 +40,8 @@ def transfer_portable_files(
     host, username, key_path, deployment_config, progress_callback=None, log_function=None
 ):
     """Transfer files for portable deployment based on deployment config."""
+
     from ..utils.file_uploader import FileUploader
-    from pathlib import Path
 
     if not log_function:
         log_function = print

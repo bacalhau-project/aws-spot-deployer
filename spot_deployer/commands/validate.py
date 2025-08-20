@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """Validate command - validates deployment configuration before deployment."""
 
-from pathlib import Path
-
 from ..core.config import SimpleConfig
-from ..core.deployment import DeploymentConfig
 from ..core.deployment_discovery import DeploymentDiscovery, DeploymentMode
 from ..core.state import SimpleStateManager
 from ..utils.config_validator import ConfigValidator

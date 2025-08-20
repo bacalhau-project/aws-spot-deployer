@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from ..core.deployment import DeploymentConfig
-from ..utils.display import console, rich_error, rich_success
 
 logger = logging.getLogger(__name__)
 

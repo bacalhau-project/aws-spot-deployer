@@ -7,8 +7,8 @@ from typing import Optional
 
 from ..core.deployment import DeploymentConfig
 from ..templates.cloud_init_templates import CloudInitTemplate
-from ..utils.tarball_handler import TarballHandler
 from ..utils.service_installer import ServiceInstaller
+from ..utils.tarball_handler import TarballHandler
 
 logger = logging.getLogger(__name__)
 

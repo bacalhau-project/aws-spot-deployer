@@ -1,6 +1,16 @@
-# Spot Deployer - AWS Spot Instance Deployment Tool
+# Spot Deployer - Universal AWS Spot Instance Deployment Tool
 
-A production-ready tool for deploying AWS spot instances with Bacalhau compute nodes. Features beautiful Rich terminal UI, hands-off deployment, and comprehensive state management.
+A production-ready, universal deployment tool for AWS spot instances. Deploy any application with portable deployment manifests, beautiful Rich terminal UI, and comprehensive state management. Originally built for Bacalhau, now supports any workload.
+
+## ✨ What's New
+
+- **Universal Deployments**: Deploy any application, not just Bacalhau
+- **Portable Manifests**: Define deployments with `.spot/deployment.yaml`
+- **Template System**: Extend from minimal, Docker, or custom templates
+- **Validation**: Pre-deployment validation with `spot validate`
+- **Service Management**: Automatic SystemD service installation
+- **File Uploads**: Manifest-based file upload with permissions
+- **Tarball Support**: Deploy from remote tarballs
 
 ## 🚀 Quick Start
 
@@ -156,6 +166,40 @@ The tool will display detailed information about which AWS credentials are being
          machine_type: t3.medium
          image: auto
 ```
+
+### Portable Deployments (NEW!)
+
+Deploy any application using portable deployment manifests:
+
+```bash
+# Generate deployment structure
+./spot generate
+
+# Edit .spot/deployment.yaml
+cat > .spot/deployment.yaml << 'EOF'
+version: 1
+packages:
+  - nodejs
+  - npm
+scripts:
+  - name: setup
+    path: scripts/setup.sh
+    order: 1
+services:
+  - webapp.service
+uploads:
+  - source: configs/app.config
+    destination: /opt/app/config.json
+EOF
+
+# Validate deployment
+./spot validate
+
+# Deploy
+./spot create
+```
+
+See [PORTABLE_DEPLOYMENT_GUIDE.md](PORTABLE_DEPLOYMENT_GUIDE.md) for complete documentation.
 
 ### Bacalhau Integration
 
