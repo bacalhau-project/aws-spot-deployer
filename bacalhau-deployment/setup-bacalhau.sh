@@ -9,9 +9,9 @@ echo "[$(date)] Setting up Bacalhau compute node..."
 mkdir -p /opt/bacalhau
 mkdir -p /var/log/bacalhau
 
-# Copy configuration files
-cp /opt/uploaded_files/bacalhau-config.yaml /opt/bacalhau/config.yaml
-cp /opt/uploaded_files/docker-compose.yml /opt/bacalhau/docker-compose.yml
+# Copy configuration files from extracted tarball
+cp /opt/deployment/bacalhau-deployment/bacalhau-config.yaml /opt/bacalhau/config.yaml
+cp /opt/deployment/bacalhau-deployment/docker-compose.yml /opt/bacalhau/docker-compose.yml
 
 # Set proper ownership
 chown -R ubuntu:ubuntu /opt/bacalhau

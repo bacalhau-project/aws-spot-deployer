@@ -4,6 +4,9 @@
 version: 1
 
 deployment:
+  # Create tarball from the bacalhau-deployment directory
+  tarball_source: ./bacalhau-deployment
+  
   # System packages to install via apt
   packages:
     - curl
@@ -14,27 +17,18 @@ deployment:
     - docker.io
     - docker-compose
 
-  # Scripts to run during setup
+  # Scripts to run during setup (will be extracted from tarball)
   scripts:
     - name: setup
       path: scripts/setup.sh
       order: 1
     - name: setup-bacalhau
-      path: scripts/setup-bacalhau.sh
+      path: /opt/deployment/bacalhau-deployment/setup-bacalhau.sh
       order: 2
-
-  # Files to upload
-  uploads:
-    - source: configs/bacalhau-config.yaml
-      destination: /opt/uploaded_files/bacalhau-config.yaml
-      permissions: "644"
-    - source: docker-compose.yml
-      destination: /opt/uploaded_files/docker-compose.yml
-      permissions: "644"
 
   # SystemD services to install and start
   services:
     - name: bacalhau
-      file: services/bacalhau.service
+      file: /opt/deployment/bacalhau-deployment/bacalhau.service
       enabled: true
       start: true

@@ -8,6 +8,9 @@ machines.db
 aws/*
 flox/run/*
 
+# Bacalhau configuration (use bacalhau-config.yaml.example as template)
+bacalhau-deployment/bacalhau-config.yaml
+
 # AWS Data Cache (local only, not version controlled)
 .aws_cache/
 .aws_*.json
