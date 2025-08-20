@@ -18,7 +18,6 @@ from ..core.deployment import DeploymentConfig
 from ..core.deployment_discovery import DeploymentDiscovery, DeploymentMode
 from ..core.state import SimpleStateManager
 from ..utils.aws import check_aws_auth
-from ..utils.cloud_init import generate_minimal_cloud_init
 from ..utils.config_validator import ConfigValidator
 from ..utils.display import (
     Live,
@@ -326,33 +325,32 @@ def create_instances_in_region_with_table(
             update_status_func(key, "Launching instance")
 
         # Generate cloud-init script
-        if deployment_config:
-            # Use portable cloud-init generator for portable deployments
-            log_message("Using portable cloud-init generator")
-            generator = PortableCloudInitGenerator(deployment_config)
+        if not deployment_config:
+            log_message("ERROR: No deployment configuration available")
+            for key in instance_keys:
+                update_status_func(key, "ERROR: No config", is_final=True)
+            return []
 
-            # Check if a template is specified
-            if deployment_config.template:
-                from pathlib import Path
+        # Use portable cloud-init generator for portable deployments
+        log_message("Using portable cloud-init generator")
+        generator = PortableCloudInitGenerator(deployment_config)
 
-                # Check if it's a file path or template name
-                template_path = Path(deployment_config.template)
-                if template_path.exists():
-                    log_message(f"Using custom template file: {deployment_config.template}")
-                    cloud_init_script = generator.generate_with_template(
-                        template_path=template_path
-                    )
-                else:
-                    log_message(f"Using library template: {deployment_config.template}")
-                    cloud_init_script = generator.generate_with_template(
-                        template_name=deployment_config.template
-                    )
+        # Check if a template is specified
+        if deployment_config.template:
+            from pathlib import Path
+
+            # Check if it's a file path or template name
+            template_path = Path(deployment_config.template)
+            if template_path.exists():
+                log_message(f"Using custom template file: {deployment_config.template}")
+                cloud_init_script = generator.generate_with_template(template_path=template_path)
             else:
-                cloud_init_script = generator.generate()
+                log_message(f"Using library template: {deployment_config.template}")
+                cloud_init_script = generator.generate_with_template(
+                    template_name=deployment_config.template
+                )
         else:
-            # Use legacy cloud-init for backwards compatibility
-            log_message("Using legacy cloud-init generator")
-            cloud_init_script = generate_minimal_cloud_init(config)
+            cloud_init_script = generator.generate()
 
         # Create instances
         market_options = {
@@ -635,15 +633,11 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             rich_error("❌ Failed to build deployment configuration from conventions")
             return
 
-    elif discovery_result.mode == DeploymentMode.LEGACY:
-        # Legacy mode - use existing cloud-init
-        rich_success("✅ Using legacy deployment mode")
-        deployment_config = None
-
     else:
-        # No deployment structure found - use legacy for backward compatibility
-        rich_warning("⚠️ No deployment structure found, using legacy mode")
-        deployment_config = None
+        # No deployment structure found
+        rich_error("❌ No deployment structure found")
+        rich_print("\n[yellow]Run 'spot generate' to create the required structure.[/yellow]")
+        return
 
     # Validate configuration first
     validator = ConfigValidator()
@@ -1015,50 +1009,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         console.print(summary_table)
         console.print("")
 
-    # Show Bacalhau configuration information
+    # Show deployment completion message
     console.print("")
-    rich_print("[bold cyan]🌊 Bacalhau Configuration[/bold cyan]")
-    rich_print("Your compute nodes are now running with Bacalhau. Here's how to use them:")
-    console.print("")
-
-    # Directory structure info
-    rich_print("[bold yellow]📁 Available Directories for Jobs:[/bold yellow]")
-    rich_print("  • [green]/opt/sensor/data[/green] - Sensor data (read-only)")
-    rich_print("  • [green]/opt/sensor/exports[/green] - Output/exports (read-write)")
-    rich_print("  • [green]/tmp[/green] - Temporary files (read-write)")
-    rich_print("  • [green]/bacalhau_data[/green] - Bacalhau data (read-write)")
-    console.print("")
-
-    # Job examples
-    rich_print("[bold yellow]💡 Example Job Commands:[/bold yellow]")
-    rich_print("  # List your compute nodes:")
-    rich_print("  [dim]bacalhau node list[/dim]")
-    console.print("")
-    rich_print("  # Process sensor data:")
-    rich_print("  [dim]bacalhau docker run \\[/dim]")
-    rich_print("  [dim]    --input-path /opt/sensor/data \\[/dim]")
-    rich_print("  [dim]    --output-path /opt/sensor/exports \\[/dim]")
-    rich_print("  [dim]    python:3.11 -- python -c \"print('Processing data...')\"[/dim]")
-    console.print("")
-    rich_print("  # Run analysis with temporary storage:")
-    rich_print("  [dim]bacalhau docker run \\[/dim]")
-    rich_print("  [dim]    --input-path /opt/sensor/data \\[/dim]")
-    rich_print("  [dim]    --workdir /tmp \\[/dim]")
-    rich_print(
-        "  [dim]    ubuntu:latest -- bash -c \"ls /inputs && echo 'Analysis complete'\"[/dim]"
-    )
-    console.print("")
-
-    # Configuration info
-    rich_print("[bold yellow]⚙️ Configuration Details:[/bold yellow]")
-    rich_print("  • Sensor data generator running on each node")
-    rich_print("  • Docker-in-Docker (DIND) support enabled")
-    rich_print("  • Resource allocation: 70% CPU, 70% Memory, 50% Disk")
-    rich_print("  • API available on port 1234 (internal)")
-    rich_print("  • Logs: /var/log/bacalhau/ on each instance")
-    console.print("")
-
-    rich_print("[bold green]✅ Ready to submit Bacalhau jobs![/bold green]")
+    rich_print("[bold green]✅ Deployment Complete![/bold green]")
     console.print("")
 
     # Import and call cmd_list to show final state

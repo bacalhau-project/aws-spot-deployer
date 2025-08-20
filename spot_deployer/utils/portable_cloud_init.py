@@ -2,7 +2,6 @@
 """Portable cloud-init generator that creates cloud-init from DeploymentConfig."""
 
 import logging
-import textwrap
 from pathlib import Path
 from typing import Optional
 

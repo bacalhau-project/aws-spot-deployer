@@ -7,8 +7,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from spot_deployer.commands.create import cmd_create
-from spot_deployer.core.config import SimpleConfig
-from spot_deployer.core.state import SimpleStateManager
 
 
 class TestCreateIntegration(unittest.TestCase):

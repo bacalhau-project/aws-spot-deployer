@@ -27,7 +27,7 @@ These files will be copied to /opt/uploaded_files/ on each instance during deplo
 [bold]Required Credential Files:[/bold]
 
 [yellow]1. ./files/orchestrator_endpoint[/yellow]
-   Contents: NATS endpoint URL for the Bacalhau orchestrator
+   Contents: Endpoint URL for the orchestrator
    Example content:
    ```
    nats://orchestrator.example.com:4222
@@ -44,7 +44,7 @@ These files will be copied to /opt/uploaded_files/ on each instance during deplo
 1. Place your credential files in ./files/
 2. Run 'spot-deployer create' to deploy instances
 3. Files are automatically uploaded to /opt/uploaded_files/ on each instance
-4. Bacalhau services read credentials and connect to the orchestrator
+4. Services read credentials and connect to the orchestrator
 
 [bold]Security Best Practices:[/bold]
 • Store credentials securely - never commit them to version control

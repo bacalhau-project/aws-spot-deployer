@@ -6,7 +6,6 @@ import time
 from typing import Callable, Optional
 
 from ..core.constants import DEFAULT_SSH_TIMEOUT
-from .bacalhau_config import generate_bacalhau_config_with_credentials
 
 
 def _run_scp_with_retry(
@@ -238,40 +237,7 @@ def transfer_files_scp(
         if os.path.exists(config_directory):
             update_progress("SCP: Config", 90, "Preparing configuration...")
 
-            # First, generate Bacalhau config with injected credentials
-            bacalhau_template = os.path.join(config_directory, "bacalhau-config-template.yaml")
-            if os.path.exists(bacalhau_template):
-                generated_config = generate_bacalhau_config_with_credentials(
-                    bacalhau_template, files_directory=files_directory
-                )
-                if generated_config:
-                    log_message(f"Bacalhau config with credentials uploaded: {generated_config}")
-                else:
-                    log_error("Failed to generate Bacalhau config with credentials")
-                    return False
-            else:
-                log_error(f"Bacalhau config template not found: {bacalhau_template}")
-                return False
-
-            # Upload the generated config as bacalhau-config.yaml
-            result = subprocess.run(
-                scp_base
-                + [
-                    generated_config,
-                    f"{username}@{hostname}:/tmp/uploaded_files/config/bacalhau-config.yaml",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-
-            # Clean up temp file
-            try:
-                os.unlink(generated_config)
-            except Exception:
-                pass
-
-            # Upload other config files
+            # Upload config files
             result = subprocess.run(
                 scp_base
                 + [

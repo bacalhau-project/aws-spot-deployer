@@ -1,9 +1,6 @@
 """Destroy command with full Rich UI and concurrent operations."""
 
-import json
 import os
-import subprocess
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from threading import Lock
@@ -42,11 +39,6 @@ class DestroyManager:
         log_filename = f"spot_destroy_{timestamp}.log"
         self.logger = setup_logger("spot_destroyer", log_filename)
         return log_filename
-
-    def has_bacalhau_env(self) -> bool:
-        """Check if Bacalhau environment variables are set."""
-        # Require both API host and API key for authentication
-        return bool(os.environ.get("BACALHAU_API_HOST") and os.environ.get("BACALHAU_API_KEY"))
 
     def update_status(self, instance_id: str, region: str, status: str, detail: str = ""):
         """Thread-safe status update."""
@@ -109,174 +101,6 @@ class DestroyManager:
 
         return self.ui_manager.create_progress_panel("Summary", content)
 
-    def remove_bacalhau_node(self, instance_id: str) -> bool:
-        """Remove a Bacalhau node."""
-        try:
-            api_host = os.environ.get("BACALHAU_API_HOST")
-            api_key = os.environ.get("BACALHAU_API_KEY")
-
-            if not api_host or not api_key:
-                return False
-
-            # Use bacalhau with the --api-host flag
-            cmd = ["bacalhau", "node", "list", "--output", "json", "--api-host", api_host]
-
-            env = os.environ.copy()
-            if api_key:
-                env["BACALHAU_API_KEY"] = api_key
-
-            result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=10)
-            if result.returncode != 0:
-                return False
-
-            nodes = json.loads(result.stdout)
-
-            # Find matching node
-            node_id_to_remove = None
-            for node in nodes:
-                node_id = node.get("Info", {}).get("NodeID", "")
-                if instance_id in node_id:
-                    node_id_to_remove = node_id
-                    break
-
-            if not node_id_to_remove:
-                return True  # No node found, consider it success
-
-            # Use bacalhau to delete node
-            cmd = ["bacalhau", "node", "delete", node_id_to_remove, "--api-host", api_host]
-            result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=10)
-
-            return result.returncode == 0
-
-        except Exception:
-            return False
-
-    def cleanup_all_disconnected_nodes(self) -> int:
-        """Clean up all disconnected Bacalhau nodes."""
-        try:
-            api_host = os.environ.get("BACALHAU_API_HOST")
-            api_key = os.environ.get("BACALHAU_API_KEY")
-
-            if not api_host:
-                return 0
-
-            # Use bacalhau with the --api-host flag
-            cmd = ["bacalhau", "node", "list", "--output", "json", "--api-host", api_host]
-
-            env = os.environ.copy()
-            if api_key:
-                env["BACALHAU_API_KEY"] = api_key
-
-            if self.logger:
-                self.logger.info(f"Running command: {' '.join(cmd)}")
-                self.logger.info(f"Using API host: {api_host}")
-
-            # Add retry logic for Bacalhau API calls
-            max_retries = 3
-            result = None
-
-            for attempt in range(max_retries):
-                try:
-                    result = subprocess.run(
-                        cmd, capture_output=True, text=True, env=env, timeout=30
-                    )
-                    if result.returncode == 0:
-                        break
-                    elif attempt < max_retries - 1:
-                        if self.logger:
-                            self.logger.info(
-                                f"Bacalhau API call failed (attempt {attempt + 1}/{max_retries}), retrying..."
-                            )
-                        time.sleep(2**attempt)  # Exponential backoff
-                except subprocess.TimeoutExpired:
-                    if attempt < max_retries - 1:
-                        if self.logger:
-                            self.logger.info(
-                                f"Bacalhau API call timed out (attempt {attempt + 1}/{max_retries}), retrying..."
-                            )
-                        time.sleep(2**attempt)
-                    else:
-                        if self.logger:
-                            self.logger.error("Bacalhau API call timed out after all retries")
-                        return 0
-
-            # Always print debug info
-            if self.logger:
-                self.logger.debug(f"Command: {' '.join(cmd)}")
-                self.logger.debug(f"Exit code: {result.returncode}")
-
-            if result.returncode != 0:
-                if self.logger:
-                    self.logger.debug(f"stderr: {result.stderr}")
-                    self.logger.debug(f"stdout: {result.stdout}")
-                if self.logger:
-                    self.logger.error(f"Failed to list nodes: {result.stderr}")
-                    self.logger.error(f"Command output: {result.stdout}")
-                    self.logger.error(f"API Host used: {api_host}")
-                return 0
-
-            if self.logger:
-                self.logger.debug(f"stdout length: {len(result.stdout)}")
-                self.logger.debug(f"stdout: {result.stdout}")
-
-            try:
-                nodes = json.loads(result.stdout)
-            except json.JSONDecodeError as e:
-                if self.logger:
-                    self.logger.error(f"Failed to parse node list JSON: {e}")
-                    self.logger.error(f"Output was: {result.stdout}")
-                print(f"[DEBUG] Failed to parse JSON: {e}")
-                print(f"[DEBUG] Output: {result.stdout}")
-                return 0
-
-            if self.logger:
-                self.logger.debug(f"Successfully parsed {len(nodes)} nodes")
-
-            # Find disconnected compute nodes
-            disconnected_nodes = [
-                node
-                for node in nodes
-                if (
-                    node.get("Connection") == "DISCONNECTED"
-                    and node.get("Info", {}).get("NodeType") == "Compute"
-                )
-            ]
-
-            if self.logger:
-                self.logger.debug(f"Found {len(disconnected_nodes)} disconnected compute nodes")
-
-            if self.logger:
-                self.logger.info(
-                    f"Found {len(nodes)} total nodes, {len(disconnected_nodes)} disconnected"
-                )
-
-            if not disconnected_nodes:
-                return 0
-
-            deleted_count = 0
-            for node in disconnected_nodes:
-                node_id = node.get("Info", {}).get("NodeID", "")
-                if node_id:
-                    # Use bacalhau to delete node
-                    cmd = ["bacalhau", "node", "delete", node_id, "--api-host", api_host]
-                    result = subprocess.run(
-                        cmd, capture_output=True, text=True, env=env, timeout=10
-                    )
-                    if result.returncode == 0:
-                        deleted_count += 1
-                        if self.logger:
-                            self.logger.info(f"Deleted disconnected node: {node_id}")
-                    else:
-                        if self.logger:
-                            self.logger.error(f"Failed to delete node {node_id}: {result.stderr}")
-
-            return deleted_count
-
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error cleaning up disconnected nodes: {e}")
-            return 0
-
     def _check_aws_orphaned_instances(self):
         """Check AWS for any orphaned spot instances that aren't in state file."""
         try:
@@ -286,12 +110,11 @@ class DestroyManager:
             orphaned_found = 0
 
             # Get all regions
-            regions = [list(r.keys())[0] for r in self.config.regions()]
+            regions = self.config.regions()
             self.console.print(f"[dim]Scanning {len(regions)} regions: {', '.join(regions)}[/dim]")
 
             # Check each region from config
-            for region_config in self.config.regions():
-                region = list(region_config.keys())[0]
+            for region in regions:
                 regions_checked += 1
 
                 self.console.print(f"[dim]  • Checking {region}...[/dim]", end="")
@@ -388,13 +211,7 @@ class DestroyManager:
                 self.update_status(instance_id, region, "✓ Terminated", "Already gone")
                 return True
 
-            # Step 1: Remove from Bacalhau (if configured)
-            if self.has_bacalhau_env():
-                self.update_status(instance_id, region, "⏳ Removing from Bacalhau...")
-                if self.remove_bacalhau_node(instance_id):
-                    self.update_status(instance_id, region, "⏳ Bacalhau removed", "")
-
-            # Step 2: Terminate instance
+            # Step 1: Terminate instance
             self.update_status(instance_id, region, "⏳ Terminating instance...")
             if not aws_manager.terminate_instance(instance_id):
                 self.update_status(instance_id, region, "✗ Failed", "Termination failed")
@@ -461,17 +278,6 @@ class DestroyManager:
 [dim]BACALHAU_API_KEY: {"SET" if os.environ.get("BACALHAU_API_KEY") else "NOT SET"}[/dim]
 """)
 
-        # Always check for disconnected Bacalhau nodes first if configured
-        if self.has_bacalhau_env():
-            self.console.print("[dim]Checking for disconnected Bacalhau nodes...[/dim]")
-            deleted = self.cleanup_all_disconnected_nodes()
-            if deleted > 0:
-                self.console.print(
-                    f"[green]✅ Cleaned up {deleted} disconnected Bacalhau nodes[/green]"
-                )
-            else:
-                self.console.print("[dim]No disconnected nodes found[/dim]")
-
         # If no instances to destroy, we're done
         if not instances:
             self.console.print("[yellow]ℹ️  No instances found in state file[/yellow]")
@@ -512,20 +318,6 @@ class DestroyManager:
         # Show warning (but no confirmation needed - user explicitly ran destroy)
         self.console.print(f"\n[bold red]🗑️  Terminating {len(instances)} instances...[/bold red]\n")
 
-        # Check Bacalhau env
-        if not self.has_bacalhau_env():
-            missing_vars = []
-            if not os.environ.get("BACALHAU_API_HOST"):
-                missing_vars.append("   - BACALHAU_API_HOST (orchestrator endpoint)")
-            if not os.environ.get("BACALHAU_API_KEY"):
-                missing_vars.append("   - BACALHAU_API_KEY (authentication)")
-
-            self.console.print(f"""[yellow]⚠️  WARNING: Bacalhau node cleanup disabled[/yellow]
-[dim]   Missing environment variables:
-{chr(10).join(f"[dim]{var}[/dim]" for var in missing_vars)}
-   Disconnected nodes will remain in the Bacalhau cluster.[/dim]
-""")
-
         # Create layout
         def generate_layout() -> Layout:
             layout = Layout()
@@ -547,7 +339,7 @@ class DestroyManager:
                 # Save state with any instances that were successfully destroyed
                 self.state.save_instances(self.state.load_instances())
                 # Update status for any pending instances
-                with self.lock:
+                with self.status_lock:
                     for instance_id, status in self.instance_status.items():
                         if "⏳" in status["status"]:
                             status["status"] = "⚠️ INTERRUPTED"
@@ -611,29 +403,6 @@ class DestroyManager:
             if failed > 0:
                 summary_lines.append(f"[red]❌ {failed} instances failed[/red]")
         self.console.print("\n".join(summary_lines))
-
-        # Clean up all disconnected nodes if Bacalhau is configured
-        # Do second Bacalhau cleanup only if we destroyed instances
-        if self.has_bacalhau_env() and completed > 0:
-            # Wait for nodes to disconnect
-            self.console.print(
-                f"""\n[dim]Waiting 10 seconds for Bacalhau nodes to disconnect...[/dim]
-[dim]Note: {completed} Bacalhau nodes should disconnect automatically when instances terminate[/dim]"""
-            )
-            import time
-
-            time.sleep(10)
-
-            self.console.print(
-                "[dim]Cleaning up any remaining disconnected Bacalhau nodes...[/dim]"
-            )
-            deleted = self.cleanup_all_disconnected_nodes()
-            if deleted > 0:
-                self.console.print(
-                    f"[green]✅ Cleaned up {deleted} remaining disconnected Bacalhau nodes[/green]"
-                )
-            else:
-                self.console.print("[dim]No remaining disconnected nodes found[/dim]")
 
         self.console.print(f"\n[dim]Destruction log saved to: {log_filename}[/dim]")
 

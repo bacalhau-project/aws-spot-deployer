@@ -125,20 +125,6 @@ class SimpleConfig:
         """Get additional commands script path."""
         return self.data.get("aws", {}).get("additional_commands_script")
 
-    def bacalhau_data_dir(self) -> str:
-        """Get Bacalhau data directory."""
-        return self.data.get("aws", {}).get("bacalhau_data_dir", "/bacalhau_data")
-
-    def bacalhau_node_dir(self) -> str:
-        """Get Bacalhau node directory."""
-        return self.data.get("aws", {}).get("bacalhau_node_dir", "/bacalhau_node")
-
-    def bacalhau_config_template(self) -> str:
-        """Get Bacalhau config template path."""
-        return self.data.get("aws", {}).get(
-            "bacalhau_config_template", "instance/config/bacalhau-config-template.yaml"
-        )
-
     def docker_compose_template(self) -> str:
         """Get Docker Compose template path."""
         return self.data.get("aws", {}).get(

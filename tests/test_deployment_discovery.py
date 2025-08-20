@@ -70,7 +70,7 @@ class TestDeploymentDiscovery(unittest.TestCase):
         discovery = DeploymentDiscovery(self.temp_dir)
         mode = discovery.detect_deployment_mode()
 
-        self.assertEqual(mode, DeploymentMode.LEGACY)
+        self.assertEqual(mode, DeploymentMode.NONE)
 
     def test_detect_none_when_no_structure(self):
         """Test that discovery returns NONE when no structure found."""
@@ -288,7 +288,7 @@ scripts:
         result = discovery.discover()
 
         self.assertIsInstance(result, DeploymentDiscoveryResult)
-        self.assertEqual(result.mode, DeploymentMode.LEGACY)
+        self.assertEqual(result.mode, DeploymentMode.NONE)
         self.assertIsNotNone(result.project_root)
         if result.project_root:
             self.assertEqual(result.project_root.resolve(), self.temp_dir.resolve())

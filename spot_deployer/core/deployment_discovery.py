@@ -7,8 +7,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple
 
-from ..core.deployment import DeploymentConfig
 from ..core.convention_scanner import ConventionScanner
+from ..core.deployment import DeploymentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,6 @@ class DeploymentMode(Enum):
 
     PORTABLE = "portable"  # .spot/ directory with deployment.yaml
     CONVENTION = "convention"  # deployment/ directory with convention-based structure
-    LEGACY = "legacy"  # Old instance/scripts structure
     NONE = "none"  # No deployment structure found
 
 
@@ -62,10 +61,6 @@ class DeploymentDiscovery:
         if self._has_deployment_directory():
             return self._discover_convention()
 
-        # Check for legacy mode (instance/scripts)
-        if self._has_legacy_structure():
-            return self._discover_legacy()
-
         # No deployment structure found
         return DeploymentDiscoveryResult(
             mode=DeploymentMode.NONE,
@@ -92,11 +87,6 @@ class DeploymentDiscovery:
             if (deployment_dir / "setup.sh").exists() or (deployment_dir / "init.sh").exists():
                 return DeploymentMode.CONVENTION
 
-        # Check for legacy mode (instance/scripts directory)
-        instance_dir = self.start_path / "instance"
-        if instance_dir.exists() and (instance_dir / "scripts").exists():
-            return DeploymentMode.LEGACY
-
         # No deployment structure found
         return DeploymentMode.NONE
 
@@ -122,10 +112,6 @@ class DeploymentDiscovery:
 
             # Check for config.yaml (common root marker)
             if (current / "config.yaml").exists():
-                return current
-
-            # Check for instance directory (legacy)
-            if (current / "instance").exists():
                 return current
 
             # Move up one directory
@@ -191,13 +177,6 @@ class DeploymentDiscovery:
                 if not has_setup:
                     errors.append("No setup.sh or init.sh found in deployment directory")
 
-        elif mode == DeploymentMode.LEGACY:
-            # For legacy mode, just check instance directory exists
-            instance_dir = root / "instance"
-            if not instance_dir.exists():
-                # Legacy mode is always "valid" as fallback
-                pass
-
         return len(errors) == 0, errors
 
     def get_deployment_config(self) -> Optional[DeploymentConfig]:
@@ -236,7 +215,7 @@ class DeploymentDiscovery:
             # This will be implemented in the convention scanner (Item 4)
             return None
 
-        # For legacy mode, return None (will use legacy handling)
+        # No other modes, return None
         return None
 
     def _has_spot_directory(self) -> bool:
@@ -246,10 +225,6 @@ class DeploymentDiscovery:
     def _has_deployment_directory(self) -> bool:
         """Check if deployment directory exists."""
         return (self.start_path / "deployment").is_dir()
-
-    def _has_legacy_structure(self) -> bool:
-        """Check if legacy instance/scripts structure exists."""
-        return (self.start_path / "instance" / "scripts").is_dir()
 
     def _discover_portable(self) -> DeploymentDiscoveryResult:
         """Discover portable deployment (.spot directory)."""
@@ -307,21 +282,5 @@ class DeploymentDiscovery:
             mode=DeploymentMode.CONVENTION,
             project_root=project_root,
             deployment_config=deployment_config,
-            validation_errors=errors,
-        )
-
-    def _discover_legacy(self) -> DeploymentDiscoveryResult:
-        """Discover legacy deployment (instance/scripts)."""
-        project_root = self.find_project_root()
-        if not project_root:
-            project_root = self.start_path
-
-        is_valid, errors = self.validate_discovered_structure(DeploymentMode.LEGACY, project_root)
-
-        # Legacy mode doesn't use DeploymentConfig
-        return DeploymentDiscoveryResult(
-            mode=DeploymentMode.LEGACY,
-            project_root=project_root,
-            deployment_config=None,
             validation_errors=errors,
         )

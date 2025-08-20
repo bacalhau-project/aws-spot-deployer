@@ -121,7 +121,7 @@ def cmd_setup(config: SimpleConfig) -> None:
 This is where you place files to upload to your spot instances.
 Files placed here will be copied to /opt/uploaded_files/ on each instance.
 
-[bold]Required credential files for Bacalhau compute nodes:[/bold]
+[bold]Required credential files for compute nodes:[/bold]
 • files/orchestrator_endpoint
   Contents: NATS endpoint URL (e.g., nats://orchestrator.example.com:4222)
 
