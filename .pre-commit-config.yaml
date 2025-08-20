@@ -12,8 +12,48 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        exclude: ^.github/workflows/
       - id: check-added-large-files
+        args: ['--maxkb=1000']
       - id: check-merge-conflict
       - id: check-toml
       - id: debug-statements
       - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # Security checks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: .*\.lock$|package-lock\.json$
+
+  # Shell script checks
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: ['--severity=warning']
+        files: \.(sh|bash)$
+
+  # Custom checks for this project
+  - repo: local
+    hooks:
+      - id: smoke-test
+        name: Run smoke tests
+        entry: python scripts/smoke-test.py --quiet
+        language: python
+        pass_filenames: false
+        always_run: true
+
+      - id: check-deployments
+        name: Check deployment structure
+        entry: bash -c 'test -f .spot/deployment.yaml || echo "Warning: No .spot/deployment.yaml"'
+        language: system
+        pass_filenames: false
+        always_run: false

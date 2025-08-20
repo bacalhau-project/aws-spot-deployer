@@ -6,63 +6,189 @@ on:
       - 'v*'
 
 jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up UV
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: uv sync
+
+    - name: Run tests
+      run: |
+        uv run pytest tests/ -v
+        uv run python scripts/smoke-test.py
+
+  build:
+    name: Build Distribution
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up UV
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+
+    - name: Set up Python
+      run: uv python install 3.11
+
+    - name: Build package
+      run: |
+        uv build
+        ls -la dist/
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/
+
   release:
     name: Create GitHub Release
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
+    
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Need full history for changelog generation
 
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: dist
+        path: dist/
+
+    - name: Extract version
+      id: version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Generate Release Notes
+      id: notes
+      run: |
+        cat > release-notes.md << 'EOF'
+        ## 🚀 Spot Deployer v${{ steps.version.outputs.version }}
+
+        ### ✨ What's New
+        Deploy any application to AWS spot instances with portable deployment manifests!
+
+        ### 📦 Installation
+
+        #### Quick Start (Recommended)
+        ```bash
+        # Deploy immediately
+        curl -sSL https://tada.wang/install.sh | bash -s -- create
+
+        # Or use uvx directly
+        uvx --from git+https://github.com/${{ github.repository }}@v${{ steps.version.outputs.version }} spot-deployer create
+        ```
+
+        #### Install Globally
+        ```bash
+        # With uvx
+        uvx install --from git+https://github.com/${{ github.repository }}@v${{ steps.version.outputs.version }} spot-deployer
+
+        # With pip
+        pip install spot-deployer==${{ steps.version.outputs.version }}
+        ```
+
+        ### 🎯 Key Features
+        - **Universal Deployments** - Deploy any application, not just Bacalhau
+        - **Portable Manifests** - `.spot/deployment.yaml` configuration
+        - **Local Tarball Creation** - Bundle directories on-the-fly
+        - **Service Management** - Automatic SystemD service installation
+        - **Pre-deployment Validation** - Catch errors before AWS deployment
+
+        ### 📚 Documentation
+        - [Quick Start Guide](https://github.com/${{ github.repository }}/blob/main/README.md)
+        - [Portable Deployment Guide](https://github.com/${{ github.repository }}/blob/main/PORTABLE_DEPLOYMENT_GUIDE.md)
+        - [Example Deployments](https://github.com/${{ github.repository }}/tree/main/examples)
+
+        ### 🔄 Upgrade Instructions
+        ```bash
+        # If installed with uvx
+        uvx upgrade spot-deployer
+
+        # If installed with pip
+        pip install --upgrade spot-deployer
+        ```
+
+        EOF
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
+        body_path: release-notes.md
+        files: dist/*
         generate_release_notes: true
         draft: false
         prerelease: ${{ contains(github.ref, '-') }}
-        body: |
-          ## 🚀 Quick Start
-
-          Install and deploy spot instances with uvx:
-
-          ```bash
-          # Install and run directly
-          uvx --from git+https://github.com/${{ github.repository }} spot-deployer create
-
-          # Or use the convenience script
-          curl -sSL https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/install.sh | bash -s -- create
-          ```
-
-          ## Installation Options
-
-          ### Option 1: uvx (Recommended)
-          ```bash
-          # One-time use
-          uvx --from git+https://github.com/${{ github.repository }} spot-deployer help
-
-          # Install globally
-          uvx install --from git+https://github.com/${{ github.repository }} spot-deployer
-          ```
-
-          ### Option 2: PyPI Package
-          ```bash
-          pip install spot-deployer
-          spot-deployer help
-          ```
-
-          ### Option 3: Local Development
-          ```bash
-          git clone https://github.com/${{ github.repository }}.git
-          cd ${{ github.event.repository.name }}
-          uv run python -m spot_deployer help
-          ```
-
-          ## What's Changed
-
-          See the automated changelog below for details.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/spot-deployer
+    permissions:
+      id-token: write  # For trusted publishing
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: dist
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        skip-existing: true
+
+  update-docs:
+    name: Update Documentation Site
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+
+    - name: Update version in docs
+      run: |
+        VERSION="${GITHUB_REF#refs/tags/v}"
+        echo "Latest version: $VERSION" > docs/VERSION
+        
+        # Update install.sh with new version
+        sed -i "s/VERSION=\".*\"/VERSION=\"$VERSION\"/" docs/install.sh
+
+    - name: Commit version update
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/VERSION docs/install.sh
+        git diff --quiet && git diff --staged --quiet || git commit -m "Update version to ${GITHUB_REF#refs/tags/}"
+        git push
