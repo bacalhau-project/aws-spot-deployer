@@ -1,0 +1,40 @@
+# Python FastAPI Application Deployment
+version: 1
+
+deployment:
+  # Python and dependencies
+  packages:
+    - python3
+    - python3-pip
+    - python3-venv
+    - nginx
+    - supervisor
+    - postgresql-client
+
+  # Setup scripts
+  scripts:
+    - name: setup-python
+      path: scripts/setup.sh
+      order: 1
+    - name: configure-app
+      path: scripts/configure.sh
+      order: 2
+
+  # Application files
+  uploads:
+    - source: files/requirements.txt
+      destination: /opt/api/requirements.txt
+      permissions: "644"
+    - source: configs/gunicorn.conf.py
+      destination: /opt/api/gunicorn.conf.py
+      permissions: "644"
+    - source: configs/supervisor.conf
+      destination: /etc/supervisor/conf.d/api.conf
+      permissions: "644"
+
+  # SystemD services
+  services:
+    - name: api
+      file: services/api.service
+      enabled: true
+      start: true
