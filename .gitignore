@@ -8,8 +8,10 @@ machines.db
 aws/*
 flox/run/*
 
-# Bacalhau configuration (use bacalhau-config.yaml.example as template)
-bacalhau-deployment/bacalhau-config.yaml
+# Deployment files - actual configs (keep examples)
+deployment-files/bacalhau-config.yaml
+deployment-files/orchestrator_endpoint
+deployment-files/orchestrator_token
 
 # AWS Data Cache (local only, not version controlled)
 .aws_cache/
@@ -25,10 +27,6 @@ uv.lock
 # SpecStory explanation file
 .specstory/.what-is-this.md
 .specstory/*
-
-# Orchestrator credentials (sensitive)
-files/orchestrator_endpoint
-files/orchestrator_token
 
 # Docker build artifacts
 .dockerignore

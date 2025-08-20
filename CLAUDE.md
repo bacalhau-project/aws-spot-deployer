@@ -126,7 +126,7 @@ uv run ruff format .
 ├── config.yaml.example         # Comprehensive example
 ├── instances.json              # Runtime state (auto-created)
 ├── .aws_cache/                 # AMI cache directory
-└── files/                      # User files to upload
+└── deployment-files/           # All files to deploy to instances
 ```
 
 ## Configuration Structure
@@ -151,14 +151,14 @@ regions:
 
 #### Credential Files (Required)
 
-Create these files in the `files/` directory before deployment:
+Create these files in the `deployment-files/` directory before deployment:
 
-1. **`files/orchestrator_endpoint`** - Contains the NATS endpoint URL
+1. **`deployment-files/orchestrator_endpoint`** - Contains the NATS endpoint URL
    ```
    nats://orchestrator.example.com:4222
    ```
 
-2. **`files/orchestrator_token`** - Contains the authentication token
+2. **`deployment-files/orchestrator_token`** - Contains the authentication token
    ```
    your-secret-token-here
    ```

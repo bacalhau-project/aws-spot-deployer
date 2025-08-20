@@ -5,7 +5,7 @@ version: 1
 
 deployment:
   # Create tarball from the bacalhau-deployment directory
-  tarball_source: ./bacalhau-deployment
+  tarball_source: ./deployment-files
   
   # System packages to install via apt
   packages:

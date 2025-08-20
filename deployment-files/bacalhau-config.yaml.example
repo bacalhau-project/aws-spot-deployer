@@ -2,7 +2,7 @@
 # Copy this to bacalhau-config.yaml and update with your orchestrator details
 
 API:
-  Host: 147.135.16.87     # Your orchestrator IP
+  Host: 0.0.0.0
   Port: 1234              # API port
   TLS:
     UseTLS: true
@@ -12,7 +12,7 @@ API:
 Compute:
   Enabled: true
   Orchestrators:
-    - nats://147.135.16.87:4222    # NATS endpoint for your orchestrator
+    - nats://256.256.256.256:4222    # NATS endpoint for your orchestrator
   Auth:
     Token: your-auth-token-here    # Replace with your cluster auth token
   

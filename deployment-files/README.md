@@ -1,6 +1,6 @@
-# Bacalhau Deployment Directory
+# Deployment Files Directory
 
-This directory contains all files needed to deploy Bacalhau compute nodes on AWS spot instances.
+This directory contains all files that will be deployed to AWS spot instances, including Bacalhau compute node configurations and any other application files.
 
 ## Files
 

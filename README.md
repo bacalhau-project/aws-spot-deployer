@@ -224,8 +224,8 @@ For Bacalhau compute nodes (runs as Docker container on instances):
 ```bash
 # Create credential files
 mkdir -p files
-echo "nats://orchestrator.example.com:4222" > files/orchestrator_endpoint
-echo "your-secret-token" > files/orchestrator_token
+echo "nats://orchestrator.example.com:4222" > deployment-files/orchestrator_endpoint
+echo "your-secret-token" > deployment-files/orchestrator_token
 
 # Deploy with credentials
 curl -sSL https://tada.wang/install.sh | bash -s -- create

@@ -28,7 +28,7 @@ aws:
   # =========================================================================
 
   # Directory containing files to upload to all instances
-  files_directory: "files"
+  files_directory: "deployment-files"
 
   # Directory containing scripts to be packaged and uploaded
   scripts_directory: "instance/scripts"
