@@ -5,8 +5,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from spot_deployer.core.deployment import DeploymentConfig
-from spot_deployer.templates.cloud_init_templates import CloudInitTemplate
+from ..core.deployment import DeploymentConfig
+from ..templates.cloud_init_templates import CloudInitTemplate
 
 logger = logging.getLogger(__name__)
 

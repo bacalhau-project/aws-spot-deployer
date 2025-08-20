@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from spot_deployer.core.deployment import DeploymentConfig
+from .deployment import DeploymentConfig
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-from spot_deployer.core.deployment import DeploymentConfig
+from ..core.deployment import DeploymentConfig
 
 logger = logging.getLogger(__name__)
 

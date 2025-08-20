@@ -7,8 +7,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Tuple
 
-from ..core.convention_scanner import ConventionScanner
-from ..core.deployment import DeploymentConfig
+from .convention_scanner import ConventionScanner
+from .deployment import DeploymentConfig
 
 logger = logging.getLogger(__name__)
 

@@ -106,6 +106,10 @@ def main() -> None:
         cmd_nuke(state, config)
     elif args.command == "readme":
         cmd_readme()
+    elif args.command == "validate":
+        from .commands.validate import cmd_validate
+
+        cmd_validate(config, state)
     else:
         print(f"Unknown command: {args.command}")
         cmd_help()

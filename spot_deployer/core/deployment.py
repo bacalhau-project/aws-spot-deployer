@@ -19,6 +19,7 @@ class DeploymentConfig:
     uploads: List[Dict[str, Any]] = field(default_factory=list)
     services: List[Dict[str, Any]] = field(default_factory=list)
     template: Optional[str] = None  # Optional template name or path
+    tarball_url: Optional[str] = None  # Optional tarball URL or path
 
     # Paths to actual files
     spot_dir: Path = field(default_factory=Path)

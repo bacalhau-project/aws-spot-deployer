@@ -15,6 +15,7 @@ def cmd_help() -> None:
 [bold]Commands:[/bold]
   [green]setup[/green]      - Create a default 'config.yaml' file and directory structure.
   [green]generate[/green]   - Generate standard deployment structure in .spot/ directory.
+  [green]validate[/green]   - Validate deployment configuration before deployment.
   [green]create[/green]     - Create and deploy spot instances based on 'config.yaml'.
   [green]list[/green]       - List all currently managed instances from 'instances.json'.
   [green]destroy[/green]    - Terminate all managed instances and clean up resources.
