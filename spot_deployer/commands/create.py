@@ -37,6 +37,16 @@ from ..utils.tables import add_instance_row, create_instance_table
 from ..version import __version__
 
 
+def update_instance_state(state, instance_id: str, status: str):
+    """Update the deployment state of an instance in the state file."""
+    instances = state.load_instances()
+    for inst in instances:
+        if inst["id"] == instance_id:
+            inst["state"] = status
+            break
+    state.save_instances(instances)
+
+
 def transfer_portable_files(
     host: str,
     username: str,
@@ -44,6 +54,8 @@ def transfer_portable_files(
     deployment_config,
     progress_callback=None,
     log_function=None,
+    state=None,
+    instance_id=None,
 ):
     """Transfer files for portable deployment based on deployment config."""
 
@@ -87,6 +99,10 @@ def transfer_portable_files(
                 log_function("ERROR: SSH connection failed")
                 return False
 
+            # Update state to uploading
+            if state and instance_id:
+                update_instance_state(state, instance_id, "uploading")
+
             # Upload the tarball
             tarball_size_mb = os.path.getsize(tarball_path) / 1024 / 1024
             log_function(f"Uploading tarball ({tarball_size_mb:.1f} MB)...")
@@ -102,6 +118,10 @@ def transfer_portable_files(
                 return False
 
             log_function("✓ Tarball uploaded successfully")
+
+            # Update state to uploaded
+            if state and instance_id:
+                update_instance_state(state, instance_id, "uploaded")
             if progress_callback:
                 progress_callback("Upload", 50, "Tarball uploaded")
 
@@ -114,12 +134,21 @@ def transfer_portable_files(
 
             # Trigger setup.sh in background (non-blocking)
             log_function("Starting setup.sh in background...")
+
+            # Update state to setup
+            if state and instance_id:
+                update_instance_state(state, instance_id, "setup")
+
             # Wait a bit for cloud-init to detect the marker, then run setup
             setup_cmd = "nohup bash -c 'sleep 5 && cd /opt/deployment && [ -f setup.sh ] && chmod +x setup.sh && ./setup.sh > /var/log/setup.log 2>&1' > /dev/null 2>&1 &"
             ssh_manager.execute_command(setup_cmd)
             log_function("✓ Setup.sh started (running in background)")
             if progress_callback:
                 progress_callback("Complete", 100, "Setup.sh launched in background")
+
+            # Update state to complete (setup is async, so we mark it complete after launching)
+            if state and instance_id:
+                update_instance_state(state, instance_id, "complete")
 
             # Clean up local tarball
             handler.cleanup()
@@ -185,7 +214,9 @@ def transfer_portable_files(
         return False
 
 
-def post_creation_setup(instances, config, update_status_func, logger, deployment_config=None):
+def post_creation_setup(
+    instances, config, update_status_func, logger, deployment_config=None, state=None
+):
     """Handle post-creation setup for all instances."""
     if not instances:
         return
@@ -284,6 +315,8 @@ def post_creation_setup(instances, config, update_status_func, logger, deploymen
                         log_function=lambda msg: logger.info(
                             f"[{instance_id} @ {instance_ip}] {msg}"
                         ),
+                        state=state,
+                        instance_id=instance_id,
                     )
                 except Exception as e:
                     logger.error(f"[{instance_id} @ {instance_ip}] Transfer failed: {e}")
@@ -602,7 +635,7 @@ def create_instances_in_region_with_table(
                         "id": inst_id,
                         "region": region,
                         "type": machine_type,
-                        "state": "pending",
+                        "state": "provisioned",  # Deployment state, not AWS state
                         "public_ip": "pending",
                         "created": datetime.now().isoformat(),
                         "ami": ami_id,
@@ -645,7 +678,7 @@ def create_instances_in_region_with_table(
                                 "id": inst_id,
                                 "region": region,
                                 "type": machine_type,
-                                "state": instance_state,
+                                "state": "provisioned",  # Deployment state, not AWS state
                                 "public_ip": public_ip,
                                 "created": datetime.now().isoformat(),
                                 "ami": ami_id,
@@ -675,7 +708,7 @@ def create_instances_in_region_with_table(
                                         for inst in instances:
                                             if inst["id"] == inst_id:
                                                 inst["public_ip"] = public_ip
-                                                inst["state"] = instance_state
+                                                # Don't update state here - we track deployment state, not AWS state
                                                 break
                                         state.save_instances(instances)
 
@@ -1063,7 +1096,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 live.update(generate_layout())
 
                 # Always run post-creation setup to upload files
-                post_creation_setup(all_instances, config, update_status, logger, deployment_config)
+                post_creation_setup(
+                    all_instances, config, update_status, logger, deployment_config, state
+                )
 
                 # Keep the live display running during setup
                 live.update(generate_layout())

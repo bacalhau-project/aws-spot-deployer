@@ -41,11 +41,17 @@ def cmd_list(state: SimpleStateManager, refresh: bool = False) -> None:
 
         # Add all instances to table
         for instance in instances:
+            # Get status - either from AWS or show as unknown
+            if refresh:
+                status = get_instance_status(instance["id"], instance["region"])
+            else:
+                status = instance.get("state", "unknown")
+
             add_instance_row(
                 table,
                 region=instance["region"],
                 instance_id=instance["id"],  # Changed from instance_id to id
-                status="unknown",  # We don't check AWS, just show from state
+                status=status,
                 instance_type=instance.get("type", "unknown"),  # Changed from instance_type to type
                 public_ip=instance.get("public_ip", "pending"),
                 created=instance.get("created", "unknown"),  # Changed from created_at to created
