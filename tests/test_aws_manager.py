@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Unit tests for AWSResourceManager."""
 
 from unittest.mock import MagicMock, patch

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Tarball handler for creating and managing deployment packages."""
 
 import hashlib
@@ -90,7 +89,7 @@ class TarballHandler:
                     file_path = root_path / file
                     if not should_exclude(file_path):
                         # Add with relative path from source_dir
-                        arcname = file_path.relative_to(source_dir.parent)
+                        arcname = file_path.relative_to(source_dir)
                         tar.add(file_path, arcname=arcname)
 
         # Calculate size

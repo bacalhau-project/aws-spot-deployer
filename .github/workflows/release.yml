@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -181,7 +181,7 @@ jobs:
       run: |
         VERSION="${GITHUB_REF#refs/tags/v}"
         echo "Latest version: $VERSION" > docs/VERSION
-        
+
         # Update install.sh with new version
         sed -i "s/VERSION=\".*\"/VERSION=\"$VERSION\"/" docs/install.sh
 

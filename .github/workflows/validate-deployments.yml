@@ -43,13 +43,13 @@ jobs:
         run: |
           cd ${{ matrix.example }}
           echo "Validating deployment in $(pwd)"
-          
+
           # Run validation
           uv run python -m spot_deployer validate
-          
+
           # Check required files exist
           test -f .spot/deployment.yaml || test -f deployment.yaml
-          
+
           # If services are defined, check they exist
           if [ -d .spot/services ] || [ -d services ]; then
             echo "Checking service files..."
@@ -60,7 +60,7 @@ jobs:
               grep -q "\[Service\]" "$service" || (echo "Missing [Service] section in $service" && exit 1)
             done
           fi
-          
+
           # If scripts are defined, check they're executable
           if [ -d .spot/scripts ] || [ -d scripts ]; then
             echo "Checking script files..."
@@ -74,7 +74,7 @@ jobs:
   test-tarball-creation:
     name: Test Tarball Creation
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
 
@@ -97,7 +97,7 @@ jobs:
           echo "tarball_source: ." >> test-tarball-project/.spot/deployment.yaml
           echo "#!/bin/bash" > test-tarball-project/.spot/scripts/test.sh
           echo "echo test" >> test-tarball-project/.spot/scripts/test.sh
-          
+
           # Test tarball handler directly
           uv run python -c "
 from pathlib import Path
@@ -119,21 +119,21 @@ print('Tarball validation passed')
   check-deployment-structure:
     name: Check Deployment Structure
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Check .spot structure
         run: |
           echo "Checking main .spot deployment structure..."
-          
+
           # Check required files
           test -f .spot/deployment.yaml || (echo "Missing .spot/deployment.yaml" && exit 1)
-          
+
           # Check directories exist
           test -d .spot/scripts || (echo "Missing .spot/scripts/" && exit 1)
           test -d .spot/services || (echo "Missing .spot/services/" && exit 1)
-          
+
           echo "✅ Main deployment structure is valid"
 
       - name: Validate YAML files
@@ -141,14 +141,14 @@ print('Tarball validation passed')
           # Install yq for YAML validation
           wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           chmod +x /usr/local/bin/yq
-          
+
           # Validate all deployment.yaml files
           for yaml in $(find . -name "deployment.yaml" -type f); do
             echo "Validating $yaml..."
             yq eval '.' "$yaml" > /dev/null || (echo "Invalid YAML: $yaml" && exit 1)
-            
+
             # Check required fields
             yq eval '.version' "$yaml" > /dev/null || (echo "Missing 'version' in $yaml" && exit 1)
           done
-          
+
           echo "✅ All YAML files are valid"

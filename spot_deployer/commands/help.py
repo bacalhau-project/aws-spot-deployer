@@ -20,6 +20,7 @@ def cmd_help() -> None:
   [green]list[/green]       - List all currently managed instances from 'instances.json'.
   [green]destroy[/green]    - Terminate all managed instances and clean up resources.
   [green]nuke[/green]       - [red]DANGER:[/red] Find and destroy ALL spot instances in ALL regions.
+  [green]random-ip[/green]  - Output a random instance IP address for SSH access.
   [green]readme[/green]     - Display information about the files directory and requirements.
   [green]help[/green]       - Show this help message.
   [green]version[/green]    - Show version information.

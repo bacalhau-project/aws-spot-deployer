@@ -89,17 +89,17 @@ deployment:
   packages:
     - nginx
     - docker.io
-  
+
   uploads:
     - source: scripts/
       dest: /opt/deployment/scripts/
       permissions: "755"
-  
+
   services:
     - file: services/webapp.service
       name: webapp
       enabled: true
-  
+
   # Optional: Use external tarball
   tarball_url: https://example.com/deployment.tar.gz
 ```

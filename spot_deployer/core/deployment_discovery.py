@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Deployment discovery module for detecting and validating deployment structures."""
 
 import logging

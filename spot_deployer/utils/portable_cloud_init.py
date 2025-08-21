@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Portable cloud-init generator that creates cloud-init from DeploymentConfig."""
 
 import logging
@@ -15,13 +14,15 @@ logger = logging.getLogger(__name__)
 class PortableCloudInitGenerator:
     """Generates cloud-init configuration from DeploymentConfig."""
 
-    def __init__(self, deployment_config: DeploymentConfig):
+    def __init__(self, deployment_config: DeploymentConfig, ssh_public_key: Optional[str] = None):
         """Initialize generator with deployment configuration.
 
         Args:
             deployment_config: DeploymentConfig object with deployment specs
+            ssh_public_key: Optional SSH public key to add to the ubuntu user
         """
         self.config = deployment_config
+        self.ssh_public_key = ssh_public_key
 
     def generate(self) -> str:
         """Generate complete cloud-init YAML configuration.
@@ -85,6 +86,12 @@ class PortableCloudInitGenerator:
     groups: sudo, docker
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL"""
+
+        # Add SSH key if provided
+        if self.ssh_public_key:
+            users_yaml += f"""
+    ssh_authorized_keys:
+      - {self.ssh_public_key}"""
 
         return users_yaml
 
@@ -179,26 +186,72 @@ touch /opt/deployment.complete
             ]
         )
 
+        # Add script to wait for upload completion marker
+        wait_script = """
+# Wait for upload completion marker
+echo "Waiting for file upload to complete..."
+MAX_WAIT=300  # 5 minutes timeout
+WAIT_COUNT=0
+while [ ! -f /tmp/UPLOAD_COMPLETE ] && [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+    sleep 5
+    WAIT_COUNT=$((WAIT_COUNT + 5))
+    if [ $((WAIT_COUNT % 30)) -eq 0 ]; then
+        echo "Still waiting for upload to complete... ($WAIT_COUNT seconds)"
+    fi
+done
+
+if [ ! -f /tmp/UPLOAD_COMPLETE ]; then
+    echo "WARNING: Upload did not complete within timeout period"
+    echo "Continuing anyway to prevent instance from being stuck"
+    echo "Files may not be properly deployed"
+fi
+
+echo "Upload complete marker detected"
+"""
+        commands.append(wait_script)
+
         # Handle tarball deployment if specified
         if hasattr(self.config, "tarball_source") and self.config.tarball_source:
-            # Note: Tarball will be created and uploaded during deployment
             # Add extraction commands for the tarball that will be uploaded
             extract_script = """
-# Extract deployment tarball
-echo "Extracting deployment package..."
-mkdir -p /opt/deployment
+# Extract deployment tarball (after upload is complete)
 if [ -f /tmp/deployment.tar.gz ]; then
+    echo "Extracting deployment package..."
+    mkdir -p /opt/deployment
     tar -xzf /tmp/deployment.tar.gz -C /opt/deployment
     rm -f /tmp/deployment.tar.gz
     chown -R ubuntu:ubuntu /opt/deployment
-    chmod -R 755 /opt/deployment/scripts/ 2>/dev/null || true
-    echo "Deployment package extracted"
+    
+    # Make any scripts executable
+    find /opt/deployment -name "*.sh" -type f -exec chmod +x {} \\;
+    
+    echo "Deployment package extracted successfully"
+    echo "Directory structure:"
+    ls -la /opt/deployment/
 else
-    echo "Warning: Deployment tarball not found at /tmp/deployment.tar.gz"
+    echo "Warning: No deployment tarball found at /tmp/deployment.tar.gz"
 fi
 """
-            # Add extraction script to commands
             commands.append(extract_script)
+
+            # Add command to run setup script if it exists in the extracted tarball
+            setup_script = """
+# Run setup script from extracted tarball if it exists
+if [ -f /opt/deployment/setup.sh ]; then
+    echo "Running setup.sh script..."
+    chmod +x /opt/deployment/setup.sh
+    cd /opt/deployment
+    ./setup.sh
+    echo "Setup script completed"
+else
+    echo "No setup.sh found in deployment package"
+fi
+
+# Mark deployment as complete
+touch /opt/deployment.complete
+echo "Deployment process finished"
+"""
+            commands.append(setup_script)
 
         # Install services if defined
         if self.config.services:
@@ -262,6 +315,9 @@ nohup bash -c 'sleep 45; /tmp/install_services.sh' > /opt/services.log 2>&1 &"""
             # Use provided template file
             template = CloudInitTemplate(template_path)
             logger.info(f"Using custom template: {template_path}")
+            # Add SSH key as a template variable if available
+            if self.ssh_public_key:
+                template.add_variable("SSH_PUBLIC_KEY", self.ssh_public_key)
             return template.render(self.config)
         elif template_name:
             # Use library template
@@ -270,6 +326,9 @@ nohup bash -c 'sleep 45; /tmp/install_services.sh' > /opt/services.log 2>&1 &"""
             try:
                 template = TemplateLibrary.get_template(template_name)
                 logger.info(f"Using library template: {template_name}")
+                # Add SSH key as a template variable if available
+                if self.ssh_public_key:
+                    template.add_variable("SSH_PUBLIC_KEY", self.ssh_public_key)
                 return template.render(self.config)
             except FileNotFoundError as e:
                 logger.warning(f"Template not found: {e}")

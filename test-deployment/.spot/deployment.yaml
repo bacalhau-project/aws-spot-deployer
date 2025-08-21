@@ -7,7 +7,7 @@ deployment:
     - nginx
     - curl
     - htop
-  
+
   # Files to upload
   uploads:
     - source: scripts/
@@ -16,12 +16,12 @@ deployment:
     - source: configs/
       dest: /opt/deployment/configs/
       permissions: "644"
-  
+
   # Scripts to execute
   scripts:
     - path: scripts/setup.sh
       name: Main setup script
-  
+
   # Services to install
   services:
     - file: services/webapp.service

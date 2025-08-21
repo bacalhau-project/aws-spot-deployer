@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Generic file uploader for deployment files based on manifest."""
 
 import logging

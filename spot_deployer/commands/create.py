@@ -66,8 +66,9 @@ def transfer_portable_files(
                 log_function(f"ERROR: Tarball source not found: {source_path}")
                 return False
 
-            # Create the tarball
-            tarball_path = handler.create_deployment_tarball(source_path)
+            # Create the tarball using the generic method
+            # (create_deployment_tarball expects specific structure we don't have)
+            tarball_path = handler.create_tarball(source_path)
             log_function(f"Created tarball: {tarball_path}")
 
             # Upload the tarball
@@ -75,14 +76,50 @@ def transfer_portable_files(
                 progress_callback("Uploading", 0, "Uploading deployment tarball...")
 
             # Use ssh_manager with proper initialization
+            log_function("Connecting via SSH...")
             ssh_manager = SSHManager(host, username, key_path)
+
+            # Test SSH connection first
+            test_result = ssh_manager.execute_command("echo 'SSH connection established'")
+            if test_result:
+                log_function("✓ SSH connected successfully")
+            else:
+                log_function("ERROR: SSH connection failed")
+                return False
+
+            # Upload the tarball
+            tarball_size_mb = os.path.getsize(tarball_path) / 1024 / 1024
+            log_function(f"Uploading tarball ({tarball_size_mb:.1f} MB)...")
+            if progress_callback:
+                progress_callback("Upload", 25, f"Uploading tarball ({tarball_size_mb:.1f} MB)")
+
             success = ssh_manager.transfer_file(str(tarball_path), "/tmp/deployment.tar.gz")
 
             if not success:
                 log_function("ERROR: Failed to upload tarball")
+                if progress_callback:
+                    progress_callback("Upload", 0, "Failed to upload tarball")
                 return False
 
-            log_function("Tarball uploaded successfully")
+            log_function("✓ Tarball uploaded successfully")
+            if progress_callback:
+                progress_callback("Upload", 50, "Tarball uploaded")
+
+            # Create upload complete marker
+            log_function("Creating upload complete marker...")
+            ssh_manager.execute_command("touch /tmp/UPLOAD_COMPLETE")
+            log_function("✓ Upload complete marker created")
+            if progress_callback:
+                progress_callback("Setup", 75, "Signaled upload complete")
+
+            # Trigger setup.sh in background (non-blocking)
+            log_function("Starting setup.sh in background...")
+            # Wait a bit for cloud-init to detect the marker, then run setup
+            setup_cmd = "nohup bash -c 'sleep 5 && cd /opt/deployment && [ -f setup.sh ] && chmod +x setup.sh && ./setup.sh > /var/log/setup.log 2>&1' > /dev/null 2>&1 &"
+            ssh_manager.execute_command(setup_cmd)
+            log_function("✓ Setup.sh started (running in background)")
+            if progress_callback:
+                progress_callback("Complete", 100, "Setup.sh launched in background")
 
             # Clean up local tarball
             handler.cleanup()
@@ -93,8 +130,13 @@ def transfer_portable_files(
             return True
 
         # Otherwise use manifest-based uploads
+        ssh_manager = SSHManager(host, username, key_path)
+
         if not deployment_config.uploads:
             log_function("No files to upload (no uploads defined in deployment config)")
+            # Still create the marker file to signal completion
+            ssh_manager.execute_command("touch /tmp/UPLOAD_COMPLETE")
+            log_function("Created upload complete marker")
             return True
 
         # Use FileUploader for manifest-based uploads
@@ -121,11 +163,25 @@ def transfer_portable_files(
             size_mb = stats["total_bytes"] / (1024 * 1024)
             log_function(f"Uploaded {stats['uploaded_files']} files ({size_mb:.1f} MB)")
 
+        # Create upload complete marker
+        if success:
+            ssh_manager.execute_command("touch /tmp/UPLOAD_COMPLETE")
+            log_function("Created upload complete marker")
+
         return success
 
     except Exception as e:
         if log_function:
             log_function(f"Error during file transfer: {e}")
+
+        # Still try to create the marker so cloud-init doesn't hang forever
+        try:
+            ssh_manager = SSHManager(host, username, key_path)
+            ssh_manager.execute_command("touch /tmp/UPLOAD_COMPLETE")
+            log_function("Created upload complete marker (despite errors)")
+        except:
+            pass
+
         return False
 
 
@@ -185,36 +241,70 @@ def post_creation_setup(instances, config, update_status_func, logger, deploymen
         try:
             # Wait for SSH to be available
             logger.info(f"[{instance_id} @ {instance_ip}] Waiting for SSH...")
-            update_status_func(instance_key, "Waiting for SSH...")
+            update_status_func(instance_key, "⏳ Waiting for SSH...")
 
             if not wait_for_ssh_only(instance_ip, username, expanded_key_path, timeout=300):
                 logger.error(f"[{instance_id} @ {instance_ip}] SSH timeout")
-                update_status_func(instance_key, "ERROR: SSH timeout", is_final=True)
+                update_status_func(instance_key, "❌ SSH timeout", is_final=True)
                 return
 
             logger.info(f"[{instance_id} @ {instance_ip}] SSH available")
-            update_status_func(instance_key, "SSH ready")
+            update_status_func(instance_key, "✅ SSH connected")
 
             # Transfer files
             logger.info(f"[{instance_id} @ {instance_ip}] Starting file transfer...")
-            update_status_func(instance_key, "Uploading files...")
+            update_status_func(instance_key, "📦 Preparing upload...")
 
             def progress_callback(phase, progress, status):
-                # Show detailed progress
-                update_status_func(instance_key, f"{phase} ({progress}%): {status}")
+                # Show detailed progress with icons
+                if "SSH" in status:
+                    icon = "🔐"
+                elif "tarball" in status.lower():
+                    icon = "📦"
+                elif "setup" in status.lower():
+                    icon = "⚙️"
+                elif "complete" in status.lower():
+                    icon = "✅"
+                else:
+                    icon = "📤"
+                update_status_func(instance_key, f"{icon} {status}")
 
             if deployment_config:
                 # Portable deployment - upload based on deployment config
-                success = transfer_portable_files(
-                    instance_ip,
-                    username,
-                    expanded_key_path,
-                    deployment_config,
-                    progress_callback=progress_callback,
-                    log_function=lambda msg: logger.info(f"[{instance_id} @ {instance_ip}] {msg}"),
+                logger.info(
+                    f"[{instance_id} @ {instance_ip}] Using portable deployment with tarball"
                 )
+                try:
+                    success = transfer_portable_files(
+                        instance_ip,
+                        username,
+                        expanded_key_path,
+                        deployment_config,
+                        progress_callback=progress_callback,
+                        log_function=lambda msg: logger.info(
+                            f"[{instance_id} @ {instance_ip}] {msg}"
+                        ),
+                    )
+                except Exception as e:
+                    logger.error(f"[{instance_id} @ {instance_ip}] Transfer failed: {e}")
+                    success = False
             else:
-                # Legacy deployment - use existing transfer function
+                # Legacy deployment or no files to upload
+                logger.info(
+                    f"[{instance_id} @ {instance_ip}] No deployment config, creating marker"
+                )
+                # Still create the marker so cloud-init doesn't hang
+                try:
+                    from ..utils.ssh_manager import SSHManager
+
+                    ssh_manager = SSHManager(instance_ip, username, expanded_key_path)
+                    ssh_manager.execute_command("touch /tmp/UPLOAD_COMPLETE")
+                    logger.info(
+                        f"[{instance_id} @ {instance_ip}] Created upload complete marker (no files)"
+                    )
+                except Exception as e:
+                    logger.error(f"[{instance_id} @ {instance_ip}] Failed to create marker: {e}")
+
                 if files_directory and scripts_directory:
                     success = transfer_files_scp(
                         instance_ip,
@@ -240,13 +330,13 @@ def post_creation_setup(instances, config, update_status_func, logger, deploymen
                 return
 
             logger.info(
-                f"[{instance_id} @ {instance_ip}] SUCCESS: Files uploaded and deployment started"
+                f"[{instance_id} @ {instance_ip}] SUCCESS: Files uploaded and setup.sh started"
             )
-            update_status_func(instance_key, "SUCCESS: Deployment started", is_final=True)
+            update_status_func(instance_key, "✅ Setup running in background", is_final=True)
 
             # Deployment script is now running in background
             logger.info(
-                f"[{instance_id} @ {instance_ip}] Deployment running in background - check ~/deployment.log"
+                f"[{instance_id} @ {instance_ip}] Setup.sh running in background - check /var/log/setup.log"
             )
 
         except Exception as e:
@@ -370,7 +460,20 @@ def create_instances_in_region_with_table(
 
         # Use portable cloud-init generator for portable deployments
         log_message("Using portable cloud-init generator")
-        generator = PortableCloudInitGenerator(deployment_config)
+
+        # Read SSH public key if available
+        ssh_public_key = None
+        public_key_path = config.public_ssh_key_path()
+        if public_key_path:
+            try:
+                expanded_path = os.path.expanduser(public_key_path)
+                with open(expanded_path, "r") as f:
+                    ssh_public_key = f.read().strip()
+                    log_message(f"Loaded SSH public key from {public_key_path}")
+            except Exception as e:
+                log_message(f"WARNING: Could not read SSH public key: {e}")
+
+        generator = PortableCloudInitGenerator(deployment_config, ssh_public_key=ssh_public_key)
 
         # Check if a template is specified
         if deployment_config.template:

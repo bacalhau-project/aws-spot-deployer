@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Cloud-init template system for customizable deployments."""
 
 import logging
@@ -149,6 +148,14 @@ class CloudInitTemplate:
         # Add custom variables (these override deployment config variables)
         vars.update(self.variables)
 
+        # Add SSH key section if SSH_PUBLIC_KEY is provided
+        if "SSH_PUBLIC_KEY" in vars and vars["SSH_PUBLIC_KEY"]:
+            vars["SSH_KEY_SECTION"] = f"""
+    ssh_authorized_keys:
+      - {vars["SSH_PUBLIC_KEY"]}"""
+        else:
+            vars["SSH_KEY_SECTION"] = ""
+
         return vars
 
     def _get_default_template(self) -> str:
@@ -167,7 +174,7 @@ users:
   - name: ubuntu
     groups: sudo, docker
     shell: /bin/bash
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: ALL=(ALL) NOPASSWD:ALL{{SSH_KEY_SECTION}}
 
 packages:
 {{PACKAGES}}
@@ -177,27 +184,27 @@ write_files:
     permissions: '0644'
     content: |
       Deployment via template
-      
+
   - path: /opt/deploy.sh
     permissions: '0755'
     content: |
       #!/bin/bash
       set -e
-      
+
       echo "Starting deployment..."
-      
+
       # Wait for uploads
       while [ ! -f /opt/uploads.complete ]; do
         sleep 2
       done
-      
+
       # Run scripts
 {{SCRIPTS}}
-      
+
       # Start services
       systemctl daemon-reload
 {{SERVICES}}
-      
+
       echo "Deployment complete"
       touch /opt/deployment.complete
 

@@ -6,10 +6,10 @@ users:
   - name: ubuntu
     groups: sudo
     shell: /bin/bash
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: ALL=(ALL) NOPASSWD:ALL{{SSH_KEY_SECTION}}
 
-packages:
-{{PACKAGES}}
+packages: []
+# {{PACKAGES}}
 
 runcmd:
   - mkdir -p /opt/deployment

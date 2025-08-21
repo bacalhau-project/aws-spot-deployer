@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Deployment configuration and validation for portable spot deployer."""
 
 from dataclasses import dataclass, field

@@ -1,4 +1,4 @@
-#!/usr/bin/env uv run
+#!/usr/bin/env python3
 """
 AWS Spot Instance Deployer - Main Entry Point
 
@@ -110,6 +110,10 @@ def main() -> None:
         from .commands.validate import cmd_validate
 
         cmd_validate(config, state)
+    elif args.command == "random-ip":
+        from .commands.random_ip import cmd_random_ip
+
+        cmd_random_ip(state)
     else:
         print(f"Unknown command: {args.command}")
         cmd_help()

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Validate command - validates deployment configuration before deployment."""
 
 from pathlib import Path

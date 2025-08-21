@@ -98,7 +98,7 @@ The create command needs to:
 
 ### Files Created/Modified
 - ✅ `spot_deployer/utils/file_uploader.py` - NEW
-- ✅ `spot_deployer/commands/validate.py` - NEW  
+- ✅ `spot_deployer/commands/validate.py` - NEW
 - ✅ `spot_deployer/core/deployment.py` - Added tarball_url
 - ✅ `spot_deployer/main.py` - Added validate command
 - ✅ `spot_deployer/commands/help.py` - Added validate to help

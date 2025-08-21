@@ -5,13 +5,33 @@ set -e
 
 echo "[$(date)] Setting up Bacalhau compute node..."
 
-# Create directories
+# Files are already in their proper locations from the tarball extraction
+# The tarball mirrors the filesystem structure, so files are at:
+# /opt/deployment/etc/bacalhau/config.yaml -> /etc/bacalhau/config.yaml
+# /opt/deployment/opt/bacalhau/docker-compose.yml -> /opt/bacalhau/docker-compose.yml
+# /opt/deployment/etc/systemd/system/bacalhau.service -> /etc/systemd/system/bacalhau.service
+
+# Create actual directories on the system
+mkdir -p /etc/bacalhau
 mkdir -p /opt/bacalhau
 mkdir -p /var/log/bacalhau
 
-# Copy configuration files from extracted tarball
-cp /opt/deployment/bacalhau-deployment/bacalhau-config.yaml /opt/bacalhau/config.yaml
-cp /opt/deployment/bacalhau-deployment/docker-compose.yml /opt/bacalhau/docker-compose.yml
+# Copy files from deployment structure to their final locations
+if [ -f /opt/deployment/etc/bacalhau/config.yaml ]; then
+    cp /opt/deployment/etc/bacalhau/config.yaml /etc/bacalhau/config.yaml
+    echo "[$(date)] Copied Bacalhau config to /etc/bacalhau/"
+fi
+
+if [ -f /opt/deployment/opt/bacalhau/docker-compose.yml ]; then
+    cp /opt/deployment/opt/bacalhau/docker-compose.yml /opt/bacalhau/docker-compose.yml
+    echo "[$(date)] Copied docker-compose.yml to /opt/bacalhau/"
+fi
+
+if [ -f /opt/deployment/etc/systemd/system/bacalhau.service ]; then
+    cp /opt/deployment/etc/systemd/system/bacalhau.service /etc/systemd/system/bacalhau.service
+    echo "[$(date)] Copied systemd service file"
+    systemctl daemon-reload
+fi
 
 # Set proper ownership
 chown -R ubuntu:ubuntu /opt/bacalhau

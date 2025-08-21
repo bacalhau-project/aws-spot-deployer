@@ -1,4 +1,4 @@
-name: bacalhau-compute
+version: '3.8'
 
 x-common-env-variables: &common-env-variables
   BACALHAU_DISABLEANALYTICS: "true"
@@ -8,19 +8,14 @@ services:
   compute:
     image: ghcr.io/bacalhau-project/bacalhau:latest
     hostname: compute-${HOSTNAME:-node}
-    command: serve -c /etc/bacalhau/config.yaml --node-type compute
+    command: serve -c /etc/bacalhau/config.yaml
     environment: *common-env-variables
     network_mode: "host"
     volumes:
-      - /opt/bacalhau/config.yaml:/etc/bacalhau/config.yaml:ro
+      - /etc/bacalhau/config.yaml:/etc/bacalhau/config.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp:/tmp
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          cpus: "1.0"
-          memory: "2G"
     healthcheck:
       test: ["CMD", "bacalhau", "version"]
       interval: 30s

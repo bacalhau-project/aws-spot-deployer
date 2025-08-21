@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Convention scanner for auto-detecting deployment structure from deployment/ directory."""
 
 import logging
@@ -41,9 +40,12 @@ class ConventionScanner:
         self._log_discovery(packages, scripts, uploads, services)
 
         # Build and return config
-        return DeploymentConfig(
+        config = DeploymentConfig(
             version=1, packages=packages, scripts=scripts, uploads=uploads, services=services
         )
+        # Set tarball_source to use the deployment directory
+        config.tarball_source = str(self.deployment_dir)
+        return config
 
     def _scan_packages(self) -> list:
         """Scan for package requirements.

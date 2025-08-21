@@ -44,15 +44,15 @@ jobs:
         run: |
           # Test help command
           uv run python -m spot_deployer help
-          
+
           # Test version command
           uv run python -m spot_deployer --version
-          
+
           # Test generate command
           mkdir -p test-project
           cd test-project
           uv run python -m spot_deployer generate
-          
+
           # Test validate command
           uv run python -m spot_deployer validate
 
@@ -60,10 +60,10 @@ jobs:
         run: |
           # Create test deployment structure
           cd test-deployment
-          
+
           # Validate the test deployment
           uv run python -m spot_deployer validate
-          
+
           # Test tarball creation
           echo "tarball_source: ." >> .spot/deployment.yaml
           uv run python -m spot_deployer validate
@@ -104,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -112,7 +112,7 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-      
+
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         with:

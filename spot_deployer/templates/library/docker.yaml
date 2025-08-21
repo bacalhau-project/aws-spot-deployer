@@ -6,12 +6,12 @@ users:
   - name: ubuntu
     groups: sudo, docker
     shell: /bin/bash
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: ALL=(ALL) NOPASSWD:ALL{{SSH_KEY_SECTION}}
 
 packages:
   - docker.io
   - docker-compose
-{{PACKAGES}}
+# {{PACKAGES}}
 
 write_files:
   - path: /opt/deploy.sh
@@ -19,24 +19,24 @@ write_files:
     content: |
       #!/bin/bash
       set -e
-      
+
       echo "Starting Docker deployment..."
-      
+
       # Wait for uploads
       while [ ! -f /opt/uploads.complete ]; do
         sleep 2
       done
-      
+
       # Enable Docker
       systemctl enable docker
       systemctl start docker
-      
+
       # Run docker-compose if exists
       if [ -f /opt/deployment/docker-compose.yml ]; then
         cd /opt/deployment
         docker-compose up -d
       fi
-      
+
       echo "Docker deployment complete"
       touch /opt/deployment.complete
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Service installer for systemd services."""
 
 import logging
