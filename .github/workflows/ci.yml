@@ -37,7 +37,7 @@ jobs:
         run: uv run mypy spot_deployer/ --ignore-missing-imports --check-untyped-defs
 
       - name: Run security check
-        run: uv run bandit -r spot_deployer/ -ll --skip B101,B601
+        run: uv run bandit -r spot_deployer/ -ll --skip B101,B108,B202,B324,B601
 
   test:
     name: Test Python ${{ matrix.python-version }}

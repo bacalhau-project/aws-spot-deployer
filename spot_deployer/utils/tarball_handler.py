@@ -162,7 +162,9 @@ class TarballHandler:
         return self.create_tarball(base_dir, exclude_patterns=exclude_patterns)
 
     def generate_upload_script(
-        self, tarball_path: Path, remote_path: str = "/tmp/deployment.tar.gz"
+        self,
+        tarball_path: Path,
+        remote_path: str = "/tmp/deployment.tar.gz",
     ) -> str:
         """Generate script to upload and extract tarball on remote instance.
 
