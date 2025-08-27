@@ -3,7 +3,6 @@
 import os
 import threading
 import time
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -56,6 +55,7 @@ def transfer_portable_files(
     log_function=None,
     state=None,
     instance_id=None,
+    shared_tarball_path=None,
 ):
     """Transfer files for portable deployment based on deployment config."""
 
@@ -67,12 +67,98 @@ def transfer_portable_files(
         log_function = print
 
     try:
-        # Check if we should create and upload a tarball
-        if hasattr(deployment_config, "tarball_source") and deployment_config.tarball_source:
-            log_function(f"Creating tarball from {deployment_config.tarball_source}...")
+        # Use shared tarball if available, otherwise check deployment config
+        if shared_tarball_path and os.path.exists(shared_tarball_path):
+            log_function(f"Using shared tarball: {shared_tarball_path}")
+
+            # Get tarball size for verification
+            local_size = os.path.getsize(shared_tarball_path)
+            tarball_size_mb = local_size / 1024 / 1024
+            log_function(f"Local tarball size: {local_size} bytes ({tarball_size_mb:.1f} MB)")
+
+            # Connect via SSH
+            log_function("Establishing SSH connection...")
+            ssh_manager = SSHManager(host, username, key_path)
+
+            # Test SSH connection
+            test_result = ssh_manager.execute_command("echo 'SSH connection test'")
+            if not test_result:
+                log_function("ERROR: SSH connection failed")
+                return False
+            log_function("✓ SSH connection established")
+
+            if progress_callback:
+                progress_callback("Upload", 10, f"Uploading tarball ({tarball_size_mb:.1f} MB)")
+
+            # Update state
+            if state and instance_id:
+                update_instance_state(state, instance_id, "uploading")
+
+            # Upload the tarball
+            log_function("Uploading tarball to /tmp/deployment.tar.gz...")
+            success = ssh_manager.transfer_file(shared_tarball_path, "/tmp/deployment.tar.gz")
+
+            if not success:
+                log_function("ERROR: Tarball upload failed")
+                return False
+
+            if progress_callback:
+                progress_callback("Upload", 50, "Verifying upload...")
+
+            # Verify upload by checking remote file size
+            log_function("Verifying upload completion...")
+            remote_size_result = ssh_manager.execute_command(
+                "stat -c%s /tmp/deployment.tar.gz 2>/dev/null || echo 'ERROR'"
+            )
+
+            if not remote_size_result or remote_size_result.strip() == "ERROR":
+                log_function("ERROR: Failed to verify remote file size")
+                return False
+
+            try:
+                remote_size = int(remote_size_result.strip())
+                log_function(f"Remote file size: {remote_size} bytes")
+
+                if remote_size != local_size:
+                    log_function(
+                        f"ERROR: Size mismatch! Local: {local_size}, Remote: {remote_size}"
+                    )
+                    return False
+
+                log_function("✓ Upload verified - sizes match")
+
+            except ValueError:
+                log_function(f"ERROR: Invalid remote size response: {remote_size_result}")
+                return False
+
+            if progress_callback:
+                progress_callback("Setup", 75, "Upload verified")
+
+            # Create upload complete marker
+            log_function("Creating upload completion marker...")
+            ssh_manager.execute_command("touch /tmp/UPLOAD_COMPLETE")
+            log_function("✓ Upload complete marker created")
+
+            if progress_callback:
+                progress_callback("Complete", 100, "Upload verified and complete")
+
+            # Update state
+            if state and instance_id:
+                update_instance_state(state, instance_id, "complete")
+
+            return True
+
+        # Fallback to old logic if no shared tarball
+        tarball_source = getattr(deployment_config, "tarball_source", None)
+        log_function(
+            f"No shared tarball available, checking for tarball_source: '{tarball_source}'"
+        )
+
+        if tarball_source:
+            log_function(f"Creating tarball from {tarball_source}...")
 
             handler = TarballHandler()
-            source_path = Path(deployment_config.tarball_source)
+            source_path = Path(tarball_source)
 
             if not source_path.exists():
                 log_function(f"ERROR: Tarball source not found: {source_path}")
@@ -208,14 +294,20 @@ def transfer_portable_files(
             ssh_manager = SSHManager(host, username, key_path)
             ssh_manager.execute_command("touch /tmp/UPLOAD_COMPLETE")
             log_function("Created upload complete marker (despite errors)")
-        except:
+        except Exception:
             pass
 
         return False
 
 
 def post_creation_setup(
-    instances, config, update_status_func, logger, deployment_config=None, state=None
+    instances,
+    config,
+    update_status_func,
+    logger,
+    deployment_config=None,
+    state=None,
+    shared_tarball_path=None,
 ):
     """Handle post-creation setup for all instances."""
     if not instances:
@@ -317,6 +409,7 @@ def post_creation_setup(
                         ),
                         state=state,
                         instance_id=instance_id,
+                        shared_tarball_path=shared_tarball_path,
                     )
                 except Exception as e:
                     logger.error(f"[{instance_id} @ {instance_ip}] Transfer failed: {e}")
@@ -671,7 +764,7 @@ def create_instances_in_region_with_table(
                         key = instance_keys[idx]
 
                         public_ip = inst.get("PublicIpAddress")
-                        instance_state = inst["State"]["Name"]
+                        inst["State"]["Name"]
 
                         if public_ip:
                             instance_data = {
@@ -820,6 +913,49 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     if not is_valid:
         validator.suggest_fixes()
         return
+
+    # Pre-create deployment tarball if needed (one-time creation for all instances)
+    shared_tarball_path = None
+    if deployment_config:
+        tarball_source = getattr(deployment_config, "tarball_source", None)
+        if tarball_source:
+            try:
+                import uuid
+                from pathlib import Path
+
+                from ..utils.tarball_handler import TarballHandler
+
+                rich_print(f"📦 Creating deployment tarball from {tarball_source}...")
+                handler = TarballHandler()
+                source_path = Path(tarball_source)
+
+                if not source_path.exists():
+                    rich_error(f"❌ Deployment source not found: {source_path}")
+                    return
+
+                # Create unique tarball in /tmp
+                unique_id = str(uuid.uuid4())[:8]
+                shared_tarball_path = f"/tmp/spot-deployment-{unique_id}.tar.gz"
+
+                # Use the generic tarball creation method
+                temp_tarball = handler.create_tarball(source_path)
+
+                # Move to our shared location
+                import shutil
+
+                shutil.move(str(temp_tarball), shared_tarball_path)
+
+                # Get tarball size for verification
+                import os
+
+                tarball_size = os.path.getsize(shared_tarball_path)
+                rich_success(
+                    f"✅ Created shared tarball: {shared_tarball_path} ({tarball_size / 1024 / 1024:.1f} MB)"
+                )
+
+            except Exception as e:
+                rich_error(f"❌ Failed to create deployment tarball: {e}")
+                return
 
     # Initial header will be shown in the Live display
 
@@ -1097,7 +1233,13 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
 
                 # Always run post-creation setup to upload files
                 post_creation_setup(
-                    all_instances, config, update_status, logger, deployment_config, state
+                    all_instances,
+                    config,
+                    update_status,
+                    logger,
+                    deployment_config,
+                    state,
+                    shared_tarball_path,
                 )
 
                 # Keep the live display running during setup
@@ -1188,6 +1330,14 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     console.print("")
     rich_print("[bold green]✅ Deployment Complete![/bold green]")
     console.print("")
+
+    # Clean up shared tarball
+    if shared_tarball_path and os.path.exists(shared_tarball_path):
+        try:
+            os.remove(shared_tarball_path)
+            logger.info(f"Cleaned up shared tarball: {shared_tarball_path}")
+        except Exception as e:
+            logger.warning(f"Failed to clean up tarball: {e}")
 
     # Import and call cmd_list to show final state
     from .list import cmd_list

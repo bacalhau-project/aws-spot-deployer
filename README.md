@@ -4,6 +4,7 @@ A production-ready deployment tool for creating Bacalhau compute clusters on AWS
 
 ## ✨ What's New
 
+- **Updated Sensor Configuration**: Compatible with latest sensor-log-generator Docker image
 - **Default Bacalhau Integration**: Each instance automatically joins the Bacalhau cluster
 - **Compute Node Ready**: Instances connect to orchestrator at 147.135.16.87
 - **Docker-based Deployment**: Bacalhau runs as a Docker container for easy management
@@ -100,7 +101,7 @@ The spot deployer includes a unified `spot` command that automatically detects a
 
 ```bash
 # The spot command automatically detects your credentials
-./spot create
+./spot-dev.sh create
 
 # It will show which credentials are being used:
 # 🔍 Detecting AWS credentials...
@@ -123,20 +124,20 @@ The spot deployer includes a unified `spot` command that automatically detects a
    aws sso login
 
    # Then use spot command
-   ./spot create
+   ./spot-dev.sh create
    ```
 
 2. **Environment Variables**:
    ```bash
    export AWS_ACCESS_KEY_ID=your-key-id
    export AWS_SECRET_ACCESS_KEY=your-secret-key
-   ./spot create
+   ./spot-dev.sh create
    ```
 
 3. **AWS Profile**:
    ```bash
    export AWS_PROFILE=myprofile
-   ./spot create
+   ./spot-dev.sh create
    ```
 
 The tool will display detailed information about which AWS credentials are being used during execution:
@@ -167,7 +168,7 @@ The tool will display detailed information about which AWS credentials are being
    uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deployer setup
 
    # Or using the local wrapper
-   ./spot setup
+   ./spot-dev.sh setup
 ```
 
 2. **Edit `config.yaml`**:
@@ -189,7 +190,7 @@ Deploy any application using portable deployment manifests:
 
 ```bash
 # Generate deployment structure
-./spot generate
+./spot-dev.sh generate
 
 # Edit .spot/deployment.yaml
 cat > .spot/deployment.yaml << 'EOF'
@@ -209,10 +210,10 @@ uploads:
 EOF
 
 # Validate deployment
-./spot validate
+./spot-dev.sh validate
 
 # Deploy
-./spot create
+./spot-dev.sh create
 ```
 
 See [PORTABLE_DEPLOYMENT_GUIDE.md](PORTABLE_DEPLOYMENT_GUIDE.md) for complete documentation.
@@ -231,10 +232,37 @@ echo "your-secret-token" > deployment-files/orchestrator_token
 curl -sSL https://tada.wang/install.sh | bash -s -- create
 
 # Or using the local wrapper
-./spot create
+./spot-dev.sh create
 ```
 
 **Note**: Bacalhau runs as a Docker container (`ghcr.io/bacalhau-project/bacalhau:latest-dind`) on each instance.
+
+### Sensor Simulation
+
+The sensor log generator runs alongside Bacalhau to simulate IoT sensor data:
+
+```yaml
+# Sensor docker-compose.yml configuration
+services:
+  sensor-simulators:
+    image: ghcr.io/bacalhau-project/sensor-log-generator:latest
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/config/config.yaml
+      - IDENTITY_FILE=/config/node-identity.json
+    volumes:
+      - ./config:/config
+      - ./data:/app/data  # Database persistence
+      - ./logs:/app/logs  # Log files
+      - ./exports:/app/exports  # Data exports
+```
+
+The sensor generator:
+- **Always pulls the latest image** on deployment
+- **Uses simplified paths** for configuration files
+- **Persists data** in local SQLite database
+- **Generates realistic sensor data** based on node identity
 
 ### Custom Commands
 
@@ -264,7 +292,7 @@ EOF
 chmod +x additional_commands.sh
 
 # Deploy with custom commands (script is automatically detected)
-./spot create
+./spot-dev.sh create
 ```
 
 The `additional_commands.sh` script will be uploaded to each instance and executed during deployment.
@@ -278,11 +306,11 @@ For frequent use, clone the repository and use the local wrapper:
 git clone https://github.com/bacalhau-project/aws-spot-deployer.git
 cd aws-spot-deployer
 
-# Use the spot wrapper (auto-detects AWS credentials)
-./spot setup
-./spot create
-./spot list
-./spot destroy
+# Use the spot-dev wrapper (auto-detects AWS credentials)
+./spot-dev.sh setup
+./spot-dev.sh create
+./spot-dev.sh list
+./spot-dev.sh destroy
 ```
 
 ## 🎨 Features
@@ -294,7 +322,7 @@ cd aws-spot-deployer
 - **Multi-Region** - Deploy across multiple AWS regions
 - **Dedicated VPCs** - Isolated network per deployment
 - **Bacalhau Ready** - Compute nodes run as Docker containers on instances
-- **Sensor Simulation** - Sensor generators run as Docker containers
+- **Sensor Simulation** - Compatible with latest sensor-log-generator Docker image
 - **Custom Commands** - Run your own setup scripts on instances
 
 ## 📁 Configuration Options
@@ -330,7 +358,7 @@ Create a config file first:
 ```bash
 curl -sSL https://tada.wang | bash -s -- setup
 # or
-./spot setup
+./spot-dev.sh setup
 ```
 
 ### Permission Denied
@@ -364,6 +392,9 @@ chmod +x debug_deployment.sh
 ### On EC2 Instances
 - **Bacalhau**: Runs as Docker container (`ghcr.io/bacalhau-project/bacalhau:latest-dind`)
 - **Sensor Generator**: Runs as Docker container (`ghcr.io/bacalhau-project/sensor-log-generator:latest`)
+  - Updated configuration for compatibility with latest image
+  - Simplified volume mounts: `/config` for configuration, `/app/data` for persistence
+  - Always pulls latest image on deployment
 - **Docker**: Automatically installed via cloud-init
 - **SystemD**: Manages container lifecycle
 

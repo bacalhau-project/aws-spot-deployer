@@ -6,23 +6,18 @@ set -e
 
 echo "[$(date)] Starting additional commands for sensor setup"
 
-# Install sensor-generator service
-if [ -f /opt/uploaded_files/scripts/sensor-generator.service ]; then
-    echo "[$(date)] Installing sensor-generator.service"
-    sudo cp /opt/uploaded_files/scripts/sensor-generator.service /etc/systemd/system/
-    sudo chmod 644 /etc/systemd/system/sensor-generator.service
-
-    # Fix any dependency issues in the service file
-    sudo sed -i 's/setup-config.service//g' /etc/systemd/system/sensor-generator.service
-    sudo sed -i 's/After=network-online.target docker.service.*$/After=network-online.target docker.service/g' /etc/systemd/system/sensor-generator.service
-    sudo sed -i 's/Requires=docker.service.*$/Requires=docker.service/g' /etc/systemd/system/sensor-generator.service
+# Install sensor service
+if [ -f /opt/uploaded_files/scripts/sensor.service ]; then
+    echo "[$(date)] Installing sensor.service"
+    sudo cp /opt/uploaded_files/scripts/sensor.service /etc/systemd/system/
+    sudo chmod 644 /etc/systemd/system/sensor.service
 
     # Reload systemd and enable the service
     sudo systemctl daemon-reload
-    sudo systemctl enable sensor-generator.service
-    echo "[$(date)] Sensor generator service enabled"
+    sudo systemctl enable sensor.service
+    echo "[$(date)] Sensor service enabled"
 else
-    echo "[$(date)] WARNING: sensor-generator.service not found in uploaded files"
+    echo "[$(date)] WARNING: sensor.service not found in uploaded files"
 fi
 
 # Create sensor directories if they don't exist
@@ -48,22 +43,22 @@ if [ -f /opt/uploaded_files/scripts/generate_node_identity.py ]; then
     fi
 fi
 
-# Enable and start sensor-generator service
-if [ -f /etc/systemd/system/sensor-generator.service ]; then
-    echo "[$(date)] Enabling and starting sensor-generator service"
-    sudo systemctl enable sensor-generator.service
-    sudo systemctl start sensor-generator.service
+# Enable and start sensor service
+if [ -f /etc/systemd/system/sensor.service ]; then
+    echo "[$(date)] Enabling and starting sensor service"
+    sudo systemctl enable sensor.service
+    sudo systemctl start sensor.service
 
     # Wait a moment and check if it started successfully
-    sleep 3
-    if systemctl is-active sensor-generator.service >/dev/null 2>&1; then
-        echo "[$(date)] ✅ Sensor-generator service is running"
+    sleep 5
+    if systemctl is-active sensor.service >/dev/null 2>&1; then
+        echo "[$(date)] ✅ Sensor service is running"
     else
-        echo "[$(date)] ⚠️  Sensor-generator service failed to start"
-        sudo systemctl status sensor-generator.service --no-pager -l
+        echo "[$(date)] ⚠️  Sensor service failed to start"
+        sudo systemctl status sensor.service --no-pager -l
     fi
 else
-    echo "[$(date)] WARNING: sensor-generator.service file not found"
+    echo "[$(date)] WARNING: sensor.service file not found"
 fi
 
 # Verify sensor directories and permissions

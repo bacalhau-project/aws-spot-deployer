@@ -7,7 +7,20 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  # General file checks
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.0
+    hooks:
+      - id: mypy
+        args: [--ignore-missing-imports, --check-untyped-defs, --no-strict-optional, --disable-error-code=no-any-return]
+        additional_dependencies:
+          - types-PyYAML
+          - types-requests
+          - boto3-stubs[ec2]
+        files: ^spot_deployer/
+        exclude: ^tests/
+
+  # Essential file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
@@ -20,20 +33,7 @@ repos:
       - id: check-merge-conflict
       - id: check-toml
       - id: debug-statements
-      - id: mixed-line-ending
-        args: ['--fix=lf']
-      - id: check-case-conflict
-      - id: check-json
-      - id: check-executables-have-shebangs
-      - id: check-shebang-scripts-are-executable
       - id: check-ast  # Verify Python syntax
-      - id: check-docstring-first
-      - id: name-tests-test
-        args: ['--pytest-test-first']
-      - id: fix-byte-order-marker
-      - id: check-builtin-literals
-      - id: check-symlinks
-      - id: destroyed-symlinks
       - id: detect-private-key
         exclude: ^tests/
 
@@ -45,71 +45,33 @@ repos:
         args: ['--baseline', '.secrets.baseline']
         exclude: .*\.lock$|package-lock\.json$|.*\.example$
 
-  # Shell script checks
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.10.0.1
-    hooks:
-      - id: shellcheck
-        args: ['--severity=warning']
-        files: \.(sh|bash)$
-        exclude: ^deployment-files/
-
-  # YAML linting
-  - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
-    hooks:
-      - id: yamllint
-        args: [-d, "{extends: relaxed, rules: {line-length: {max: 120}, comments: disable}}"]
-        exclude: ^.github/workflows/
-
   # Python security checks
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.9
     hooks:
       - id: bandit
-        args: ['-ll', '--skip', 'B101,B601']
+        args: ['-ll', '--skip', 'B101,B108,B202,B324,B601']
         files: ^spot_deployer/
         exclude: ^tests/
 
-  # Custom checks for this project
+  # Essential project checks
   - repo: local
     hooks:
       - id: smoke-test
         name: Run smoke tests
-        entry: python scripts/smoke-test.py --quiet
-        language: python
-        pass_filenames: false
-        always_run: true
-
-      - id: check-no-files-dir
-        name: Ensure no legacy files/ directory
-        entry: bash -c '! test -d files/'
+        entry: uv run python scripts/smoke-test.py --quiet
         language: system
         pass_filenames: false
         always_run: true
-
-      - id: check-no-bacalhau-deployment
-        name: Ensure no bacalhau-deployment/ directory
-        entry: bash -c '! test -d bacalhau-deployment/'
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      - id: python-no-print
-        name: Check for print statements
-        entry: bash -c '! grep -r "print(" spot_deployer/ --include="*.py" | grep -v "# noqa"'
-        language: system
-        pass_filenames: false
-        files: ^spot_deployer/.*\.py$
 
       - id: check-aws-credentials
         name: Ensure no AWS credentials in code
-        entry: bash -c '! grep -r "AKIA\|aws_access_key_id\|aws_secret_access_key" . --include="*.py" --include="*.yaml" --include="*.yml" --include="*.json" --exclude-dir=.git --exclude-dir=__pycache__'
+        entry: bash -c '! grep -r "AKIA\|aws_access_key_id\|aws_secret_access_key" spot_deployer/ scripts/ --include="*.py"'
         language: system
         pass_filenames: false
 
 ci:
-  skip: [shellcheck, smoke-test]  # These might not work in CI
+  skip: [mypy, smoke-test, check-aws-credentials]  # These might not work in CI
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit hooks
 

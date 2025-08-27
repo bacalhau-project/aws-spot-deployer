@@ -43,9 +43,46 @@ class AWSResourceManager:
             Tuple of (vpc_id, subnet_id)
         """
         if use_dedicated and deployment_id:
+            # First check if we already have a SpotDeployer VPC
+            existing_vpc = self._find_existing_spot_vpc()
+            if existing_vpc:
+                return existing_vpc
+            # Otherwise create a new one
             return self._create_dedicated_vpc(deployment_id)
         else:
             return self._find_default_vpc()
+
+    def _find_existing_spot_vpc(self) -> Optional[Tuple[str, str]]:
+        """Find an existing VPC created by SpotDeployer."""
+        try:
+            # Look for VPCs with our ManagedBy tag
+            vpcs = self.ec2.describe_vpcs(
+                Filters=[
+                    {"Name": "tag:ManagedBy", "Values": ["SpotDeployer"]},
+                    {"Name": "state", "Values": ["available"]},
+                ]
+            )
+
+            if vpcs["Vpcs"]:
+                # Use the first available SpotDeployer VPC
+                vpc_id = vpcs["Vpcs"][0]["VpcId"]
+
+                # Find a subnet in this VPC
+                subnets = self.ec2.describe_subnets(
+                    Filters=[
+                        {"Name": "vpc-id", "Values": [vpc_id]},
+                        {"Name": "state", "Values": ["available"]},
+                    ]
+                )
+
+                if subnets["Subnets"]:
+                    subnet_id = subnets["Subnets"][0]["SubnetId"]
+                    return vpc_id, subnet_id
+
+        except Exception:
+            pass
+
+        return None
 
     def _find_default_vpc(self) -> Tuple[str, str]:
         """Find the default VPC and subnet."""
@@ -87,6 +124,9 @@ class AWSResourceManager:
             VpcId=vpc_id, CidrBlock="10.0.1.0/24", AvailabilityZone=self._get_first_az()
         )
         subnet_id = subnet_response["Subnet"]["SubnetId"]
+
+        # Enable auto-assign public IP
+        self.ec2.modify_subnet_attribute(SubnetId=subnet_id, MapPublicIpOnLaunch={"Value": True})
 
         # Create and attach internet gateway
         igw_response = self.ec2.create_internet_gateway()

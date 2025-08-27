@@ -188,9 +188,9 @@ touch /opt/deployment.complete
 
         # Add script to wait for upload completion marker
         wait_script = """
-# Wait for upload completion marker
+# Wait for upload completion marker with timeout
 echo "Waiting for file upload to complete..."
-MAX_WAIT=300  # 5 minutes timeout
+MAX_WAIT=180  # 3 minutes timeout (reduced from 5)
 WAIT_COUNT=0
 while [ ! -f /tmp/UPLOAD_COMPLETE ] && [ $WAIT_COUNT -lt $MAX_WAIT ]; do
     sleep 5
@@ -199,6 +199,12 @@ while [ ! -f /tmp/UPLOAD_COMPLETE ] && [ $WAIT_COUNT -lt $MAX_WAIT ]; do
         echo "Still waiting for upload to complete... ($WAIT_COUNT seconds)"
     fi
 done
+
+# If timeout, create marker anyway to prevent hanging
+if [ ! -f /tmp/UPLOAD_COMPLETE ]; then
+    echo "WARNING: Upload timeout - proceeding anyway"
+    touch /tmp/UPLOAD_COMPLETE
+fi
 
 if [ ! -f /tmp/UPLOAD_COMPLETE ]; then
     echo "WARNING: Upload did not complete within timeout period"
@@ -221,10 +227,10 @@ if [ -f /tmp/deployment.tar.gz ]; then
     tar -xzf /tmp/deployment.tar.gz -C /opt/deployment
     rm -f /tmp/deployment.tar.gz
     chown -R ubuntu:ubuntu /opt/deployment
-    
+
     # Make any scripts executable
     find /opt/deployment -name "*.sh" -type f -exec chmod +x {} \\;
-    
+
     echo "Deployment package extracted successfully"
     echo "Directory structure:"
     ls -la /opt/deployment/

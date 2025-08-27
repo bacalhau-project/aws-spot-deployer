@@ -24,16 +24,16 @@ A **modern AWS spot instance deployment tool** for deploying Bacalhau compute no
 ```bash
 # 1. Make changes to deployment code
 # 2. Destroy ALL existing instances
-./spot-dev destroy
+./spot-dev.sh destroy
 
 # 3. Verify cleanup
-./spot-dev list  # Should be empty
+./spot-dev.sh list  # Should be empty
 
 # 4. Deploy fresh instances
-./spot-dev create
+./spot-dev.sh create
 
 # 5. Check deployment status
-./spot-dev list
+./spot-dev.sh list
 ```
 
 ## Development Commands
@@ -41,21 +41,21 @@ A **modern AWS spot instance deployment tool** for deploying Bacalhau compute no
 ### Basic Usage
 ```bash
 # Setup configuration
-./spot-dev setup
+./spot-dev.sh setup
 
 # Deploy instances (hands-off approach)
-./spot-dev create
+./spot-dev.sh create
 # Note: After creation, instances configure themselves autonomously
 # Check back in ~5 minutes for fully configured instances
 
 # List running instances
-./spot-dev list
+./spot-dev.sh list
 
 # Destroy all instances
-./spot-dev destroy
+./spot-dev.sh destroy
 
 # Get help
-./spot-dev help
+./spot-dev.sh help
 ```
 
 
@@ -256,8 +256,8 @@ Create these files in the `deployment-files/` directory before deployment:
 ### Debugging
 - **IMPORTANT**: Never debug by patching instances
 - Fix issues in source code
-- Destroy all instances: `./spot-dev destroy`
-- Deploy fresh: `./spot-dev create`
+- Destroy all instances: `./spot-dev.sh destroy`
+- Deploy fresh: `./spot-dev.sh create`
 - Check `instances.json` for state issues
 - Use `--dry-run` with VPC cleanup for safety
 - Verify deployment log at `/opt/deployment.log` on instances

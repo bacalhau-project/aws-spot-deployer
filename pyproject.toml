@@ -26,10 +26,13 @@ dev-dependencies = [
     "pyright>=1.1.0",
     "mypy>=1.0.0",
     "types-PyYAML",
+    "types-requests",
     "boto3-stubs[ec2]",
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pre-commit>=3.5.0",
+    "bandit>=1.7.0",
+    "detect-secrets>=1.4.0",
 ]
 
 [tool.ruff]

@@ -269,4 +269,55 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
         state.save_instances(remaining_instances)
         console.print("[dim]Local state updated.[/dim]")
 
+    # Phase 3: Clean up SpotDeployer VPCs
+    console.print("\n[cyan]Phase 3: Cleaning up SpotDeployer VPCs...[/cyan]")
+    vpc_cleanup_count = 0
+
+    for region in AWS_REGIONS:
+        try:
+            from ..utils.aws_manager import AWSResourceManager
+
+            aws_manager = AWSResourceManager(region)
+            ec2 = aws_manager.ec2
+
+            # Find VPCs managed by SpotDeployer
+            vpcs = ec2.describe_vpcs(
+                Filters=[
+                    {"Name": "tag:ManagedBy", "Values": ["SpotDeployer"]},
+                    {"Name": "state", "Values": ["available"]},
+                ]
+            )
+
+            for vpc in vpcs.get("Vpcs", []):
+                vpc_id = vpc["VpcId"]
+
+                # Check if VPC has any running instances
+                instances = ec2.describe_instances(
+                    Filters=[
+                        {"Name": "vpc-id", "Values": [vpc_id]},
+                        {
+                            "Name": "instance-state-name",
+                            "Values": ["pending", "running", "stopping", "stopped"],
+                        },
+                    ]
+                )
+
+                # Only delete if no instances
+                if not any(instances.get("Reservations", [])):
+                    console.print(f"  Deleting VPC {vpc_id} in {region}...", end="")
+                    if aws_manager.delete_vpc_resources(vpc_id):
+                        console.print(" [green]✓[/green]")
+                        vpc_cleanup_count += 1
+                    else:
+                        console.print(" [red]✗[/red]")
+                else:
+                    console.print(f"  Skipping VPC {vpc_id} in {region} (has instances)")
+
+        except Exception:
+            # Skip regions with errors
+            pass
+
+    if vpc_cleanup_count > 0:
+        console.print(f"\n[green]✅ Deleted {vpc_cleanup_count} SpotDeployer VPCs[/green]")
+
     console.print("\n[bold green]🏁 Nuke operation completed![/bold green]\n")
