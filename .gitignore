@@ -31,7 +31,6 @@ deployment/etc/aws/credentials/test-*
 build/
 dist/
 *.egg-info/
-uv.lock
 # SpecStory explanation file
 .specstory/.what-is-this.md
 .specstory/*
