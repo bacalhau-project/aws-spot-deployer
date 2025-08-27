@@ -36,7 +36,7 @@ The installer uses your current directory for all files:
 
 ## Prerequisites
 
-- Python 3.8+ (uv/uvx will be installed automatically if needed)
+- Python 3.12+ (uv/uvx will be installed automatically if needed)
 - AWS credentials configured (via AWS CLI, environment variables, or SSO)
 - SSH key pair for instance access
 

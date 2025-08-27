@@ -3,7 +3,7 @@ name = "spot-deployer"
 version = "1.0.0"
 description = "AWS Spot Instance Deployment Tool with Bacalhau support"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = [
     "boto3>=1.26.0",
     "pyyaml>=6.0",
@@ -54,11 +54,11 @@ ignore = [
 "spot_deployer/utils/aws.py" = ["W293"]
 
 [tool.pyright]
-pythonVersion = "3.9"
+pythonVersion = "3.12"
 typeCheckingMode = "basic"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false

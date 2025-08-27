@@ -88,7 +88,7 @@ uvx --from git+https://github.com/bacalhau-project/aws-spot-deployer spot-deploy
 
 ## 📋 Prerequisites
 
-- **Python 3.8+** (uvx will be installed automatically if needed)
+- **Python 3.12+** (uvx will be installed automatically if needed)
 - **AWS Account** with EC2, VPC, and Security Group permissions
 - **AWS Credentials** configured locally
 - **Bacalhau Orchestrator** credentials (optional)
