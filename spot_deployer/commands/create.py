@@ -3,6 +3,7 @@
 import os
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -920,9 +921,6 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         tarball_source = getattr(deployment_config, "tarball_source", None)
         if tarball_source:
             try:
-                import uuid
-                from pathlib import Path
-
                 from ..utils.tarball_handler import TarballHandler
 
                 rich_print(f"📦 Creating deployment tarball from {tarball_source}...")
@@ -946,8 +944,6 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 shutil.move(str(temp_tarball), shared_tarball_path)
 
                 # Get tarball size for verification
-                import os
-
                 tarball_size = os.path.getsize(shared_tarball_path)
                 rich_success(
                     f"✅ Created shared tarball: {shared_tarball_path} ({tarball_size / 1024 / 1024:.1f} MB)"

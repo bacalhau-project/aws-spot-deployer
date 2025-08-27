@@ -81,11 +81,17 @@ scripts:
 
             with patch("spot_deployer.commands.create.rich_success") as mock_success:
                 with patch("spot_deployer.commands.create.setup_logger"):
-                    # This should detect portable deployment
-                    cmd_create(config, state)
+                    # Mock the actual instance creation to avoid errors
+                    with patch(
+                        "spot_deployer.commands.create.create_instances_in_region_with_table"
+                    ):
+                        # This should detect portable deployment
+                        cmd_create(config, state)
 
-                    # Check that portable deployment was detected
-                    mock_success.assert_any_call("✅ Using portable deployment (.spot directory)")
+                        # Check that portable deployment was detected
+                        mock_success.assert_any_call(
+                            "✅ Using portable deployment (.spot directory)"
+                        )
 
     @patch("spot_deployer.commands.create.check_aws_auth")
     @patch("spot_deployer.commands.create.create_instances_in_region_with_table")
@@ -175,15 +181,13 @@ regions:
             validator_instance = mock_validator.return_value
             validator_instance.validate_config_file.return_value = (True, [])
 
-            with patch("spot_deployer.commands.create.rich_warning") as mock_warning:
+            with patch("spot_deployer.commands.create.rich_error") as mock_error:
                 with patch("spot_deployer.commands.create.setup_logger"):
-                    # This should fall back to legacy mode
+                    # This should error out (no legacy mode support)
                     cmd_create(config, state)
 
-                    # Check that warning was shown
-                    mock_warning.assert_any_call(
-                        "⚠️ No deployment structure found, using legacy mode"
-                    )
+                    # Check that error was shown for no deployment structure
+                    mock_error.assert_any_call("❌ No deployment structure found")
 
 
 if __name__ == "__main__":

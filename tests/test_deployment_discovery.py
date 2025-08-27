@@ -277,8 +277,8 @@ scripts:
         self.assertEqual(len(result.validation_errors), 0)
 
     def test_discover_legacy_result(self):
-        """Test complete discovery result for legacy mode."""
-        # Create instance/scripts directory
+        """Test complete discovery result when no recognized structure exists."""
+        # Create instance/scripts directory (legacy structure, no longer supported)
         instance_dir = self.temp_dir / "instance"
         scripts_dir = instance_dir / "scripts"
         scripts_dir.mkdir(parents=True)
@@ -288,12 +288,11 @@ scripts:
 
         self.assertIsInstance(result, DeploymentDiscoveryResult)
         self.assertEqual(result.mode, DeploymentMode.NONE)
-        self.assertIsNotNone(result.project_root)
-        if result.project_root:
-            self.assertEqual(result.project_root.resolve(), self.temp_dir.resolve())
+        # When no recognized structure is found, project_root is None
+        self.assertIsNone(result.project_root)
         self.assertIsNone(result.deployment_config)
-        # Legacy structure validation is lenient
-        self.assertTrue(result.is_valid)
+        # No recognized structure means invalid
+        self.assertFalse(result.is_valid)
 
     def test_discover_none_result(self):
         """Test discovery result when no structure found."""
