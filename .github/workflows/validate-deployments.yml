@@ -100,21 +100,21 @@ jobs:
 
           # Test tarball handler directly
           uv run python -c "
-from pathlib import Path
-from spot_deployer.utils.tarball_handler import TarballHandler
+          from pathlib import Path
+          from spot_deployer.utils.tarball_handler import TarballHandler
 
-handler = TarballHandler()
-source = Path('test-tarball-project')
-tarball = handler.create_deployment_tarball(source)
-print(f'Created tarball: {tarball}')
+          handler = TarballHandler()
+          source = Path('test-tarball-project')
+          tarball = handler.create_deployment_tarball(source)
+          print(f'Created tarball: {tarball}')
 
-# Validate it
-is_valid, error = handler.validate_tarball(tarball)
-if not is_valid:
-    print(f'Tarball validation failed: {error}')
-    exit(1)
-print('Tarball validation passed')
-"
+          # Validate it
+          is_valid, error = handler.validate_tarball(tarball)
+          if not is_valid:
+              print(f'Tarball validation failed: {error}')
+              exit(1)
+          print('Tarball validation passed')
+          "
 
   check-deployment-structure:
     name: Check Deployment Structure
