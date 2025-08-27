@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "rich",
+#   "pyyaml"
+# ]
+# ///
+
+"""
+Multi-Region Bacalhau Deployment Script
+Deploys Bacalhau compute nodes across multiple AWS regions using SkyPilot
+"""
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any, Dict, List
+
+import yaml
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import Progress
+from rich.prompt import Confirm
+
+console = Console()
+
+
+class MultiRegionDeployer:
+    def __init__(self, config_dir: Path):
+        self.config_dir = config_dir
+        self.base_config = self._load_base_config()
+
+    def _load_base_config(self) -> Dict[str, Any]:
+        """Load the base bacalhau-cluster.yaml configuration"""
+        config_path = self.config_dir / "bacalhau-cluster.yaml"
+        if not config_path.exists():
+            console.print(f"❌ Base config not found: {config_path}", style="red")
+            sys.exit(1)
+
+        with open(config_path) as f:
+            return yaml.safe_load(f)
+
+    def create_region_config(self, region: str, nodes: int, output_path: Path) -> None:
+        """Create a region-specific configuration file"""
+        config = self.base_config.copy()
+
+        # Update for specific region
+        config["name"] = f"bacalhau-sensors-{region.replace('-', '')}"
+        config["num_nodes"] = nodes
+        config["resources"]["infra"] = f"aws/{region}"
+
+        with open(output_path, "w") as f:
+            yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False)
+
+    def deploy_regions(self, regions: List[str], nodes_per_region: int = 2) -> None:
+        """Deploy to multiple regions"""
+
+        total_nodes = len(regions) * nodes_per_region
+
+        console.print(
+            Panel(
+                f"[bold blue]Multi-Region Deployment Plan[/bold blue]\n\n"
+                f"Regions: {', '.join(regions)}\n"
+                f"Nodes per region: {nodes_per_region}\n"
+                f"Total nodes: {total_nodes}",
+                expand=False,
+            )
+        )
+
+        if not Confirm.ask("Proceed with deployment?"):
+            console.print("Deployment cancelled", style="yellow")
+            return
+
+        # Create region-specific configs and deploy
+        with Progress() as progress:
+            task = progress.add_task("Deploying regions...", total=len(regions))
+
+            for region in regions:
+                progress.update(task, description=f"Deploying to {region}...")
+
+                # Create region-specific config
+                config_file = self.config_dir / f"bacalhau-{region}.yaml"
+                self.create_region_config(region, nodes_per_region, config_file)
+
+                # Deploy to region
+                cluster_name = f"bacalhau-sensors-{region.replace('-', '')}"
+                cmd = ["sky", "launch", "-c", cluster_name, str(config_file)]
+
+                console.print(f"🚀 Launching {cluster_name} in {region}...")
+
+                try:
+                    result = subprocess.run(
+                        cmd, capture_output=True, text=True, cwd=self.config_dir
+                    )
+                    if result.returncode == 0:
+                        console.print(f"✅ Successfully deployed to {region}", style="green")
+                    else:
+                        console.print(
+                            f"❌ Failed to deploy to {region}: {result.stderr}", style="red"
+                        )
+                        console.print(f"Command: {' '.join(cmd)}", style="dim")
+                except Exception as e:
+                    console.print(f"❌ Error deploying to {region}: {e}", style="red")
+
+                progress.advance(task)
+
+                # Clean up temporary config
+                if config_file.exists():
+                    config_file.unlink()
+
+        self.show_status()
+
+    def show_status(self) -> None:
+        """Show status of all regional deployments"""
+        console.print("\n" + "=" * 60)
+        console.print("[bold]Deployment Status[/bold]")
+        console.print("=" * 60)
+
+        try:
+            result = subprocess.run(["sky", "status"], capture_output=True, text=True)
+            if result.returncode == 0:
+                console.print(result.stdout)
+            else:
+                console.print("❌ Failed to get cluster status", style="red")
+        except Exception as e:
+            console.print(f"❌ Error getting status: {e}", style="red")
+
+    def destroy_all(self) -> None:
+        """Destroy all regional deployments"""
+        if not Confirm.ask("⚠️  Destroy ALL regional clusters?", default=False):
+            console.print("Cancelled", style="yellow")
+            return
+
+        try:
+            # Get list of clusters
+            result = subprocess.run(
+                ["sky", "status", "--format", "json"], capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                console.print("❌ Failed to get cluster list", style="red")
+                return
+
+            clusters_data = json.loads(result.stdout)
+            bacalhau_clusters = [
+                cluster["name"]
+                for cluster in clusters_data.get("clusters", [])
+                if cluster["name"].startswith("bacalhau-sensors-")
+            ]
+
+            if not bacalhau_clusters:
+                console.print("No Bacalhau clusters found", style="yellow")
+                return
+
+            for cluster_name in bacalhau_clusters:
+                console.print(f"🗑️  Destroying {cluster_name}...")
+                destroy_cmd = ["sky", "down", cluster_name, "-y"]
+
+                try:
+                    subprocess.run(destroy_cmd, check=True)
+                    console.print(f"✅ Destroyed {cluster_name}", style="green")
+                except subprocess.CalledProcessError as e:
+                    console.print(f"❌ Failed to destroy {cluster_name}: {e}", style="red")
+
+        except Exception as e:
+            console.print(f"❌ Error during destruction: {e}", style="red")
+
+
+def main():
+    """Main CLI entry point"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Multi-region Bacalhau deployment")
+    parser.add_argument("action", choices=["deploy", "status", "destroy"], help="Action to perform")
+    parser.add_argument(
+        "--regions",
+        nargs="+",
+        default=["us-west-2", "us-east-1", "eu-west-1"],
+        help="Regions to deploy to",
+    )
+    parser.add_argument(
+        "--nodes-per-region", type=int, default=2, help="Number of nodes per region"
+    )
+
+    args = parser.parse_args()
+
+    # Find config directory
+    config_dir = Path(__file__).parent
+    if not (config_dir / "bacalhau-cluster.yaml").exists():
+        config_dir = Path.cwd()
+        if not (config_dir / "bacalhau-cluster.yaml").exists():
+            console.print("❌ bacalhau-cluster.yaml not found", style="red")
+            sys.exit(1)
+
+    deployer = MultiRegionDeployer(config_dir)
+
+    if args.action == "deploy":
+        deployer.deploy_regions(args.regions, args.nodes_per_region)
+    elif args.action == "status":
+        deployer.show_status()
+    elif args.action == "destroy":
+        deployer.destroy_all()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,16 @@
+# Credential files - never commit these
+credentials/orchestrator_endpoint
+credentials/orchestrator_token
+credentials/aws-credentials
+
+# SkyPilot state files
+.sky/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Temporary files
+*.tmp
+*.log

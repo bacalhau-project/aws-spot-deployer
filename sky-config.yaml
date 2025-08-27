@@ -1,0 +1,83 @@
+# SkyPilot Bacalhau Deployment Configuration
+# Clean, modern approach without backward compatibility
+
+deployment:
+  # Deployment identification
+  name: "bacalhau-sensors"
+
+  # Global settings
+  total_nodes: 6
+
+  # Node configuration
+  node:
+    instance_type: "t3.medium"
+    use_spot: true
+    disk_size: 30
+
+  # Multi-region deployment
+  regions:
+    - "us-west-2"
+    - "us-east-1"
+    - "eu-west-1"
+
+  # Networking
+  network:
+    public_ip: true
+    ingress_ports:
+      - 22    # SSH
+      - 4222  # Bacalhau NATS
+      - 1234  # Bacalhau API
+
+# Bacalhau orchestrator configuration
+bacalhau:
+  # These will be provided via credential files
+  orchestrator_endpoint_file: "credentials/orchestrator_endpoint"
+  orchestrator_token_file: "credentials/orchestrator_token"
+
+  # Node configuration
+  node_type: "compute"
+  compute_engines:
+    docker: true
+
+  # Data directories
+  data_dir: "/bacalhau_data"
+  config_dir: "/etc/bacalhau"
+
+# Sensor simulator configuration
+sensor:
+  # Container image
+  image: "ghcr.io/bacalhau-project/sensor-log-generator:latest"
+
+  # Configuration
+  config_file: "sensor-config.yaml"
+
+  # Data persistence
+  data_dir: "/opt/sensor/data"
+  exports_dir: "/opt/sensor/exports"
+
+  # AWS S3 integration
+  aws_credentials: "credentials/aws-credentials"
+
+# File deployment structure
+files:
+  # Credential files (not in git)
+  credentials:
+    - "credentials/orchestrator_endpoint"
+    - "credentials/orchestrator_token"
+    - "credentials/aws-credentials"
+
+  # Configuration files
+  config:
+    - "config/bacalhau-config.yaml"
+    - "config/sensor-config.yaml"
+
+  # Docker compositions
+  compose:
+    - "compose/bacalhau-compose.yml"
+    - "compose/sensor-compose.yml"
+
+  # Scripts
+  scripts:
+    - "scripts/generate_node_identity.py"
+    - "scripts/setup_services.sh"
+    - "scripts/health_check.sh"

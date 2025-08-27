@@ -1,0 +1,185 @@
+name: bacalhau-sensors
+
+resources:
+  # Multi-cloud support - start with AWS
+  cloud: aws
+
+  # Instance configuration optimized for spot
+  instance_type: t3.medium
+  use_spot: true
+  disk_size: 30
+
+  # Deploy across multiple regions for availability
+  region: [us-west-2, us-east-1, eu-west-1]
+
+  # Total nodes to deploy
+  num_nodes: 6
+
+  # Ensure public IPs for external communication
+  # Note: SkyPilot automatically handles security groups and ingress
+
+# Working directory on remote instances
+workdir: /opt/bacalhau-deployment
+
+# File mounts - deploy all necessary files
+file_mounts:
+  # Credentials (these files must exist locally)
+  /tmp/credentials/orchestrator_endpoint: ./credentials/orchestrator_endpoint
+  /tmp/credentials/orchestrator_token: ./credentials/orchestrator_token
+  /tmp/credentials/aws-credentials: ./credentials/aws-credentials
+
+  # Configuration files
+  /tmp/config/bacalhau-config.yaml: ./config/bacalhau-config.yaml
+  /tmp/config/sensor-config.yaml: ./config/sensor-config.yaml
+
+  # Docker Compose files
+  /tmp/compose/bacalhau-compose.yml: ./compose/bacalhau-compose.yml
+  /tmp/compose/sensor-compose.yml: ./compose/sensor-compose.yml
+
+  # Scripts
+  /tmp/scripts/generate_node_identity.py: ./scripts/generate_node_identity.py
+  /tmp/scripts/setup_services.sh: ./scripts/setup_services.sh
+  /tmp/scripts/health_check.sh: ./scripts/health_check.sh
+  /tmp/scripts/generate_bacalhau_config.py: ./scripts/generate_bacalhau_config.py
+
+# Environment variables
+envs:
+  # Bacalhau configuration
+  BACALHAU_DATA_DIR: "/bacalhau_data"
+  BACALHAU_NODE_DIR: "/bacalhau_node"
+  BACALHAU_CONFIG_DIR: "/etc/bacalhau"
+  BACALHAU_DISABLEANALYTICS: "true"
+  LOG_LEVEL: "info"
+
+  # Sensor configuration
+  SENSOR_DATA_DIR: "/opt/sensor/data"
+  SENSOR_CONFIG_DIR: "/opt/sensor/config"
+  SENSOR_EXPORTS_DIR: "/opt/sensor/exports"
+
+  # Network configuration
+  BACALHAU_API_PORT: "1234"
+  BACALHAU_NATS_PORT: "4222"
+
+# Setup phase - install dependencies and prepare environment
+setup: |
+  set -e
+
+  # Update system
+  sudo apt-get update -qq
+
+  # Install essential packages
+  sudo apt-get install -y \
+    python3 \
+    python3-pip \
+    curl \
+    wget \
+    unzip \
+    jq \
+    ec2-metadata \
+    net-tools
+
+  # Install Docker
+  curl -fsSL https://get.docker.com | sudo sh
+  sudo usermod -aG docker $USER
+
+  # Install Docker Compose plugin
+  sudo apt-get install -y docker-compose-plugin
+
+  # Create directory structure
+  sudo mkdir -p \
+    /etc/bacalhau \
+    /bacalhau_data \
+    /bacalhau_node \
+    /opt/bacalhau \
+    /opt/sensor/config \
+    /opt/sensor/data \
+    /opt/sensor/exports \
+    /var/log/bacalhau \
+    /root/.aws \
+    /home/ubuntu/.aws
+
+  # Set proper ownership
+  sudo chown -R ubuntu:ubuntu \
+    /opt/bacalhau \
+    /opt/sensor \
+    /bacalhau_data \
+    /bacalhau_node \
+    /home/ubuntu/.aws
+
+  # Move uploaded files to proper locations
+  sudo cp /tmp/credentials/* /opt/credentials/ 2>/dev/null || true
+  sudo mkdir -p /opt/credentials && sudo mv /tmp/credentials/* /opt/credentials/
+  sudo mv /tmp/config/* /opt/config/
+  sudo mv /tmp/compose/* /opt/compose/
+  sudo mv /tmp/scripts/* /opt/scripts/
+
+  # Make scripts executable
+  sudo chmod +x /opt/scripts/*.sh /opt/scripts/*.py
+
+  # Set up AWS credentials for containers
+  sudo cp /opt/credentials/aws-credentials /root/.aws/credentials 2>/dev/null || true
+  sudo cp /opt/credentials/aws-credentials /home/ubuntu/.aws/credentials 2>/dev/null || true
+  sudo chmod 600 /root/.aws/credentials /home/ubuntu/.aws/credentials 2>/dev/null || true
+
+# Run phase - start services
+run: |
+  set -e
+
+  # Wait for Docker to be ready
+  timeout=60
+  while [ $timeout -gt 0 ]; do
+    if sudo docker version >/dev/null 2>&1; then
+      echo "Docker is ready"
+      break
+    fi
+    echo "Waiting for Docker... ($timeout seconds remaining)"
+    sleep 2
+    timeout=$((timeout-2))
+  done
+
+  if [ $timeout -le 0 ]; then
+    echo "Docker failed to start within timeout"
+    exit 1
+  fi
+
+  # Generate Bacalhau configuration from orchestrator credentials
+  echo "Generating Bacalhau configuration..."
+  cd /opt/scripts
+  sudo python3 generate_bacalhau_config.py
+
+  # Generate node identity for sensor
+  echo "Generating node identity..."
+  cd /opt/sensor
+  INSTANCE_ID=$(ec2-metadata --instance-id | cut -d ' ' -f 2 2>/dev/null || echo "unknown-$(date +%s)")
+  sudo INSTANCE_ID=$INSTANCE_ID python3 /opt/scripts/generate_node_identity.py
+
+  # Start Bacalhau compute node
+  echo "Starting Bacalhau compute node..."
+  cd /opt/compose
+  sudo docker compose -f bacalhau-compose.yml up -d
+
+  # Wait for Bacalhau to initialize
+  sleep 10
+
+  # Start sensor simulator
+  echo "Starting sensor simulator..."
+  sudo docker compose -f sensor-compose.yml up -d
+
+  # Final health check
+  sleep 20
+  echo "=== Deployment Status ==="
+  sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+  echo "=== Bacalhau Node Status ==="
+  sudo docker logs bacalhau-compute --tail 10 2>/dev/null || echo "Bacalhau logs not available yet"
+
+  echo "=== Sensor Status ==="
+  sudo docker logs sensor-simulator --tail 10 2>/dev/null || echo "Sensor logs not available yet"
+
+  echo "=== Network Status ==="
+  netstat -tlnp | grep -E ":(1234|4222|22)\s" || echo "No services found on expected ports"
+
+  # Run health check script
+  /opt/scripts/health_check.sh
+
+  echo "Deployment complete! Node is ready for Bacalhau workloads."

@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 #
-# Spot Deployer Installation Script
+# SkyPilot Bacalhau Deployment - One-Line Install
 # Usage: curl -sSL https://tada.wang/install.sh | bash -s -- [COMMAND] [OPTIONS]
 #
 # Commands:
-#   create    - Create spot instances
-#   destroy   - Destroy all spot instances
-#   list      - List running instances
-#   setup     - Initial setup
+#   setup     - Download and configure deployment files
+#   deploy    - Deploy Bacalhau sensor cluster
+#   status    - Show cluster status
+#   logs      - Show cluster health and logs
+#   ssh       - SSH to cluster nodes
+#   destroy   - Destroy cluster
 #   help      - Show help
 #
 # Options:
-#   --version VERSION - Use specific version (default: latest)
-#   --dry-run - Show what would be done without doing it
+#   --node N  - Target specific node (for logs/ssh)
+#   --dry-run - Show what would be done
 #
 
 set -e
@@ -21,97 +23,66 @@ set -e
 REPO_OWNER="bacalhau-project"
 REPO_NAME="aws-spot-deployer"
 GITHUB_REPO="https://github.com/${REPO_OWNER}/${REPO_NAME}"
-GITHUB_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
+RAW_GITHUB="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}"
+VERSION="main"
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Default values
-VERSION="1.1.1"
+# Runtime settings
 DRY_RUN=false
 COMMAND=""
-CONFIG_DIR="$HOME/.config/spot-deployer"
-FILES_DIR="$PWD/files"
+NODE_ID=""
+WORK_DIR="$HOME/.skypilot-bacalhau"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --version)
-            VERSION="1.1.1"
+        --node)
+            NODE_ID="$2"
             shift 2
             ;;
         --dry-run)
             DRY_RUN=true
             shift
             ;;
-        create|destroy|list|setup|help|version)
+        setup|deploy|status|logs|ssh|destroy|help)
             COMMAND="$1"
             shift
             ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [create|destroy|list|setup|help] [--version VERSION] [--dry-run]"
+            echo "Usage: curl -sSL https://tada.wang/install.sh | bash -s -- [setup|deploy|status|logs|ssh|destroy|help] [--node N] [--dry-run]"
             exit 1
             ;;
     esac
 done
 
-# Logging functions
-log_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
-}
+# Logging
+log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+log_success() { echo -e "${GREEN}✅ $1${NC}"; }
+log_warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+log_error() { echo -e "${RED}❌ $1${NC}"; }
 
-log_success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
-
-log_warn() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-}
-
-log_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-# Check if uvx is available
-check_uvx() {
-    if command -v uvx &> /dev/null; then
-        log_success "uvx is available"
-        return 0
-    fi
-
-    log_warn "uvx not found, checking for uv..."
-
-    if command -v uv &> /dev/null; then
-        log_info "Found uv, uvx should be available"
-        return 0
-    fi
-
-    log_warn "uv/uvx not found, attempting to install..."
-
-    # Try to install uv which includes uvx
-    if command -v curl &> /dev/null; then
-        log_info "Installing uv (includes uvx)..."
+# Check prerequisites
+check_prerequisites() {
+    # Check uv
+    if ! command -v uv &> /dev/null; then
+        log_info "Installing uv (required for SkyPilot)..."
         curl -LsSf https://astral.sh/uv/install.sh | sh
-
-        # Source the shell profile to get uv in PATH
-        if [[ -f "$HOME/.cargo/env" ]]; then
-            source "$HOME/.cargo/env"
-        fi
-
-        # Add to current session PATH
         export PATH="$HOME/.cargo/bin:$PATH"
-
-        if command -v uvx &> /dev/null; then
-            log_success "uvx installed successfully"
-            return 0
+        if ! command -v uv &> /dev/null; then
+            log_error "Failed to install uv"
+            exit 1
         fi
     fi
+    log_success "uv is available"
 
+<<<<<<< HEAD
     log_error "Failed to install uvx. Please install uv manually:"
     log_error "curl -LsSf https://astral.sh/uv/install.sh | sh"
     exit 1
@@ -168,127 +139,196 @@ resolve_version() {
         else
             log_warn "curl not available, using main branch"
             VERSION="1.1.1"
+=======
+    # Check AWS (for deploy commands)
+    if [[ "$COMMAND" == "deploy" ]] || [[ "$COMMAND" == "status" ]] || [[ "$COMMAND" == "logs" ]] || [[ "$COMMAND" == "ssh" ]] || [[ "$COMMAND" == "destroy" ]]; then
+        if ! aws sts get-caller-identity &> /dev/null 2>&1; then
+            log_warn "AWS credentials not configured"
+            log_warn "Please run: aws configure (or aws sso login)"
+            exit 1
+>>>>>>> d4fd114 (feat: add SkyPilot global deployment system)
         fi
+        log_success "AWS credentials configured"
     fi
 }
 
-# Create config directory
-setup_config_dir() {
-    if [[ ! -d "$CONFIG_DIR" ]]; then
-        log_info "Creating config directory: $CONFIG_DIR"
-        mkdir -p "$CONFIG_DIR"
-    fi
-}
+# Download deployment files
+download_files() {
+    log_info "Downloading SkyPilot deployment files..."
 
-# Run spot-deployer with uvx
-run_spot_deployer() {
-    local uvx_source
+    mkdir -p "$WORK_DIR"/{credentials,config,compose,scripts}
 
-    if [[ "$VERSION" == "main" ]] || [[ "$VERSION" == "latest" ]]; then
-        uvx_source="git+${GITHUB_REPO}"
-    else
-        uvx_source="git+${GITHUB_REPO}@${VERSION}"
-    fi
-
-    local uvx_cmd=(
-        "uvx"
-        "--from" "$uvx_source"
-        "spot-deployer"
+    # Core files to download
+    local files=(
+        "skypilot-deployment/sky-config.yaml"
+        "skypilot-deployment/bacalhau-cluster.yaml"
+        "skypilot-deployment/sky-deploy"
+        "skypilot-deployment/install_skypilot.py"
+        "skypilot-deployment/.gitignore"
+        "skypilot-deployment/credentials/README.md"
+        "skypilot-deployment/config/sensor-config.yaml"
+        "skypilot-deployment/compose/bacalhau-compose.yml"
+        "skypilot-deployment/compose/sensor-compose.yml"
+        "skypilot-deployment/scripts/generate_bacalhau_config.py"
+        "skypilot-deployment/scripts/generate_node_identity.py"
+        "skypilot-deployment/scripts/health_check.sh"
     )
 
-    # Add the command
-    if [[ -n "$COMMAND" ]]; then
-        uvx_cmd+=("$COMMAND")
+    for file_path in "${files[@]}"; do
+        local filename=$(basename "$file_path")
+        local subdir=$(echo "$file_path" | cut -d'/' -f2)
+        local dest_path="$WORK_DIR"
+
+        # Place files in correct subdirectories
+        if [[ "$subdir" != "sky-config.yaml" ]] && [[ "$subdir" != "bacalhau-cluster.yaml" ]] && [[ "$subdir" != "sky-deploy" ]] && [[ "$subdir" != "install_skypilot.py" ]] && [[ "$subdir" != ".gitignore" ]]; then
+            dest_path="$WORK_DIR/$subdir"
+            mkdir -p "$dest_path"
+        fi
+
+        local url="${RAW_GITHUB}/${VERSION}/${file_path}"
+        local output_file="$dest_path/$filename"
+
+        if curl -sSL -f "$url" -o "$output_file" 2>/dev/null; then
+            # Make scripts executable
+            if [[ "$filename" == *".sh" ]] || [[ "$filename" == "sky-deploy" ]] || [[ "$filename" == *".py" ]]; then
+                chmod +x "$output_file"
+            fi
+        else
+            log_warn "Could not download $filename (continuing...)"
+        fi
+    done
+
+    log_success "Files downloaded to: $WORK_DIR"
+}
+
+# Setup credentials
+setup_credentials() {
+    log_info "Setting up credential templates..."
+
+    # Create credential templates
+    if [[ ! -f "$WORK_DIR/credentials/orchestrator_endpoint" ]]; then
+        echo "nats://your-orchestrator.example.com:4222" > "$WORK_DIR/credentials/orchestrator_endpoint"
+        log_info "Created: credentials/orchestrator_endpoint"
     fi
 
-    # Add dry-run flag if set
-    if [[ "$DRY_RUN" == "true" ]]; then
-        uvx_cmd+=("--dry-run")
+    if [[ ! -f "$WORK_DIR/credentials/orchestrator_token" ]]; then
+        echo "your-secret-token-here" > "$WORK_DIR/credentials/orchestrator_token"
+        log_info "Created: credentials/orchestrator_token"
     fi
 
-    log_info "Running: ${uvx_cmd[*]}"
+    if [[ ! -f "$WORK_DIR/credentials/aws-credentials" ]]; then
+        cat > "$WORK_DIR/credentials/aws-credentials" << 'EOF'
+[default]
+aws_access_key_id = YOUR_ACCESS_KEY_ID
+aws_secret_access_key = YOUR_SECRET_ACCESS_KEY
+region = us-west-2
+EOF
+        log_info "Created: credentials/aws-credentials"
+    fi
+
+    log_success "Credential templates ready!"
+    echo
+    log_warn "IMPORTANT: Edit these credential files before deploying:"
+    echo "  - $WORK_DIR/credentials/orchestrator_endpoint"
+    echo "  - $WORK_DIR/credentials/orchestrator_token"
+    echo "  - $WORK_DIR/credentials/aws-credentials"
+}
+
+# Run sky-deploy command
+run_command() {
+    if [[ ! -f "$WORK_DIR/sky-deploy" ]]; then
+        log_info "Deployment files not found, downloading..."
+        download_files
+    fi
+
+    cd "$WORK_DIR"
+
+    local cmd_args=("./sky-deploy" "$COMMAND")
+
+    # Add node option for logs/ssh
+    if [[ -n "$NODE_ID" ]] && [[ "$COMMAND" == "logs" || "$COMMAND" == "ssh" ]]; then
+        cmd_args+=("--node" "$NODE_ID")
+    fi
+
+    log_info "Running: ${cmd_args[*]}"
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "DRY RUN: Would execute the above command"
         return 0
     fi
 
-    # Set environment variables for spot-deployer
-    export SPOT_CONFIG_DIR="$CONFIG_DIR"
-    export SPOT_FILES_DIR="$FILES_DIR"
-
-    # Run the command
-    "${uvx_cmd[@]}"
+    "${cmd_args[@]}"
 }
 
 # Print banner
 print_banner() {
     echo -e "${BLUE}"
-    echo "🚀 Spot Deployer Installation Script"
-    echo "════════════════════════════════════"
+    echo "🚀 SkyPilot Bacalhau Deployment"
+    echo "══════════════════════════════════"
     echo -e "${NC}"
-    echo "Repository: $GITHUB_REPO"
-    echo "Version: $VERSION"
+    echo "Modern multi-cloud spot deployment"
+    echo "Work Directory: $WORK_DIR"
     if [[ -n "$COMMAND" ]]; then
         echo "Command: $COMMAND"
     fi
-    echo ""
+    echo
 }
 
 # Main execution
 main() {
     print_banner
 
-    # Show help if no command provided
+    # Show help if no command
     if [[ -z "$COMMAND" ]]; then
         echo "Available commands:"
-        echo "  setup   - Create initial configuration"
-        echo "  create  - Create spot instances"
-        echo "  list    - List running instances"
-        echo "  destroy - Destroy all instances"
-        echo "  help    - Show detailed help"
-        echo ""
+        echo "  setup     - Download files and setup credentials"
+        echo "  deploy    - Deploy 6-node Bacalhau sensor cluster"
+        echo "  status    - Show cluster status"
+        echo "  logs      - Show cluster health and logs"
+        echo "  ssh       - SSH to cluster nodes"
+        echo "  destroy   - Destroy cluster"
+        echo "  help      - Show this help"
+        echo
         echo "Usage examples:"
         echo "  curl -sSL https://tada.wang/install.sh | bash -s -- setup"
-        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- create"
-        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- list"
-        echo ""
+        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- deploy"
+        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- status"
+        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- logs --node 1"
+        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- ssh --node 2"
+        echo "  curl -sSL https://tada.wang/install.sh | bash -s -- destroy"
+        echo
         exit 0
     fi
 
     # Check prerequisites
-    check_uvx
+    check_prerequisites
 
-    # Check AWS credentials for commands that need them
-    if [[ "$COMMAND" != "setup" ]] && [[ "$COMMAND" != "help" ]] && [[ "$COMMAND" != "version" ]]; then
-        check_aws_credentials
-    fi
-
-    # Resolve version
-    resolve_version
-
-    # Setup config directory
-    setup_config_dir
-
-    # Create files directory if it doesn't exist
-    if [[ ! -d "$FILES_DIR" ]]; then
-        log_info "Creating files directory: $FILES_DIR"
-        mkdir -p "$FILES_DIR"
-    fi
-
-    # Run spot-deployer
-    run_spot_deployer
-
-    log_success "Command completed successfully!"
-
+    # Handle setup specially
     if [[ "$COMMAND" == "setup" ]]; then
-        echo ""
+        download_files
+        setup_credentials
+        log_success "Setup complete!"
+        echo
         log_info "Next steps:"
-        log_info "1. Edit your configuration: $CONFIG_DIR/config.yaml"
-        log_info "2. Add any files to upload: $FILES_DIR/"
-        log_info "3. Deploy instances: curl -sSL https://tada.wang/install.sh | bash -s -- create"
+        log_info "1. Edit credential files (see paths above)"
+        log_info "2. Deploy: curl -sSL https://tada.wang/install.sh | bash -s -- deploy"
+        return 0
+    fi
+
+    # Run other commands
+    run_command
+
+    log_success "Command completed!"
+
+    # Show next steps after deploy
+    if [[ "$COMMAND" == "deploy" ]]; then
+        echo
+        log_info "Next steps:"
+        echo "  Status: curl -sSL https://tada.wang/install.sh | bash -s -- status"
+        echo "  Health: curl -sSL https://tada.wang/install.sh | bash -s -- logs"
+        echo "  SSH:    curl -sSL https://tada.wang/install.sh | bash -s -- ssh"
     fi
 }
 
-# Run main function
+# Run it
 main "$@"
