@@ -3,7 +3,7 @@
 import json
 import os
 from datetime import datetime
-from typing import Dict, List
+from typing import Any, Dict, List, cast
 
 
 class SimpleStateManager:
@@ -12,12 +12,12 @@ class SimpleStateManager:
     def __init__(self, state_file: str = "instances.json"):
         self.state_file = state_file
 
-    def load_instances(self) -> List[Dict]:
+    def load_instances(self) -> List[Dict[Any, Any]]:
         """Load instances from JSON file."""
         try:
             with open(self.state_file, "r") as f:
                 data = json.load(f)
-                return data.get("instances", [])
+                return cast(List[Dict[Any, Any]], data.get("instances", []))
         except FileNotFoundError:
             return []
         except Exception as e:

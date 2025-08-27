@@ -8,6 +8,7 @@ This tool deploys and manages AWS EC2 spot instances with a focus on simplicity.
 import argparse
 import os
 import sys
+from typing import cast
 
 from .commands import (
     cmd_create,
@@ -61,22 +62,31 @@ def main() -> None:
         return
 
     # Determine paths with priority: CLI flag > env var > default
-    config_path = (
-        args.config
-        or os.environ.get("SPOT_CONFIG_PATH")
-        or os.environ.get("SPOT_CONFIG", DEFAULT_CONFIG_FILE)
+    config_path = cast(
+        str,
+        (
+            args.config
+            or os.environ.get("SPOT_CONFIG_PATH")
+            or os.environ.get("SPOT_CONFIG", DEFAULT_CONFIG_FILE)
+        ),
     )
 
-    files_dir = (
-        args.files
-        or os.environ.get("SPOT_FILES_DIR")
-        or os.environ.get("SPOT_FILES", DEFAULT_FILES_DIR)
+    files_dir = cast(
+        str,
+        (
+            args.files
+            or os.environ.get("SPOT_FILES_DIR")
+            or os.environ.get("SPOT_FILES", DEFAULT_FILES_DIR)
+        ),
     )
 
-    output_dir = (
-        args.output
-        or os.environ.get("SPOT_OUTPUT_DIR")
-        or os.environ.get("SPOT_OUTPUT", DEFAULT_OUTPUT_DIR)
+    output_dir = cast(
+        str,
+        (
+            args.output
+            or os.environ.get("SPOT_OUTPUT_DIR")
+            or os.environ.get("SPOT_OUTPUT", DEFAULT_OUTPUT_DIR)
+        ),
     )
 
     # For backwards compatibility

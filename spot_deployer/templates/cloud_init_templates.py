@@ -22,8 +22,8 @@ class CloudInitTemplate:
             template_path: Path to template file (YAML format)
         """
         self.template_path = template_path
-        self.template_content = None
-        self.variables = {}
+        self.template_content: Optional[str] = None
+        self.variables: Dict[str, str] = {}
 
         if template_path and template_path.exists():
             self._load_template()
@@ -76,6 +76,7 @@ class CloudInitTemplate:
 
         # Perform substitution
         rendered = self.template_content
+        assert rendered is not None  # Should be guaranteed by logic above
         if rendered:
             for key, value in template_vars.items():
                 # Support both {{VAR}} and ${VAR} syntax
@@ -318,7 +319,7 @@ class TemplateInjector:
             base_template: Base cloud-init template string
         """
         self.base_template = base_template
-        self.injections = {
+        self.injections: Dict[str, Any] = {
             "packages": [],
             "write_files": [],
             "runcmd": [],

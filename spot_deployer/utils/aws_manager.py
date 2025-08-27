@@ -1,11 +1,12 @@
 """AWS Resource Manager - Centralized AWS operations management."""
 
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import boto3
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
+from mypy_boto3_ec2.client import EC2Client
 
 from ..core.constants import CANONICAL_OWNER_ID, DEFAULT_UBUNTU_AMI_PATTERN
 
@@ -16,7 +17,7 @@ class AWSResourceManager:
     def __init__(self, region: str):
         """Initialize AWS manager for a specific region."""
         self.region = region
-        self._ec2 = None
+        self._ec2: Optional[EC2Client] = None
 
     @property
     def ec2(self):
@@ -161,7 +162,7 @@ class AWSResourceManager:
         azs = self.ec2.describe_availability_zones(
             Filters=[{"Name": "state", "Values": ["available"]}]
         )
-        return azs["AvailabilityZones"][0]["ZoneName"]
+        return cast(str, azs["AvailabilityZones"][0]["ZoneName"])
 
     def create_security_group(self, vpc_id: str) -> str:
         """Create a security group for spot instances."""
@@ -171,7 +172,7 @@ class AWSResourceManager:
             response = self.ec2.create_security_group(
                 GroupName=sg_name, Description="Security group for spot instances", VpcId=vpc_id
             )
-            sg_id = response["GroupId"]
+            sg_id = cast(str, response["GroupId"])
 
             # Add ingress rules
             self.ec2.authorize_security_group_ingress(
@@ -204,7 +205,7 @@ class AWSResourceManager:
                     ]
                 )
                 if sgs["SecurityGroups"]:
-                    return sgs["SecurityGroups"][0]["GroupId"]
+                    return cast(str, sgs["SecurityGroups"][0]["GroupId"])
             raise
 
     def find_ubuntu_ami(self, ami_pattern: str = DEFAULT_UBUNTU_AMI_PATTERN) -> Optional[str]:
@@ -226,7 +227,7 @@ class AWSResourceManager:
             # Sort by creation date and get the latest
             images = sorted(response["Images"], key=lambda x: x["CreationDate"], reverse=True)
 
-            return images[0]["ImageId"]
+            return cast(str, images[0]["ImageId"])
 
         except Exception as e:
             # Log error but don't fail - will try default AMI
@@ -288,7 +289,7 @@ class AWSResourceManager:
 
     def _get_vpc_resources(self, vpc_id: str) -> Dict[str, List]:
         """Get all resources associated with a VPC."""
-        resources = {
+        resources: Dict[str, List[Any]] = {
             "instances": [],
             "security_groups": [],
             "subnets": [],
@@ -336,7 +337,7 @@ class AWSResourceManager:
 
             for reservation in response.get("Reservations", []):
                 for instance in reservation.get("Instances", []):
-                    return instance.get("State", {}).get("Name", "unknown")
+                    return cast(str, instance.get("State", {}).get("Name", "unknown"))
 
             return "not-found"
         except ClientError as e:

@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+from typing import Any, Dict
 
 from ..utils.display import console
 from ..version import __version__
@@ -28,7 +29,7 @@ def get_runtime_info():
 
 def get_git_info():
     """Get detailed git information."""
-    git_info = {}
+    git_info: Dict[str, Any] = {}
 
     try:
         # Get current branch

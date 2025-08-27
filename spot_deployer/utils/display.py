@@ -39,12 +39,12 @@ try:
     )
 except ImportError:
     RICH_AVAILABLE = False
-    console = None
+    console = None  # type: ignore
     # Define placeholders for type hints when Rich is not available
-    Layout = None
-    Live = None
-    Panel = None
-    Table = None
+    Layout = None  # type: ignore
+    Live = None  # type: ignore
+    Panel = None  # type: ignore
+    Table = None  # type: ignore
 
 
 def rich_print(message: str, style: Optional[str] = None) -> None:

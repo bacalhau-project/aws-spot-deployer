@@ -5,7 +5,7 @@ import os
 import threading
 import time
 from datetime import datetime
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 
 import boto3
 
@@ -35,7 +35,7 @@ def load_cache(filepath: str) -> Optional[Dict]:
     if cache_file_fresh(filepath):
         try:
             with open(filepath, "r") as f:
-                return json.load(f)
+                return cast(Optional[Dict[Any, Any]], json.load(f))
         except Exception:
             pass
     return None
@@ -80,7 +80,7 @@ def get_latest_ubuntu_ami(
         # Also store in memory cache
         with CACHE_LOCK:
             AMI_CACHE[region] = cached["ami_id"]
-        return cached["ami_id"]
+        return cast(Optional[str], cached["ami_id"])
 
     # Fetch from AWS
     try:
@@ -207,7 +207,7 @@ def create_simple_security_group(ec2, vpc_id: str, group_name: str = "spot-deplo
         )
 
         if response["SecurityGroups"]:
-            return response["SecurityGroups"][0]["GroupId"]
+            return cast(str, response["SecurityGroups"][0]["GroupId"])
 
         # Create new security group
         response = ec2.create_security_group(
@@ -215,7 +215,7 @@ def create_simple_security_group(ec2, vpc_id: str, group_name: str = "spot-deplo
             Description="Simple security group for spot instances",
             VpcId=vpc_id,
         )
-        sg_id = response["GroupId"]
+        sg_id = cast(str, response["GroupId"])
 
         # Add basic rules
         ec2.authorize_security_group_ingress(
@@ -458,12 +458,12 @@ def ensure_default_vpc(ec2_client, region: str) -> Optional[str]:
         vpcs = ec2_client.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
 
         if vpcs["Vpcs"]:
-            return vpcs["Vpcs"][0]["VpcId"]
+            return cast(Optional[str], vpcs["Vpcs"][0]["VpcId"])
 
         # Create default VPC if it doesn't exist
         print(f"No default VPC found in {region}, creating one...")
         response = ec2_client.create_default_vpc()
-        vpc_id = response["Vpc"]["VpcId"]
+        vpc_id = cast(str, response["Vpc"]["VpcId"])
 
         # Wait for VPC to be available
         waiter = ec2_client.get_waiter("vpc_available")

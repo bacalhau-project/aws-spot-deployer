@@ -6,7 +6,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Set, cast
+from typing import Any, Dict, List, Optional, Set, cast
 
 import boto3
 from botocore.exceptions import ClientError
@@ -107,16 +107,16 @@ def transfer_portable_files(
 
             # Verify upload by checking remote file size
             log_function("Verifying upload completion...")
-            remote_size_result = ssh_manager.execute_command(
+            success, stdout, stderr = ssh_manager.execute_command(
                 "stat -c%s /tmp/deployment.tar.gz 2>/dev/null || echo 'ERROR'"
             )
 
-            if not remote_size_result or remote_size_result.strip() == "ERROR":
+            if not success or stdout.strip() == "ERROR":
                 log_function("ERROR: Failed to verify remote file size")
                 return False
 
             try:
-                remote_size = int(remote_size_result.strip())
+                remote_size = int(stdout.strip())
                 log_function(f"Remote file size: {remote_size} bytes")
 
                 if remote_size != local_size:
@@ -128,7 +128,7 @@ def transfer_portable_files(
                 log_function("✓ Upload verified - sizes match")
 
             except ValueError:
-                log_function(f"ERROR: Invalid remote size response: {remote_size_result}")
+                log_function(f"ERROR: Invalid remote size response: {stdout}")
                 return False
 
             if progress_callback:
@@ -347,7 +347,7 @@ def post_creation_setup(
             logger.info(
                 "To add custom commands, create additional_commands.sh in the directory where you run spot-deployer."
             )
-            additional_commands_path = None
+            additional_commands_path = None  # type: ignore[assignment]
 
     def setup_instance(instance, instance_key):
         instance_id = instance["id"]
@@ -498,7 +498,7 @@ def create_instances_in_region_with_table(
     created_at: str,
     creator: str,
     state: SimpleStateManager,
-    deployment_config: DeploymentConfig | None = None,
+    deployment_config: Optional[DeploymentConfig] = None,
 ) -> List[dict]:
     """Create spot instances in a specific region with live table updates."""
     if count <= 0:
@@ -1046,7 +1046,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     skipped_regions: Set[str] = set()
 
     creation_status = {}
-    all_instances = []
+    all_instances: List[Dict[str, Any]] = []
     lock = threading.Lock()
 
     # Initialize status for all instances
@@ -1283,7 +1283,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         # Calculate summary statistics
         total_instances = len(all_instances)
         regions_used = len(set(inst["region"] for inst in all_instances))
-        instance_types = {}
+        instance_types: Dict[str, int] = {}
         total_cost_estimate = 0.0
 
         # Estimate costs (rough estimates)

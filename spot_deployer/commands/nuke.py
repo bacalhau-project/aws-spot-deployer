@@ -221,13 +221,13 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
         }
 
         # Process results
-        for future in as_completed(terminate_future_to_region):
-            region = terminate_future_to_region[future]
+        for terminate_future in as_completed(terminate_future_to_region):
+            region = terminate_future_to_region[terminate_future]
             completed_terminations += 1
             progress = f"[{completed_terminations}/{len(termination_groups)}]"
 
             try:
-                results = future.result()
+                results = terminate_future.result()
                 success = sum(1 for status in results.values() if "ERROR" not in status)
                 failed = len(results) - success
 
@@ -292,7 +292,7 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
                 vpc_id = vpc["VpcId"]
 
                 # Check if VPC has any running instances
-                instances = ec2.describe_instances(
+                vpc_instances = ec2.describe_instances(
                     Filters=[
                         {"Name": "vpc-id", "Values": [vpc_id]},
                         {
@@ -303,7 +303,7 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
                 )
 
                 # Only delete if no instances
-                if not any(instances.get("Reservations", [])):
+                if not any(vpc_instances.get("Reservations", [])):
                     console.print(f"  Deleting VPC {vpc_id} in {region}...", end="")
                     if aws_manager.delete_vpc_resources(vpc_id):
                         console.print(" [green]✓[/green]")

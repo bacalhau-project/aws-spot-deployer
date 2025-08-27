@@ -1,6 +1,6 @@
 """Unified UI Manager for all Rich display operations."""
 
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, cast
 
 from rich.console import Console
 from rich.layout import Layout
@@ -145,7 +145,7 @@ class UIManager:
         layout = Layout()
 
         if len(sections) == 1:
-            return sections[0]
+            return cast(Layout, sections[0])
         elif len(sections) == 2:
             # Default split for table + summary
             layout.split_column(

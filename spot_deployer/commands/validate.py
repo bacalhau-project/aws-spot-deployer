@@ -49,24 +49,24 @@ def cmd_validate(config: SimpleConfig, state: SimpleStateManager) -> None:
     console.print("\nValidating AWS configuration...")
     validator = ConfigValidator()
     config_path = config.config_file
-    is_valid, validation_errors = validator.validate_config_file(config_path)
+    is_valid, config_errors = validator.validate_config_file(config_path)
 
     if is_valid:
         rich_success("✅ AWS configuration is valid")
     else:
-        errors.extend(validation_errors)
-        for error in validation_errors:
+        errors.extend(config_errors)
+        for error in config_errors:
             rich_error(f"  • {error}")
 
     # 3. Validate deployment configuration
     console.print("\nValidating deployment manifest...")
-    is_valid, validation_errors = deployment_config.validate()
+    is_valid, deployment_errors = deployment_config.validate()
 
     if is_valid:
         rich_success("✅ Deployment manifest is valid")
     else:
-        errors.extend(validation_errors)
-        for error in validation_errors:
+        errors.extend(deployment_errors)
+        for error in deployment_errors:
             rich_error(f"  • {error}")
 
     # 4. Check referenced files exist

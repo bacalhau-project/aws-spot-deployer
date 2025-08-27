@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .convention_scanner import ConventionScanner
 from .deployment import DeploymentConfig
@@ -231,7 +231,7 @@ class DeploymentDiscovery:
         if not project_root:
             project_root = self.start_path
 
-        errors = []
+        errors: List[str] = []
         is_valid, errors = self.validate_discovered_structure(DeploymentMode.PORTABLE, project_root)
 
         # Try to load deployment config

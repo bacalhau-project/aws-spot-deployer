@@ -3,8 +3,9 @@
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from logging import Logger
 from threading import Lock
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from rich.console import Console
 from rich.layout import Layout
@@ -27,7 +28,7 @@ class DestroyManager:
         self.config = config
         self.state = state
         self.console = console
-        self.logger = None
+        self.logger: Optional[Logger] = None
         self.status_lock = Lock()
         self.instance_status: Dict[str, Dict[str, Any]] = {}
         self.start_time = datetime.now()
@@ -292,7 +293,7 @@ class DestroyManager:
         self.console.print(f"[green]Found {len(instances)} instances in state file[/green]")
 
         # Group by region for summary
-        instances_by_region = {}
+        instances_by_region: Dict[str, Any] = {}
         for instance in instances:
             region = instance["region"]
             if region not in instances_by_region:

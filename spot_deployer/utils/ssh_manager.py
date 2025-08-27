@@ -182,7 +182,7 @@ class BatchSSHManager:
                 callback(f"Waiting for SSH on {hostname}...")
 
             elapsed = time.time() - start_time
-            remaining_timeout = max(10, timeout - elapsed)  # At least 10 seconds per host
+            remaining_timeout = max(10, int(timeout - elapsed))  # At least 10 seconds per host
 
             results[hostname] = manager.wait_for_ssh(remaining_timeout)
 

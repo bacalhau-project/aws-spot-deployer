@@ -92,9 +92,12 @@ uv run ruff check . --fix
 
 # Format code
 uv run ruff format .
+
+# Type checking - CRITICAL: Run same command as CI
+uv run mypy spot_deployer/ --ignore-missing-imports --check-untyped-defs
 ```
 
-**Important:** Pre-commit hooks will automatically run `ruff` checks on every commit. If you have a global git hooks path configured, you may need to run checks manually with `uv run pre-commit run --all-files`.
+**Important:** Pre-commit hooks will automatically run `ruff` and `mypy` checks on every commit. The mypy configurations are now synchronized between pre-commit and CI to prevent discrepancies. If you have a global git hooks path configured, you may need to run checks manually with `uv run pre-commit run --all-files`.
 
 ## Core Components
 

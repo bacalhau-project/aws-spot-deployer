@@ -1,7 +1,7 @@
 """Configuration management for spot deployer."""
 
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import yaml
 
@@ -41,15 +41,15 @@ class SimpleConfig:
 
     def instance_count(self) -> int:
         """Get total instance count."""
-        return self.data.get("aws", {}).get("total_instances", 3)
+        return cast(int, self.data.get("aws", {}).get("total_instances", 3))
 
     def username(self) -> str:
         """Get SSH username."""
-        return self.data.get("aws", {}).get("username", "ubuntu")
+        return cast(str, self.data.get("aws", {}).get("username", "ubuntu"))
 
     def ssh_key_name(self) -> Optional[str]:
         """Get SSH key name if configured. (Deprecated - we use local SSH keys via cloud-init)"""
-        return self.data.get("aws", {}).get("ssh_key_name")
+        return cast(Optional[str], self.data.get("aws", {}).get("ssh_key_name"))
 
     def public_ssh_key_path(self) -> Optional[str]:
         """Get public SSH key file path."""
@@ -67,7 +67,7 @@ class SimpleConfig:
 
     def _raw_public_ssh_key_path(self) -> Optional[str]:
         """Get raw public SSH key path from config (unresolved)."""
-        return self.data.get("aws", {}).get("public_ssh_key_path")
+        return cast(Optional[str], self.data.get("aws", {}).get("public_ssh_key_path"))
 
     def _resolve_ssh_path(self, path: str) -> str:
         """Resolve SSH path - just expand user paths."""
@@ -94,11 +94,11 @@ class SimpleConfig:
             return self.files_dir
 
         # Otherwise get from config or use default
-        return self.data.get("aws", {}).get("files_directory", "files")
+        return cast(str, self.data.get("aws", {}).get("files_directory", "files"))
 
     def scripts_directory(self) -> str:
         """Get scripts directory path."""
-        return self.data.get("aws", {}).get("scripts_directory", "instance/scripts")
+        return cast(str, self.data.get("aws", {}).get("scripts_directory", "instance/scripts"))
 
     def output_directory(self) -> str:
         """Get output directory path."""
@@ -113,61 +113,69 @@ class SimpleConfig:
 
     def cloud_init_template(self) -> str:
         """Get cloud-init template path."""
-        return self.data.get("aws", {}).get(
-            "cloud_init_template", "instance/cloud-init/init-vm-template.yml"
+        return cast(
+            str,
+            self.data.get("aws", {}).get(
+                "cloud_init_template", "instance/cloud-init/init-vm-template.yml"
+            ),
         )
 
     def startup_script(self) -> str:
         """Get startup script path."""
-        return self.data.get("aws", {}).get("startup_script", "instance/scripts/startup.py")
+        return cast(
+            str, self.data.get("aws", {}).get("startup_script", "instance/scripts/startup.py")
+        )
 
     def additional_commands_script(self) -> Optional[str]:
         """Get additional commands script path."""
-        return self.data.get("aws", {}).get("additional_commands_script")
+        return cast(Optional[str], self.data.get("aws", {}).get("additional_commands_script"))
 
     def docker_compose_template(self) -> str:
         """Get Docker Compose template path."""
-        return self.data.get("aws", {}).get(
-            "docker_compose_template", "instance/scripts/docker-compose.yaml"
+        return cast(
+            str,
+            self.data.get("aws", {}).get(
+                "docker_compose_template", "instance/scripts/docker-compose.yaml"
+            ),
         )
 
     def spot_price_limit(self) -> Optional[float]:
         """Get spot price limit."""
-        return self.data.get("aws", {}).get("spot_price_limit")
+        return cast(Optional[float], self.data.get("aws", {}).get("spot_price_limit"))
 
     def instance_storage_gb(self) -> int:
         """Get instance storage size in GB."""
-        return self.data.get("aws", {}).get("instance_storage_gb", 50)
+        return cast(int, self.data.get("aws", {}).get("instance_storage_gb", 50))
 
     def security_group_name(self) -> str:
         """Get security group name."""
-        return self.data.get("aws", {}).get("security_group_name", "spot-deployer-sg")
+        return cast(str, self.data.get("aws", {}).get("security_group_name", "spot-deployer-sg"))
 
     def vpc_tag_name(self) -> Optional[str]:
         """Get VPC tag name for filtering."""
-        return self.data.get("aws", {}).get("vpc_tag_name")
+        return cast(Optional[str], self.data.get("aws", {}).get("vpc_tag_name"))
 
     def associate_public_ip(self) -> bool:
         """Whether to associate public IP addresses."""
-        return self.data.get("aws", {}).get("associate_public_ip", True)
+        return cast(bool, self.data.get("aws", {}).get("associate_public_ip", True))
 
     def tags(self) -> Dict[str, str]:
         """Get additional tags for instances."""
-        return self.data.get("aws", {}).get("tags", {})
+        return cast(Dict[str, str], self.data.get("aws", {}).get("tags", {}))
 
     def use_dedicated_vpc(self) -> bool:
         """Whether to create dedicated VPCs for each deployment."""
-        return self.data.get("aws", {}).get("use_dedicated_vpc", False)
+        return cast(bool, self.data.get("aws", {}).get("use_dedicated_vpc", False))
 
     def ensure_default_vpc(self) -> bool:
         """Whether to create default VPCs if they don't exist."""
-        return self.data.get("aws", {}).get("ensure_default_vpc", True)
+        return cast(bool, self.data.get("aws", {}).get("ensure_default_vpc", True))
 
-    def region_config(self, region: str) -> Dict:
+    def region_config(self, region: str) -> Dict[Any, Any]:
         """Get config for specific region."""
-        for r in self.data.get("regions", []):
+        for r in cast(List[Dict[str, Any]], self.data.get("regions", [])):
             if region in r:
-                return r[region]
+                return cast(Dict[Any, Any], r[region])
         return {"machine_type": "t3.medium", "image": "auto"}
 
     def get_deployment_id(self) -> str:
