@@ -31,7 +31,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-VERSION="latest"
+VERSION="1.1.0"
 DRY_RUN=false
 COMMAND=""
 CONFIG_DIR="$HOME/.config/spot-deployer"
@@ -41,7 +41,7 @@ FILES_DIR="$PWD/files"
 while [[ $# -gt 0 ]]; do
     case $1 in
         --version)
-            VERSION="$2"
+            VERSION="1.1.0"
             shift 2
             ;;
         --dry-run)
@@ -159,15 +159,15 @@ resolve_version() {
         if command -v curl &> /dev/null; then
             LATEST=$(curl -s "$GITHUB_API/releases/latest" | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
             if [[ -n "$LATEST" ]]; then
-                VERSION="$LATEST"
+                VERSION="1.1.0"
                 log_info "Using latest version: $VERSION"
             else
                 log_warn "Could not resolve latest version, using main branch"
-                VERSION="main"
+                VERSION="1.1.0"
             fi
         else
             log_warn "curl not available, using main branch"
-            VERSION="main"
+            VERSION="1.1.0"
         fi
     fi
 }
