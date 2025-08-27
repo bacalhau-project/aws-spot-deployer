@@ -567,7 +567,6 @@ wheels = [
 
 [[package]]
 name = "spot-deployer"
-version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
