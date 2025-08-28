@@ -59,11 +59,11 @@ def load_orchestrator_credentials():
         token_file = os.path.join(cred_path, "orchestrator_token")
 
         if os.path.exists(endpoint_file):
-            with open(endpoint_file, "r") as f:
+            with open(endpoint_file) as f:
                 endpoint = f.read().strip()
 
         if os.path.exists(token_file):
-            with open(token_file, "r") as f:
+            with open(token_file) as f:
                 token = f.read().strip()
 
         if endpoint and token:
@@ -148,7 +148,7 @@ def main():
 
         # Validate the configuration
         try:
-            with open("/etc/bacalhau/config.yaml", "r") as f:
+            with open("/etc/bacalhau/config.yaml") as f:
                 yaml.safe_load(f)
             print("✓ Configuration validation passed")
         except Exception as e:

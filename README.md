@@ -1,46 +1,44 @@
-# 🌍 Global Bacalhau Network - Deploy Worldwide in One Command
+# 🌍 SkyPilot Spot Deployer - Deploy Global Clusters with One Command
 
-**Docker-powered worldwide deployment of Bacalhau compute nodes using SkyPilot.**
+**Python-powered worldwide deployment of Bacalhau compute nodes using SkyPilot.**
 
-Deploy 9 Bacalhau compute nodes instantly across continents: US West, US East, Europe, Asia Pacific, South America, and more. Uses Docker containers for reliable deployment with zero Python environment issues.
+Deploy Bacalhau compute nodes instantly across global cloud regions. Built with modern Python tooling for reliability and maintainability.
 
 ## 🚀 **One-Command Global Deployment**
 
-Deploy 9 nodes across worldwide zones with a single command:
+Deploy clusters across worldwide regions with a single command:
 
 ```bash
-# Prerequisites: Docker must be installed and running
-
-# Deploy global cluster (9 nodes worldwide across different continents)
-./cluster-deploy create
+# Install and run instantly with uvx (no local setup required)
+uvx run spot-deployer create
 
 # Check status
-./cluster-deploy status
+uvx run spot-deployer status
 
 # View logs
-./cluster-deploy logs
+uvx run spot-deployer logs
 
-# SSH to nodes
-./cluster-deploy ssh
+# SSH to cluster
+uvx run spot-deployer ssh
 
 # Clean up
-./cluster-deploy destroy
+uvx run spot-deployer destroy
 ```
 
-## ✨ **Docker-First Architecture**
+## ✨ **PyPI Package Architecture**
 
-### 🌟 **Zero Environment Issues**
-- **Docker containers**: No Python/UV installation required
-- **Pre-built SkyPilot image**: `berkeleyskypilot/skypilot` with everything included
-- **Volume mounts**: AWS credentials and workspace automatically mounted
-- **Automatic container management**: Handles container lifecycle
+### 🌟 **Zero Setup Required**
+- **uvx execution**: No installation or environment setup needed
+- **Python packaging**: Clean Click-based CLI with Rich output
+- **Direct deployment**: Uses SkyPilot directly without containers
+- **Cross-platform**: Works on any system with Python 3.9+
 
-### 🔥 **What This Eliminates**
-- ❌ **Python version conflicts** → Docker container has correct Python
-- ❌ **Virtual environment issues** → Container provides isolated environment
-- ❌ **Package installation failures** → SkyPilot pre-installed in container
-- ❌ **UV/pip wheel build errors** → No local package installation needed
-- ❌ **Platform-specific issues** → Container works everywhere Docker runs
+### 🔥 **What This Provides**
+- ✅ **Instant execution** → `uvx run spot-deployer` works immediately
+- ✅ **Rich terminal UI** → Beautiful tables and progress indicators
+- ✅ **Proper YAML parsing** → No fragile grep/sed operations
+- ✅ **Type safety** → Full type annotations throughout
+- ✅ **Maintainable code** → Structured Python instead of bash
 
 ### 🎯 **Superior Features**
 - **Automatic spot preemption recovery** - Never lose your cluster
@@ -52,41 +50,40 @@ Deploy 9 nodes across worldwide zones with a single command:
 ## 🏗️ **Architecture**
 
 ### Modern Stack
-- **Docker**: Containerized SkyPilot environment
-- **SkyPilot**: Cloud orchestration and spot management
+- **Python Package**: PyPI-distributed Click CLI with Rich output
+- **SkyPilot**: Direct cloud orchestration and spot management
 - **Bacalhau**: Distributed compute with Docker engine support
-- **Sensor Simulator**: Realistic IoT data generation
-- **Docker Compose**: Service orchestration on nodes
+- **YAML Processing**: Proper PyYAML parsing instead of bash text manipulation
+- **Type Safety**: Full mypy type checking throughout
 
 ### Deployment Flow
 ```
-./cluster-deploy create → Docker container → SkyPilot deploy → Health check
+uvx run spot-deployer create → Python CLI → SkyPilot deploy → Health check
 ```
 
-### Container Architecture
+### Package Architecture
 ```
-Host Machine:
-├── cluster-deploy (bash script)
-├── cluster.yaml (SkyPilot config)
-├── credentials/ (mounted into container)
-└── Docker Container:
-    ├── berkeleyskypilot/skypilot image
-    ├── Volume mounts: ~/.aws, ~/.sky, workspace
-    └── SkyPilot manages: EC2, file sync, deployment
+PyPI Package (spot-deployer):
+├── Click CLI framework
+├── Rich terminal UI
+├── ClusterManager (Python)
+├── YAML configuration parsing
+├── SkyPilot integration
+└── Prerequisites checking
 ```
 
 ## 📋 **Prerequisites**
 
 ### Required
-- **Docker** installed and running (`docker --version`)
+- **Python 3.9+** (for uvx, usually already installed)
 - **AWS Account** with EC2 permissions
 - **AWS Credentials** configured in `~/.aws/credentials` or environment
 
 ### Automatic
-The script automatically handles:
-- **SkyPilot Docker image** pull and management
-- **Container lifecycle** (start, stop, cleanup)
-- **Volume mounting** (AWS creds, workspace, SkyPilot state)
+The CLI automatically handles:
+- **SkyPilot installation** and dependency management
+- **Prerequisites checking** (AWS access, SkyPilot setup)
+- **YAML configuration** parsing and validation
 - **File synchronization** to remote nodes
 
 ## 🎛️ **Configuration**
@@ -140,71 +137,95 @@ envs:
 
 ### Core Operations
 ```bash
-# Deploy 9-node cluster across global regions
-./cluster-deploy create
+# Deploy cluster across global regions
+uvx run spot-deployer create
 
 # Check cluster status and health
-./cluster-deploy status
+uvx run spot-deployer status
+
+# List all nodes with details
+uvx run spot-deployer list
 
 # View deployment logs
-./cluster-deploy logs
+uvx run spot-deployer logs
 
 # SSH to cluster head node
-./cluster-deploy ssh
+uvx run spot-deployer ssh
 
 # Destroy entire cluster
-./cluster-deploy destroy
+uvx run spot-deployer destroy
 
-# Stop Docker container (cleanup)
-./cluster-deploy cleanup
+# Clean up local Docker resources
+uvx run spot-deployer cleanup
+
+# Check prerequisites and configuration
+uvx run spot-deployer check
+
+# Show version
+uvx run spot-deployer --version
 
 # Show help
-./cluster-deploy help
+uvx run spot-deployer --help
 ```
 
 ### Advanced Options
 ```bash
 # Custom config file
-./cluster-deploy create -c my-config.yaml
+uvx run spot-deployer create -c my-config.yaml
 
-# Custom cluster name
-./cluster-deploy create -n my-cluster
+# Show logs to console instead of log file
+uvx run spot-deployer create --console
 
-# Deploy with specific config and name
-./cluster-deploy create -c production.yaml -n prod-cluster
+# Custom log file location
+uvx run spot-deployer create --log-file deployment.log
 ```
 
 ## 🧪 **Local Development & Testing**
 
 ### Quick Test
 ```bash
-# Clone the repository
+# Test the CLI without installation
+uvx run spot-deployer --version
+
+# Check prerequisites
+uvx run spot-deployer check
+
+# Test with dry run (if available)
+uvx run spot-deployer create --help
+```
+
+### Local Development
+```bash
+# Clone the repository for development
 git clone <repository-url>
 cd bacalhau-skypilot
 
-# Ensure Docker is running
-docker --version
+# Install in development mode with uv
+uv pip install -e .
 
-# Test prerequisites check
-./cluster-deploy help
+# Run locally during development
+python -m spot_deployer.cli --version
 
-# Check if SkyPilot container works
-./cluster-deploy status
+# Run tests
+uv run pytest
+
+# Run linting
+uv run ruff check .
 ```
 
 ### Debug Deployment
 ```bash
-# Run with bash debugging
-bash -x ./cluster-deploy create
+# Enable console logging for debugging
+uvx run spot-deployer create --console
 
-# Check Docker container directly
-docker exec skypilot-cluster-deploy sky status
+# Check SkyPilot status
+uvx run spot-deployer status
 
-# View SkyPilot logs through container
-docker exec skypilot-cluster-deploy sky logs <cluster-name>
+# View detailed logs
+uvx run spot-deployer logs
 
-# SSH to node through container
-docker exec -it skypilot-cluster-deploy sky ssh <cluster-name>
+# SSH to node for debugging
+uvx run spot-deployer ssh
 ```
 
 ### Test Individual Components

@@ -1,0 +1,139 @@
+#!/bin/bash
+set -e
+
+# Global Cluster Deployment Tool - Python-powered version
+# Simple wrapper around Python cluster manager for better maintainability
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON_SCRIPT="$SCRIPT_DIR/scripts/cluster_manager.py"
+
+# Get version from git
+get_version() {
+    if command -v git >/dev/null 2>&1; then
+        if git describe --tags --exact-match HEAD >/dev/null 2>&1; then
+            tag=$(git describe --tags --exact-match HEAD 2>/dev/null)
+            echo "${tag#v}"
+        elif git describe --tags --always --dirty >/dev/null 2>&1; then
+            tag_sha=$(git describe --tags --always --dirty 2>/dev/null)
+            echo "${tag_sha#v}"
+        elif git rev-parse --short HEAD >/dev/null 2>&1; then
+            sha=$(git rev-parse --short HEAD 2>/dev/null)
+            echo "dev-${sha}"
+        else
+            echo "dev-unknown"
+        fi
+    else
+        echo "dev-unknown"
+    fi
+}
+
+show_help() {
+    VERSION=$(get_version)
+    cat << EOF
+
+Global Cluster Deployment Tool v${VERSION}
+
+USAGE:
+  ./cluster-deploy [COMMAND] [OPTIONS]
+
+COMMANDS:
+  create      Deploy global cluster
+  destroy     Destroy the cluster
+  status      Show cluster status
+  list        Show detailed node information
+  ssh         SSH to cluster head node
+  logs        Show cluster logs
+  cleanup     Stop Docker container
+  help        Show this help
+
+OPTIONS:
+  -c FILE     Config file (default: cluster.yaml)
+  -f          Show logs to console instead of log file
+
+EXAMPLES:
+  # Deploy with default settings
+  ./cluster-deploy create
+
+  # Deploy with custom config and console logging
+  ./cluster-deploy create -c my-config.yaml -f
+
+  # Check status
+  ./cluster-deploy status
+
+  # List all nodes in table format
+  ./cluster-deploy list
+
+  # SSH to cluster
+  ./cluster-deploy ssh
+
+  # Destroy cluster
+  ./cluster-deploy destroy
+
+QUICK START:
+  1. Ensure Docker is installed and running
+  2. Ensure AWS credentials are configured in ~/.aws/
+  3. Create cluster.yaml in your current directory
+  4. Run: ./cluster-deploy create
+  5. Wait 5-10 minutes for global deployment
+  6. Access with: ./cluster-deploy ssh
+
+EOF
+}
+
+# Parse arguments and pass to Python script
+PYTHON_ARGS=()
+SHOW_HELP=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        create|deploy|destroy|down|status|list|ssh|logs|cleanup)
+            COMMAND="$1"
+            PYTHON_ARGS+=("$1")
+            shift
+            ;;
+        help|--help|-h)
+            SHOW_HELP=true
+            shift
+            ;;
+        -c|--config)
+            PYTHON_ARGS+=("-c" "$2")
+            shift 2
+            ;;
+        -f|--console)
+            PYTHON_ARGS+=("-f")
+            shift
+            ;;
+        *)
+            if [[ -z "${COMMAND:-}" ]]; then
+                COMMAND="$1"
+                PYTHON_ARGS+=("$1")
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Show help if requested or no command given
+if [[ "$SHOW_HELP" == true ]] || [[ -z "${COMMAND:-}" ]]; then
+    show_help
+    exit 0
+fi
+
+# Check if Python script exists
+if [[ ! -f "$PYTHON_SCRIPT" ]]; then
+    echo "Error: Python script not found at $PYTHON_SCRIPT"
+    exit 1
+fi
+
+# Version banner
+VERSION=$(get_version)
+echo "Global Cluster Deployment Tool v${VERSION}"
+
+# Run the Python cluster manager
+if command -v uv >/dev/null 2>&1; then
+    # Use uv if available for better dependency management
+    exec uv run "$PYTHON_SCRIPT" "${PYTHON_ARGS[@]}"
+else
+    # Fallback to python3
+    exec python3 "$PYTHON_SCRIPT" "${PYTHON_ARGS[@]}"
+fi

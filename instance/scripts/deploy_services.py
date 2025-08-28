@@ -176,7 +176,7 @@ def run_additional_commands():
 def fix_service_dependencies(service_file):
     """Remove Docker dependencies from service files"""
     try:
-        with open(service_file, "r") as f:
+        with open(service_file) as f:
             content = f.read()
 
         # Remove docker.service from After= and Requires= lines
