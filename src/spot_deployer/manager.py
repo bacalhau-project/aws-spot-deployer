@@ -378,19 +378,19 @@ class ClusterManager:
             "│ Next Steps:                                     │", style="green"
         )
         self.console.print(
-            "│ • Check status: uvx run spot-deployer status   │", style="green"
+            "│ • Check status: uvx spot-deployer status   │", style="green"
         )
         self.console.print(
-            "│ • List nodes: uvx run spot-deployer list       │", style="green"
+            "│ • List nodes: uvx spot-deployer list       │", style="green"
         )
         self.console.print(
-            "│ • SSH to cluster: uvx run spot-deployer ssh    │", style="green"
+            "│ • SSH to cluster: uvx spot-deployer ssh    │", style="green"
         )
         self.console.print(
-            "│ • View logs: uvx run spot-deployer logs        │", style="green"
+            "│ • View logs: uvx spot-deployer logs        │", style="green"
         )
         self.console.print(
-            "│ • Destroy cluster: uvx run spot-deployer destroy│", style="green"
+            "│ • Destroy cluster: uvx spot-deployer destroy│", style="green"
         )
         self.console.print(
             "└─────────────────────────────────────────────────┘", style="green"

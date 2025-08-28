@@ -56,10 +56,10 @@ def cli(
     for cloud orchestration and spot instance management.
 
     Examples:
-        uvx run spot-deployer create              # Deploy cluster
-        uvx run spot-deployer status              # Check status
-        uvx run spot-deployer list                # List nodes
-        uvx run spot-deployer destroy             # Clean up
+        uvx spot-deployer create              # Deploy cluster
+        uvx spot-deployer status              # Check status
+        uvx spot-deployer list                # List nodes
+        uvx spot-deployer destroy             # Clean up
     """
     if version:
         runtime_version = get_runtime_version()
