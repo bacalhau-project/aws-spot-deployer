@@ -34,6 +34,7 @@ ci-local:  ## Run full CI pipeline locally (RECOMMENDED BEFORE PUSH)
 
 pre-commit:  ## Install and run pre-commit hooks
 	uv run pre-commit install
+	uv run pre-commit install --hook-type pre-push
 	uv run pre-commit run --all-files
 
 # GitHub Actions simulation

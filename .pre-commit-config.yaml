@@ -82,8 +82,16 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: full-ci-check
+        name: Run complete CI pipeline locally (COMPREHENSIVE)
+        entry: ./scripts/test-ci-locally.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
 ci:
-  skip: [shellcheck, smoke-test, check-deployment-script, check-aws-credentials, mypy-check, bandit-security, pytest-tests]  # These might not work in CI
+  skip: [shellcheck, smoke-test, check-deployment-script, check-aws-credentials, mypy-check, bandit-security, pytest-tests, full-ci-check]  # These might not work in CI
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit hooks
 
