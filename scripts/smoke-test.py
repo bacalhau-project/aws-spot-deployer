@@ -9,10 +9,13 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
 
 
-def test_deployment_script() -> List[Tuple[str, str]]:
+def test_deployment_script() -> list[tuple[str, str]]:
     """Test deployment script basics."""
     errors = []
 
@@ -50,7 +53,7 @@ def test_deployment_script() -> List[Tuple[str, str]]:
     return errors
 
 
-def test_required_files() -> List[Tuple[str, str]]:
+def test_required_files() -> list[tuple[str, str]]:
     """Test that required files exist."""
     errors = []
 
@@ -74,7 +77,7 @@ def test_required_files() -> List[Tuple[str, str]]:
     return errors
 
 
-def test_python_scripts() -> List[Tuple[str, str]]:
+def test_python_scripts() -> list[tuple[str, str]]:
     """Test Python script syntax."""
     errors = []
 

@@ -10,7 +10,7 @@ import os
 import random
 import sys
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 
 class MultiCloudNodeIdentityGenerator:
@@ -188,7 +188,7 @@ class MultiCloudNodeIdentityGenerator:
 
         return f"node-{str(uuid.uuid4())[:8]}"
 
-    def generate_identity(self) -> Dict[str, Any]:
+    def generate_identity(self) -> dict[str, Any]:
         """Generate complete node identity."""
         # Select location deterministically
         location = self.rng.choice(self.LOCATIONS)

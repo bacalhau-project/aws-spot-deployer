@@ -89,7 +89,9 @@ def create(ctx: click.Context) -> None:
 
     if not Path(config_file).exists():
         console.print(f"[red]❌ Config file not found: {config_file}[/red]")
-        console.print(f"[yellow]Create {config_file} or use -c to specify a different file[/yellow]")
+        console.print(
+            f"[yellow]Create {config_file} or use -c to specify a different file[/yellow]"
+        )
         sys.exit(1)
 
     runtime_version = get_runtime_version()

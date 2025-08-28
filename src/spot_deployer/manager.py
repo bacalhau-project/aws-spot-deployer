@@ -21,7 +21,9 @@ from rich.table import Table
 class ClusterManager:
     """Manages SkyPilot cluster operations through Docker container."""
 
-    def __init__(self, log_to_console: bool = False, log_file: str = "cluster-deploy.log"):
+    def __init__(
+        self, log_to_console: bool = False, log_file: str = "cluster-deploy.log"
+    ):
         self.console = Console()
         self.log_to_console = log_to_console
         self.log_file = Path(log_file)
@@ -30,14 +32,14 @@ class ClusterManager:
 
     def log(self, level: str, message: str, style: str = "") -> None:
         """Log message to console and/or file."""
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if self.log_to_console:
             self.console.print(f"[{level}] {message}", style=style)
         else:
             # Write to file
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.log_file, 'a', encoding='utf-8') as f:
+            with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(f"[{timestamp}] [{level}] {message}\n")
             # Also show brief status to console
             self.console.print(f"[{level}] {message}", style=style)
@@ -64,9 +66,9 @@ class ClusterManager:
             self.console.print(f"\n🌍 {message}", style="bold blue")
             self.console.print()
         else:
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.log_file, 'a', encoding='utf-8') as f:
+            with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(f"\n[{timestamp}] [HEADER] 🌍 {message}\n\n")
             self.console.print(f"\n🌍 {message}", style="bold blue")
             self.console.print()
@@ -79,7 +81,7 @@ class ClusterManager:
             raise FileNotFoundError(f"Config file not found: {config_file}")
 
         try:
-            with open(config_path, encoding='utf-8') as f:
+            with open(config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
                 if not isinstance(config, dict):
                     raise ValueError("Config file must contain a YAML object")
@@ -95,18 +97,28 @@ class ClusterManager:
         """Extract cluster name from YAML config."""
         try:
             config = self.load_cluster_config(config_file)
-            return config.get('name', 'cluster')
+            return config.get("name", "cluster")
         except Exception:
-            return 'cluster'
+            return "cluster"
 
     def ensure_docker_container(self) -> bool:
         """Ensure Docker container is running."""
         try:
             # Check if container is already running
-            result = subprocess.run([
-                "docker", "ps", "--filter", f"name={self.docker_container}",
-                "--filter", "status=running", "--quiet"
-            ], capture_output=True, text=True, check=False)
+            result = subprocess.run(
+                [
+                    "docker",
+                    "ps",
+                    "--filter",
+                    f"name={self.docker_container}",
+                    "--filter",
+                    "status=running",
+                    "--quiet",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
 
             if result.stdout.strip():
                 return True  # Container already running
@@ -114,21 +126,35 @@ class ClusterManager:
             self.log_info("Starting SkyPilot Docker container...")
 
             # Remove any existing stopped container
-            subprocess.run(["docker", "rm", self.docker_container],
-                          capture_output=True, stderr=subprocess.DEVNULL, check=False)
+            subprocess.run(
+                ["docker", "rm", self.docker_container],
+                capture_output=True,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
 
             # Start new container
             home = Path.home()
             cwd = Path.cwd()
 
             cmd = [
-                "docker", "run", "-td", "--rm", "--name", self.docker_container,
-                "-v", f"{home}/.sky:/root/.sky:rw",
-                "-v", f"{home}/.aws:/root/.aws:rw",
-                "-v", f"{home}/.config/gcloud:/root/.config/gcloud:rw",
-                "-v", f"{cwd}:/workspace:rw",
-                "-w", "/workspace",
-                self.skypilot_image
+                "docker",
+                "run",
+                "-td",
+                "--rm",
+                "--name",
+                self.docker_container,
+                "-v",
+                f"{home}/.sky:/root/.sky:rw",
+                "-v",
+                f"{home}/.aws:/root/.aws:rw",
+                "-v",
+                f"{home}/.config/gcloud:/root/.config/gcloud:rw",
+                "-v",
+                f"{cwd}:/workspace:rw",
+                "-w",
+                "/workspace",
+                self.skypilot_image,
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -167,20 +193,20 @@ class ClusterManager:
         if success and stdout.strip():
             try:
                 data = json.loads(stdout)
-                clusters = data.get('clusters', [])
+                clusters = data.get("clusters", [])
                 if clusters and isinstance(clusters, list):
-                    return clusters[0].get('name')
+                    return clusters[0].get("name")
             except json.JSONDecodeError:
                 pass
 
         # Fallback to text parsing
         success, stdout, stderr = self.run_sky_cmd("status")
         if success and stdout:
-            for line in stdout.split('\n'):
+            for line in stdout.split("\n"):
                 line = line.strip()
-                if line and not line.startswith(('NAME', 'Enabled', 'No', 'Clusters')):
+                if line and not line.startswith(("NAME", "Enabled", "No", "Clusters")):
                     parts = line.split()
-                    if parts and parts[0].startswith('sky-'):
+                    if parts and parts[0].startswith("sky-"):
                         return parts[0]
 
         return None
@@ -204,13 +230,17 @@ class ClusterManager:
         # Check SkyPilot image
         self.log_info("Ensuring SkyPilot Docker image is available...")
         try:
-            result = subprocess.run([
-                "docker", "image", "inspect", self.skypilot_image
-            ], capture_output=True, check=False)
+            result = subprocess.run(
+                ["docker", "image", "inspect", self.skypilot_image],
+                capture_output=True,
+                check=False,
+            )
 
             if result.returncode != 0:
                 self.log_info("Pulling SkyPilot Docker image...")
-                result = subprocess.run(["docker", "pull", self.skypilot_image], check=False)
+                result = subprocess.run(
+                    ["docker", "pull", self.skypilot_image], check=False
+                )
                 if result.returncode != 0:
                     self.log_error("Failed to pull SkyPilot Docker image")
                     return False
@@ -226,7 +256,7 @@ class ClusterManager:
                 self.log_error(f"SkyPilot error: {stderr}")
             return False
 
-        version = stdout.split('\n')[0] if stdout else "unknown"
+        version = stdout.split("\n")[0] if stdout else "unknown"
         self.log_success(f"SkyPilot available: {version}")
 
         # Check AWS credentials
@@ -235,16 +265,33 @@ class ClusterManager:
             success, stdout, stderr = self.run_sky_cmd("check")
             if success and stdout and "AWS: enabled" in stdout:
                 try:
-                    result = subprocess.run([
-                        "aws", "sts", "get-caller-identity", "--query", "Account",
-                        "--output", "text", "--no-paginate"
-                    ], capture_output=True, text=True, check=False)
-                    account = result.stdout.strip() if result.returncode == 0 else "unknown"
+                    result = subprocess.run(
+                        [
+                            "aws",
+                            "sts",
+                            "get-caller-identity",
+                            "--query",
+                            "Account",
+                            "--output",
+                            "text",
+                            "--no-paginate",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    account = (
+                        result.stdout.strip() if result.returncode == 0 else "unknown"
+                    )
                     self.log_success(f"AWS credentials available (Account: {account})")
                 except FileNotFoundError:
-                    self.log_warning("AWS credentials configured but aws CLI not available")
+                    self.log_warning(
+                        "AWS credentials configured but aws CLI not available"
+                    )
             else:
-                self.log_warning("AWS credentials configured but not working with SkyPilot")
+                self.log_warning(
+                    "AWS credentials configured but not working with SkyPilot"
+                )
                 if stderr:
                     self.log_warning(f"SkyPilot check error: {stderr}")
         else:
@@ -276,17 +323,23 @@ class ClusterManager:
             # Launch cluster
             if self.log_to_console:
                 # Show output when -f flag used
-                success, stdout, stderr = self.run_sky_cmd("launch", config_file, "--name", cluster_name, "--yes")
+                success, stdout, stderr = self.run_sky_cmd(
+                    "launch", config_file, "--name", cluster_name, "--yes"
+                )
                 if stdout:
                     print(stdout)
                 if stderr:
                     print(stderr, file=sys.stderr)
             else:
                 # Redirect to log file
-                self.console.print(f"Deploying cluster... (check {self.log_file} for detailed progress)")
-                success, stdout, stderr = self.run_sky_cmd("launch", config_file, "--name", cluster_name, "--yes")
+                self.console.print(
+                    f"Deploying cluster... (check {self.log_file} for detailed progress)"
+                )
+                success, stdout, stderr = self.run_sky_cmd(
+                    "launch", config_file, "--name", cluster_name, "--yes"
+                )
                 self.log_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(self.log_file, 'a', encoding='utf-8') as f:
+                with open(self.log_file, "a", encoding="utf-8") as f:
                     if stdout:
                         f.write(f"=== SkyPilot Launch Output ===\n{stdout}\n")
                     if stderr:
@@ -309,16 +362,36 @@ class ClusterManager:
     def _show_completion_banner(self) -> None:
         """Show deployment completion banner."""
         self.console.print()
-        self.console.print("┌─────────────────────────────────────────────────┐", style="green")
-        self.console.print("│               🎉 Deployment Complete            │", style="green")
-        self.console.print("├─────────────────────────────────────────────────┤", style="green")
-        self.console.print("│ Next Steps:                                     │", style="green")
-        self.console.print("│ • Check status: uvx run spot-deployer status   │", style="green")
-        self.console.print("│ • List nodes: uvx run spot-deployer list       │", style="green")
-        self.console.print("│ • SSH to cluster: uvx run spot-deployer ssh    │", style="green")
-        self.console.print("│ • View logs: uvx run spot-deployer logs        │", style="green")
-        self.console.print("│ • Destroy cluster: uvx run spot-deployer destroy│", style="green")
-        self.console.print("└─────────────────────────────────────────────────┘", style="green")
+        self.console.print(
+            "┌─────────────────────────────────────────────────┐", style="green"
+        )
+        self.console.print(
+            "│               🎉 Deployment Complete            │", style="green"
+        )
+        self.console.print(
+            "├─────────────────────────────────────────────────┤", style="green"
+        )
+        self.console.print(
+            "│ Next Steps:                                     │", style="green"
+        )
+        self.console.print(
+            "│ • Check status: uvx run spot-deployer status   │", style="green"
+        )
+        self.console.print(
+            "│ • List nodes: uvx run spot-deployer list       │", style="green"
+        )
+        self.console.print(
+            "│ • SSH to cluster: uvx run spot-deployer ssh    │", style="green"
+        )
+        self.console.print(
+            "│ • View logs: uvx run spot-deployer logs        │", style="green"
+        )
+        self.console.print(
+            "│ • Destroy cluster: uvx run spot-deployer destroy│", style="green"
+        )
+        self.console.print(
+            "└─────────────────────────────────────────────────┘", style="green"
+        )
         self.console.print()
 
     def show_status(self) -> bool:
@@ -355,7 +428,7 @@ class ClusterManager:
         # Parse launch time
         launch_time = "unknown"
         if stdout:
-            for line in stdout.split('\n'):
+            for line in stdout.split("\n"):
                 if cluster_name in line:
                     parts = line.split()
                     if len(parts) >= 8:
@@ -365,7 +438,7 @@ class ClusterManager:
         # Get number of nodes from config
         try:
             config = self.load_cluster_config()
-            num_nodes = config.get('num_nodes', 9)
+            num_nodes = config.get("num_nodes", 9)
         except Exception:
             num_nodes = 9
 
@@ -379,7 +452,9 @@ class ClusterManager:
 
         # Add rows (basic info since we can't easily query each node individually)
         for i in range(num_nodes):
-            table.add_row(f"node-{i}", "querying...", "querying...", "various", launch_time)
+            table.add_row(
+                f"node-{i}", "querying...", "querying...", "various", launch_time
+            )
 
         self.console.print(table)
         self.console.print(f"\n[green]Total nodes: {num_nodes}[/green]")
@@ -450,14 +525,25 @@ class ClusterManager:
     def cleanup_docker(self) -> bool:
         """Clean up Docker container."""
         try:
-            result = subprocess.run([
-                "docker", "ps", "--filter", f"name={self.docker_container}", "--quiet"
-            ], capture_output=True, check=False)
+            result = subprocess.run(
+                [
+                    "docker",
+                    "ps",
+                    "--filter",
+                    f"name={self.docker_container}",
+                    "--quiet",
+                ],
+                capture_output=True,
+                check=False,
+            )
 
             if result.stdout.strip():
                 self.log_info("Stopping SkyPilot Docker container...")
-                subprocess.run(["docker", "stop", self.docker_container],
-                              capture_output=True, check=False)
+                subprocess.run(
+                    ["docker", "stop", self.docker_container],
+                    capture_output=True,
+                    check=False,
+                )
                 self.log_success("Docker container stopped")
 
             return True

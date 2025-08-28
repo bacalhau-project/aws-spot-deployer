@@ -35,11 +35,11 @@ def get_runtime_version() -> str:
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             tag = result.stdout.strip()
             # Remove 'v' prefix if present
-            return tag[1:] if tag.startswith('v') else tag
+            return tag[1:] if tag.startswith("v") else tag
         except subprocess.CalledProcessError:
             pass
 
@@ -50,11 +50,11 @@ def get_runtime_version() -> str:
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             tag_sha = result.stdout.strip()
             # Remove 'v' prefix if present
-            version = tag_sha[1:] if tag_sha.startswith('v') else tag_sha
+            version = tag_sha[1:] if tag_sha.startswith("v") else tag_sha
 
             return version
         except subprocess.CalledProcessError:
@@ -67,7 +67,7 @@ def get_runtime_version() -> str:
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
             sha = result.stdout.strip()
             return f"0.1.0-dev-{sha}"
@@ -78,4 +78,6 @@ def get_runtime_version() -> str:
         pass
 
     return __version__
+
+
 __all__ = ["ClusterManager"]

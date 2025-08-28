@@ -28,16 +28,16 @@ jobs:
         run: uv sync --frozen
 
       - name: Run ruff check
-        run: uv run ruff check .
+        run: uv run ruff check src/ tests/ scripts/
 
       - name: Run ruff format check
-        run: uv run ruff format --check .
+        run: uv run ruff format --check src/ tests/ scripts/
 
       - name: Run type checking
-        run: uv run mypy spot_deployer/ --ignore-missing-imports --check-untyped-defs
+        run: uv run mypy src/spot_deployer/ --ignore-missing-imports --check-untyped-defs
 
       - name: Run security check
-        run: uv run bandit -r spot_deployer/ -ll --skip B101,B108,B202,B324,B601
+        run: uv run bandit -r src/spot_deployer/ -ll --skip B101,B108,B202,B324,B601
 
   test:
     name: Test Python 3.12
