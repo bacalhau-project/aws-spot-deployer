@@ -4,7 +4,7 @@ set -e
 # Global Cluster Deployment Tool
 # Simple one-command deployment of clusters worldwide using SkyPilot
 
-SCRIPT_NAME="cluster-deploy"
+# SCRIPT_NAME="cluster-deploy"  # Unused variable
 DEFAULT_CONFIG="cluster.yaml"
 DEFAULT_CLUSTER="cluster"
 
@@ -42,15 +42,13 @@ ensure_docker_container() {
         docker rm "$DOCKER_CONTAINER_NAME" >/dev/null 2>&1 || true
 
         # Start new container with volume mounts (includes AWS SSO support)
-        docker run -td --rm --name "$DOCKER_CONTAINER_NAME" \
+        if docker run -td --rm --name "$DOCKER_CONTAINER_NAME" \
           -v "$HOME/.sky:/root/.sky:rw" \
           -v "$HOME/.aws:/root/.aws:rw" \
           -v "$HOME/.config/gcloud:/root/.config/gcloud:rw" \
           -v "$(pwd):/workspace:rw" \
           -w /workspace \
-          "$SKYPILOT_IMAGE" >/dev/null
-
-        if [ $? -eq 0 ]; then
+          "$SKYPILOT_IMAGE" >/dev/null; then
             log_success "SkyPilot Docker container started"
         else
             log_error "Failed to start SkyPilot Docker container"
@@ -64,7 +62,8 @@ log_message() {
     local level="$1"
     local color="$2"
     local message="$3"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     if [[ "$LOG_TO_CONSOLE" == true ]]; then
         echo -e "${color}[$level]${NC} $message"
@@ -93,7 +92,8 @@ log_error() {
 }
 
 log_header() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     if [[ "$LOG_TO_CONSOLE" == true ]]; then
         echo ""
@@ -101,9 +101,11 @@ log_header() {
         echo ""
     else
         # Write to log file
-        echo "" >> "$LOG_FILE"
-        echo "[$timestamp] [HEADER] 🌍 $1" >> "$LOG_FILE"
-        echo "" >> "$LOG_FILE"
+        {
+            echo ""
+            echo "[$timestamp] [HEADER] 🌍 $1"
+            echo ""
+        } >> "$LOG_FILE"
         # Also show on console
         echo ""
         echo -e "${BOLD}${BLUE}🌍 $1${NC}"
@@ -142,7 +144,8 @@ get_cluster_name_from_config() {
     local config_file="$1"
     if [[ -f "$config_file" ]]; then
         # Extract name field from YAML (handles both 'name:' and 'name :' with optional quotes)
-        local yaml_name=$(grep -E "^name\s*:" "$config_file" | sed -E 's/^name\s*:\s*//; s/["\x27]//g' | xargs)
+        local yaml_name
+        yaml_name=$(grep -E "^name\s*:" "$config_file" | sed -E 's/^name\s*:\s*//; s/["\x27]//g' | xargs)
         if [[ -n "$yaml_name" ]]; then
             echo "$yaml_name"
             return 0
@@ -186,14 +189,16 @@ check_prerequisites() {
         return 1
     fi
 
-    local sky_version=$(run_sky_cmd --version 2>/dev/null | head -1)
+    local sky_version
+    sky_version=$(run_sky_cmd --version 2>/dev/null | head -1)
     log_success "SkyPilot available: $sky_version"
 
     # Check AWS credentials (optional)
     if [[ -f "$HOME/.aws/credentials" ]] || [[ -n "$AWS_ACCESS_KEY_ID" ]]; then
         # Test AWS credentials through Docker container
         if run_sky_cmd check 2>/dev/null | grep -q "AWS: enabled"; then
-            local account=$(aws sts get-caller-identity --no-paginate --query 'Account' --output text 2>/dev/null || echo "unknown")
+            local account
+            account=$(aws sts get-caller-identity --no-paginate --query 'Account' --output text 2>/dev/null || echo "unknown")
             log_success "AWS credentials available (Account: $account)"
         else
             log_warning "AWS credentials configured but not working with SkyPilot"
@@ -222,7 +227,8 @@ deploy_cluster() {
     log_info "Cluster name: $cluster_name"
 
     # Set deployment ID for resource tagging
-    local deployment_id="cluster-deploy-$(date +%Y%m%d%H%M%S)"
+    local deployment_id
+    deployment_id="cluster-deploy-$(date +%Y%m%d%H%M%S)"
     export CLUSTER_DEPLOYMENT_ID="$deployment_id"
     log_info "Deployment ID: $deployment_id"
 
@@ -233,15 +239,21 @@ deploy_cluster() {
     local launch_result
     if [[ "$LOG_TO_CONSOLE" == true ]]; then
         # Show output to console when -f flag is used
-        launch_result=$(run_sky_cmd launch "$config_file" --name "$cluster_name" --yes 2>&1)
+        if launch_result=$(run_sky_cmd launch "$config_file" --name "$cluster_name" --yes 2>&1); then
+            launch_exit_code=0
+        else
+            launch_exit_code=$?
+        fi
         echo "$launch_result"
-        launch_exit_code=$?
     else
         # Redirect verbose output to log file by default, show minimal progress
         echo "Deploying cluster... (check $LOG_FILE for detailed progress)"
-        launch_result=$(run_sky_cmd launch "$config_file" --name "$cluster_name" --yes 2>&1)
+        if launch_result=$(run_sky_cmd launch "$config_file" --name "$cluster_name" --yes 2>&1); then
+            launch_exit_code=0
+        else
+            launch_exit_code=$?
+        fi
         echo "$launch_result" >> "$LOG_FILE"
-        launch_exit_code=$?
     fi
 
     if [ $launch_exit_code -eq 0 ]; then
@@ -268,14 +280,16 @@ deploy_cluster() {
 # Get actual SkyPilot cluster name (not YAML name)
 get_sky_cluster_name() {
     # Get the first running cluster from sky status
-    local sky_cluster=$(run_sky_cmd status --format json 2>/dev/null | jq -r '.clusters[0].name // empty' 2>/dev/null)
+    local sky_cluster
+    sky_cluster=$(run_sky_cmd status --format json 2>/dev/null | jq -r '.clusters[0].name // empty' 2>/dev/null)
     if [[ -n "$sky_cluster" ]]; then
         echo "$sky_cluster"
         return 0
     fi
 
     # Fallback: parse text output
-    local sky_cluster=$(run_sky_cmd status 2>/dev/null | grep -E "^[a-z0-9-]+" | head -1 | awk '{print $1}')
+    local sky_cluster
+    sky_cluster=$(run_sky_cmd status 2>/dev/null | grep -E "^[a-z0-9-]+" | head -1 | awk '{print $1}')
     if [[ -n "$sky_cluster" ]]; then
         echo "$sky_cluster"
         return 0
@@ -293,7 +307,8 @@ show_status() {
 # SSH to cluster (head node)
 ssh_cluster() {
     # Get the actual SkyPilot cluster name
-    local sky_cluster=$(get_sky_cluster_name)
+    local sky_cluster
+    sky_cluster=$(get_sky_cluster_name)
     if [[ -z "$sky_cluster" ]]; then
         log_error "No running cluster found"
         return 1
@@ -308,7 +323,8 @@ ssh_cluster() {
 # Show cluster logs
 show_logs() {
     # Get the actual SkyPilot cluster name
-    local sky_cluster=$(get_sky_cluster_name)
+    local sky_cluster
+    sky_cluster=$(get_sky_cluster_name)
     if [[ -z "$sky_cluster" ]]; then
         log_error "No running cluster found"
         return 1
@@ -321,7 +337,8 @@ show_logs() {
 # Destroy cluster
 destroy_cluster() {
     # Get the actual SkyPilot cluster name
-    local sky_cluster=$(get_sky_cluster_name)
+    local sky_cluster
+    sky_cluster=$(get_sky_cluster_name)
     if [[ -z "$sky_cluster" ]]; then
         log_info "No running cluster found to destroy"
         return 0
@@ -361,7 +378,8 @@ cleanup_docker() {
 # List cluster nodes with detailed information
 list_nodes() {
     # Get the actual SkyPilot cluster name
-    local sky_cluster=$(get_sky_cluster_name)
+    local sky_cluster
+    sky_cluster=$(get_sky_cluster_name)
     if [[ -z "$sky_cluster" ]]; then
         log_error "No running cluster found"
         return 1
@@ -371,22 +389,21 @@ list_nodes() {
 
     # Get cluster info with more details
     local cluster_info
-    cluster_info=$(run_sky_cmd status --name "$sky_cluster" 2>/dev/null)
-
-    if [[ $? -ne 0 ]] || [[ -z "$cluster_info" ]]; then
+    if ! cluster_info=$(run_sky_cmd status --name "$sky_cluster" 2>/dev/null) || [[ -z "$cluster_info" ]]; then
         log_error "Failed to get cluster information"
         return 1
     fi
 
     # Parse launch time from cluster info
-    local launch_time=$(echo "$cluster_info" | grep -E "^$sky_cluster" | awk '{print $6, $7, $8}')
+    local launch_time
+    launch_time=$(echo "$cluster_info" | grep -E "^$sky_cluster" | awk '{print $6, $7, $8}')
 
     # Get detailed cluster information using exec to run commands on the cluster
     log_info "Gathering node information..."
 
     # Try to get instance IDs and IPs using sky exec
-    local node_data
-    node_data=$(run_sky_cmd exec "$sky_cluster" 'curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null && echo "," && curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null && echo "," && curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null' 2>/dev/null | tr -d '\n')
+    # local node_data  # Commented out - not currently used but could be useful for future node details
+    # node_data=$(run_sky_cmd exec "$sky_cluster" 'curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null && echo "," && curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null && echo "," && curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null' 2>/dev/null | tr -d '\n')
 
     # Create table header
     printf "\n"
@@ -394,7 +411,8 @@ list_nodes() {
     printf "%-15s %-20s %-15s %-15s %-12s\n" "----" "-----------" "---------" "----" "--------"
 
     # Get number of nodes from config
-    local num_nodes=$(grep -E "^num_nodes\\s*:" cluster.yaml 2>/dev/null | sed -E 's/^num_nodes\\s*:\\s*//' | xargs)
+    local num_nodes
+    num_nodes=$(grep -E "^num_nodes\\s*:" cluster.yaml 2>/dev/null | sed -E 's/^num_nodes\\s*:\\s*//' | xargs)
     if [[ -z "$num_nodes" ]] || ! [[ "$num_nodes" =~ ^[0-9]+$ ]]; then
         num_nodes=9
     fi

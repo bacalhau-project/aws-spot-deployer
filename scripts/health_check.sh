@@ -1,8 +1,6 @@
 #!/bin/bash
-"""
-Health check script for Bacalhau sensor deployment.
-Validates that all services are running correctly.
-"""
+# Health check script for Bacalhau sensor deployment.
+# Validates that all services are running correctly.
 
 set -e
 
@@ -22,7 +20,7 @@ failure_count=0
 warning_count=0
 
 check_result() {
-    if [ $1 -eq 0 ]; then
+    if [ "$1" -eq 0 ]; then
         echo -e "${GREEN}✓${NC} $2"
         success_count=$((success_count + 1))
     else

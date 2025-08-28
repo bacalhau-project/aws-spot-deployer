@@ -63,7 +63,7 @@ log_error() {
 }
 
 check_prerequisites() {
-    local missing=()
+    # local missing=()  # Commented out - not currently used
 
     # Check uvx
     if ! command -v uvx &> /dev/null; then
