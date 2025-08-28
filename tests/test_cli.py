@@ -138,7 +138,7 @@ def test_console_flag(mock_manager_class):
     mock_manager_class.return_value = Mock()
 
     runner = CliRunner()
-    result = runner.invoke(cli, ['-f', 'cleanup'])
+    runner.invoke(cli, ['-f', 'cleanup'])
 
     # Verify manager was created with log_to_console=True
     mock_manager_class.assert_called_once_with(log_to_console=True, log_file="cluster-deploy.log")

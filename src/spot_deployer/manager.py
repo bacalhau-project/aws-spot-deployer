@@ -11,7 +11,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import yaml
 from rich.console import Console
@@ -71,7 +71,7 @@ class ClusterManager:
             self.console.print(f"\n🌍 {message}", style="bold blue")
             self.console.print()
 
-    def load_cluster_config(self, config_file: str = "cluster.yaml") -> Dict[str, Any]:
+    def load_cluster_config(self, config_file: str = "cluster.yaml") -> dict[str, Any]:
         """Load and parse cluster configuration from YAML."""
         config_path = Path(config_file)
         if not config_path.exists():
@@ -148,7 +148,7 @@ class ClusterManager:
             self.log_error(f"Failed to manage Docker container: {e}")
             return False
 
-    def run_sky_cmd(self, *args: str) -> Tuple[bool, str, str]:
+    def run_sky_cmd(self, *args: str) -> tuple[bool, str, str]:
         """Run sky command in Docker container. Returns (success, stdout, stderr)."""
         if not self.ensure_docker_container():
             return False, "", "Failed to start container"
