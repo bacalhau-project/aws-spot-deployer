@@ -14,7 +14,7 @@ __email__ = "deployer@skypilot.co"
 from .manager import ClusterManager
 
 # Static version for packaging - will be updated by CI/CD
-__version__ = "0.1.0-dev"
+__version__ = "2.0.0"
 
 
 def get_runtime_version() -> str:
@@ -70,7 +70,7 @@ def get_runtime_version() -> str:
                 check=True,
             )
             sha = result.stdout.strip()
-            return f"0.1.0-dev-{sha}"
+            return f"2.0.0-dev-{sha}"
         except subprocess.CalledProcessError:
             pass
 
