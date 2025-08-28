@@ -116,18 +116,19 @@ def test_get_sky_cluster_name_json(mock_run, manager):
 
 
 @patch('subprocess.run')
-def test_get_sky_cluster_name_text_fallback(mock_run, manager):
+@patch('spot_deployer.manager.ClusterManager.ensure_docker_container')
+def test_get_sky_cluster_name_text_fallback(mock_ensure_docker, mock_run, manager):
     """Test getting cluster name from text output fallback."""
-    # Mock docker ps and sky status commands
-    text_output = """
-Enabled Infra: aws
+    mock_ensure_docker.return_value = True
+
+    # Mock sky status commands
+    text_output = """Enabled Infra: aws
 
 Clusters
 NAME           INFRA    STATUS
 sky-def456-root AWS     UP
 """
     mock_run.side_effect = [
-        Mock(stdout="container_id", returncode=0),  # docker ps
         Mock(stdout="", stderr="", returncode=1),    # sky status --format json (fails)
         Mock(stdout=text_output, stderr="", returncode=0)  # sky status (text)
     ]

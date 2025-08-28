@@ -178,7 +178,7 @@ class ClusterManager:
         if success and stdout:
             for line in stdout.split('\n'):
                 line = line.strip()
-                if line and not line.startswith(('NAME', 'Enabled', 'No')):
+                if line and not line.startswith(('NAME', 'Enabled', 'No', 'Clusters')):
                     parts = line.split()
                     if parts and parts[0].startswith('sky-'):
                         return parts[0]

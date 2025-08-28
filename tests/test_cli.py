@@ -62,7 +62,7 @@ def test_create_command_missing_config(mock_manager_class):
     mock_manager_class.return_value = mock_manager
 
     runner = CliRunner()
-    result = runner.invoke(cli, ['create', '-c', 'nonexistent.yaml'])
+    result = runner.invoke(cli, ['-c', 'nonexistent.yaml', 'create'])
 
     assert result.exit_code == 1
     assert "Config file not found" in result.output
@@ -79,7 +79,7 @@ def test_create_command_success(mock_exists, mock_manager_class, temp_config):
     mock_manager_class.return_value = mock_manager
 
     runner = CliRunner()
-    result = runner.invoke(cli, ['create', '-c', temp_config])
+    result = runner.invoke(cli, ['-c', temp_config, 'create'])
 
     assert result.exit_code == 0
     mock_manager.check_prerequisites.assert_called_once()
