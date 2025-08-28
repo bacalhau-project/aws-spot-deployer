@@ -94,7 +94,11 @@ class MultiCloudNodeIdentityGenerator:
     SENSORS = [
         {"manufacturer": "Honeywell", "model": "HMC5883L", "type": "magnetometer"},
         {"manufacturer": "Bosch", "model": "BME280", "type": "environmental"},
-        {"manufacturer": "STMicroelectronics", "model": "LIS3DH", "type": "accelerometer"},
+        {
+            "manufacturer": "STMicroelectronics",
+            "model": "LIS3DH",
+            "type": "accelerometer",
+        },
         {"manufacturer": "InvenSense", "model": "MPU-9250", "type": "IMU"},
         {"manufacturer": "Sensirion", "model": "SHT30", "type": "humidity"},
         {"manufacturer": "ams", "model": "TSL2561", "type": "light"},
@@ -122,7 +126,10 @@ class MultiCloudNodeIdentityGenerator:
             import subprocess
 
             result = subprocess.run(
-                ["ec2-metadata", "--instance-id"], capture_output=True, text=True, timeout=5
+                ["ec2-metadata", "--instance-id"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 return result.stdout.split()[-1]
@@ -191,7 +198,9 @@ class MultiCloudNodeIdentityGenerator:
 
         # Generate deterministic variations
         location_offset = self.rng.uniform(-0.01, 0.01)  # ~1km variation
-        sensor_serial = f"{sensor['manufacturer'][:2].upper()}{self.rng.randint(1000000, 9999999)}"
+        sensor_serial = (
+            f"{sensor['manufacturer'][:2].upper()}{self.rng.randint(1000000, 9999999)}"
+        )
 
         # Create identity
         identity = {
@@ -249,7 +258,10 @@ class MultiCloudNodeIdentityGenerator:
             import subprocess
 
             result = subprocess.run(
-                ["ec2-metadata", "--instance-type"], capture_output=True, text=True, timeout=5
+                ["ec2-metadata", "--instance-type"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 return result.stdout.split()[-1]
@@ -266,7 +278,10 @@ class MultiCloudNodeIdentityGenerator:
             import subprocess
 
             result = subprocess.run(
-                ["ec2-metadata", "--availability-zone"], capture_output=True, text=True, timeout=5
+                ["ec2-metadata", "--availability-zone"],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 az = result.stdout.split()[-1]
@@ -293,8 +308,12 @@ def main():
         identity = generator.generate_identity()
 
         print(f"✓ Generated identity for node: {identity['node_id']}")
-        print(f"✓ Location: {identity['location']['city']}, {identity['location']['state']}")
-        print(f"✓ Sensor: {identity['sensor']['manufacturer']} {identity['sensor']['model']}")
+        print(
+            f"✓ Location: {identity['location']['city']}, {identity['location']['state']}"
+        )
+        print(
+            f"✓ Sensor: {identity['sensor']['manufacturer']} {identity['sensor']['model']}"
+        )
 
         # Create output directory
         output_dir = "/opt/sensor/config"

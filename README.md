@@ -1,47 +1,46 @@
 # 🌍 Global Bacalhau Network - Deploy Worldwide in One Command
 
-**Super simple worldwide deployment of Bacalhau compute nodes - one per zone across the globe.**
+**Docker-powered worldwide deployment of Bacalhau compute nodes using SkyPilot.**
 
-Deploy 9 Bacalhau compute nodes instantly across continents: US West, US East, Europe, Asia Pacific, South America, and more. SkyPilot automatically selects the best zones worldwide for maximum coverage and fault tolerance.
+Deploy 9 Bacalhau compute nodes instantly across continents: US West, US East, Europe, Asia Pacific, South America, and more. Uses Docker containers for reliable deployment with zero Python environment issues.
 
 ## 🚀 **One-Command Global Deployment**
 
 Deploy 9 nodes across worldwide zones with a single command:
 
 ```bash
-# Quick setup
-curl -sSL https://tada.wang/install.sh | bash -s -- setup
+# Prerequisites: Docker must be installed and running
 
 # Deploy global cluster (9 nodes worldwide across different continents)
-curl -sSL https://tada.wang/install.sh | bash -s -- deploy
+./cluster-deploy create
 
 # Check status
-curl -sSL https://tada.wang/install.sh | bash -s -- status
+./cluster-deploy status
 
-# View health and logs
-curl -sSL https://tada.wang/install.sh | bash -s -- logs
+# View logs
+./cluster-deploy logs
 
 # SSH to nodes
-curl -sSL https://tada.wang/install.sh | bash -s -- ssh
+./cluster-deploy ssh
 
 # Clean up
-curl -sSL https://tada.wang/install.sh | bash -s -- destroy
+./cluster-deploy destroy
 ```
 
-## ✨ **What's New in v2.0**
+## ✨ **Docker-First Architecture**
 
-### 🌟 **Revolutionary Simplification**
-- **One-line install**: `curl -sSL https://tada.wang/install.sh | bash -s -- deploy`
-- **No complex configuration**: Simple YAML, sensible defaults
-- **Automatic everything**: Spot recovery, health monitoring, networking
-- **Multi-cloud ready**: AWS (others coming soon)
+### 🌟 **Zero Environment Issues**
+- **Docker containers**: No Python/UV installation required
+- **Pre-built SkyPilot image**: `berkeleyskypilot/skypilot` with everything included
+- **Volume mounts**: AWS credentials and workspace automatically mounted
+- **Automatic container management**: Handles container lifecycle
 
-### 🔥 **Legacy Code Eliminated**
-- ❌ **2000+ lines of custom AWS code** → SkyPilot handles it all
-- ❌ **Complex configuration mapping** → Clean, simple YAML
-- ❌ **Manual file transfers** → SkyPilot file_mounts
-- ❌ **Custom state management** → SkyPilot manages clusters
-- ❌ **Backward compatibility** → Fresh, modern approach
+### 🔥 **What This Eliminates**
+- ❌ **Python version conflicts** → Docker container has correct Python
+- ❌ **Virtual environment issues** → Container provides isolated environment
+- ❌ **Package installation failures** → SkyPilot pre-installed in container
+- ❌ **UV/pip wheel build errors** → No local package installation needed
+- ❌ **Platform-specific issues** → Container works everywhere Docker runs
 
 ### 🎯 **Superior Features**
 - **Automatic spot preemption recovery** - Never lose your cluster
@@ -53,202 +52,186 @@ curl -sSL https://tada.wang/install.sh | bash -s -- destroy
 ## 🏗️ **Architecture**
 
 ### Modern Stack
+- **Docker**: Containerized SkyPilot environment
 - **SkyPilot**: Cloud orchestration and spot management
 - **Bacalhau**: Distributed compute with Docker engine support
 - **Sensor Simulator**: Realistic IoT data generation
-- **UV**: Fast Python package execution
-- **Docker Compose**: Service orchestration
+- **Docker Compose**: Service orchestration on nodes
 
 ### Deployment Flow
 ```
-curl command → Download files → Check credentials → SkyPilot deploy → Health check
+./cluster-deploy create → Docker container → SkyPilot deploy → Health check
 ```
 
-### Multi-Cloud Node Identity
-```json
-{
-  "node_id": "i-1234567890abcdef0",
-  "location": {
-    "city": "San Francisco",
-    "coordinates": {"latitude": 37.7749, "longitude": -122.4194}
-  },
-  "sensor": {
-    "manufacturer": "Honeywell",
-    "model": "BME280"
-  },
-  "cloud_provider": "aws"
-}
+### Container Architecture
+```
+Host Machine:
+├── cluster-deploy (bash script)
+├── cluster.yaml (SkyPilot config)
+├── credentials/ (mounted into container)
+└── Docker Container:
+    ├── berkeleyskypilot/skypilot image
+    ├── Volume mounts: ~/.aws, ~/.sky, workspace
+    └── SkyPilot manages: EC2, file sync, deployment
 ```
 
 ## 📋 **Prerequisites**
 
+### Required
+- **Docker** installed and running (`docker --version`)
 - **AWS Account** with EC2 permissions
-- **AWS Credentials** configured (`aws configure` or `aws sso login`)
-- **Bacalhau Orchestrator** credentials (for cluster connectivity)
+- **AWS Credentials** configured in `~/.aws/credentials` or environment
 
-The installer automatically handles:
-- **UV installation** (Python package runner)
-- **SkyPilot installation** (cloud orchestration)
-- **Dependency management** (all packages via UV)
+### Automatic
+The script automatically handles:
+- **SkyPilot Docker image** pull and management
+- **Container lifecycle** (start, stop, cleanup)
+- **Volume mounting** (AWS creds, workspace, SkyPilot state)
+- **File synchronization** to remote nodes
 
 ## 🎛️ **Configuration**
 
-### Automatic Setup
-The `setup` command creates credential templates:
+### Credential Setup
+Create these files in the project directory before deployment:
 
 ```bash
-curl -sSL https://tada.wang/install.sh | bash -s -- setup
+# Required credential files
+mkdir -p credentials/
+
+# Bacalhau orchestrator endpoint
+echo "nats://your-orchestrator.example.com:4222" > credentials/orchestrator_endpoint
+
+# Bacalhau authentication token
+echo "your-secret-token" > credentials/orchestrator_token
+
+# AWS credentials for S3 access (optional)
+cp ~/.aws/credentials credentials/aws-credentials
 ```
 
-Creates files in `~/.skypilot-bacalhau/credentials/`:
-- `orchestrator_endpoint` - Bacalhau NATS endpoint
-- `orchestrator_token` - Authentication token
-- `aws-credentials` - S3 access credentials
-
 ### Deployment Settings
-Edit `~/.skypilot-bacalhau/sky-config.yaml`:
+Edit `cluster.yaml` to customize:
 
 ```yaml
-deployment:
-  name: "bacalhau-sensors"
-  total_nodes: 6
+name: databricks-wind-farm-cluster
 
-  node:
-    instance_type: "t3.medium"
-    use_spot: true
-    disk_size: 30
+# Global deployment - one node per zone across the world
+num_nodes: 9
 
-  regions:
-    - "us-west-2"
-    - "us-east-1"
-    - "eu-west-1"
+resources:
+  infra: aws
+  instance_type: t3.medium
+  use_spot: true
+  disk_size: 30
 
-  network:
-    public_ip: true
-    ingress_ports: [22, 4222, 1234]
+# Files to deploy to each node
+file_mounts:
+  /tmp/credentials/orchestrator_endpoint: ./credentials/orchestrator_endpoint
+  /tmp/credentials/orchestrator_token: ./credentials/orchestrator_token
+  # ... other files
+
+# Environment variables for deployment
+envs:
+  DEPLOYMENT_PROJECT: "databricks-wind-farm-cluster"
+  BACALHAU_DATA_DIR: "/bacalhau_data"
+  # ... other env vars
 ```
 
 ## 🔧 **Commands**
 
 ### Core Operations
 ```bash
-# Setup and credential configuration
-curl -sSL https://tada.wang/install.sh | bash -s -- setup
-
-# Deploy 6-node cluster across 3 regions
-curl -sSL https://tada.wang/install.sh | bash -s -- deploy
+# Deploy 9-node cluster across global regions
+./cluster-deploy create
 
 # Check cluster status and health
-curl -sSL https://tada.wang/install.sh | bash -s -- status
+./cluster-deploy status
 
-# View comprehensive health check
-curl -sSL https://tada.wang/install.sh | bash -s -- logs
+# View deployment logs
+./cluster-deploy logs
 
-# SSH to first available node
-curl -sSL https://tada.wang/install.sh | bash -s -- ssh
-
-# SSH to specific node
-curl -sSL https://tada.wang/install.sh | bash -s -- ssh --node 2
-
-# View logs from specific node
-curl -sSL https://tada.wang/install.sh | bash -s -- logs --node 1
+# SSH to cluster head node
+./cluster-deploy ssh
 
 # Destroy entire cluster
-curl -sSL https://tada.wang/install.sh | bash -s -- destroy
+./cluster-deploy destroy
+
+# Stop Docker container (cleanup)
+./cluster-deploy cleanup
+
+# Show help
+./cluster-deploy help
 ```
 
 ### Advanced Options
 ```bash
-# Dry run (show what would happen)
-curl -sSL https://tada.wang/install.sh | bash -s -- deploy --dry-run
+# Custom config file
+./cluster-deploy create -c my-config.yaml
 
-# Help and documentation
-curl -sSL https://tada.wang/install.sh | bash -s -- help
+# Custom cluster name
+./cluster-deploy create -n my-cluster
+
+# Deploy with specific config and name
+./cluster-deploy create -c production.yaml -n prod-cluster
 ```
 
 ## 🧪 **Local Development & Testing**
 
-### Test the Install Script Locally
+### Quick Test
 ```bash
 # Clone the repository
-git clone https://github.com/bacalhau-project/aws-spot-deployer
-cd aws-spot-deployer
+git clone <repository-url>
+cd bacalhau-skypilot
 
-# Test the installer directly
-chmod +x docs/install.sh
-./docs/install.sh help
+# Ensure Docker is running
+docker --version
 
-# Test setup command
-./docs/install.sh setup
+# Test prerequisites check
+./cluster-deploy help
 
-# Check generated files
-ls -la ~/.skypilot-bacalhau/
+# Check if SkyPilot container works
+./cluster-deploy status
 ```
 
-### Test SkyPilot Deployment Locally
+### Debug Deployment
 ```bash
-# Navigate to SkyPilot deployment directory
-cd skypilot-deployment
+# Run with bash debugging
+bash -x ./cluster-deploy create
 
-# Test SkyPilot installation
-./install_skypilot.py
+# Check Docker container directly
+docker exec skypilot-cluster-deploy sky status
 
-# Edit credentials (required)
-nano credentials/orchestrator_endpoint
-nano credentials/orchestrator_token
-nano credentials/aws-credentials
+# View SkyPilot logs through container
+docker exec skypilot-cluster-deploy sky logs <cluster-name>
 
-# Test CLI
-./sky-deploy help
-./sky-deploy status
-
-# Dry run deployment
-sky launch --dry-run bacalhau-cluster.yaml
-
-# Deploy single node for testing
-./sky-deploy deploy
+# SSH to node through container
+docker exec -it skypilot-cluster-deploy sky ssh <cluster-name>
 ```
 
 ### Test Individual Components
 ```bash
 # Test node identity generation
-cd skypilot-deployment/scripts
-INSTANCE_ID=i-test123 ./generate_node_identity.py
+INSTANCE_ID=i-test123 ./scripts/generate_node_identity.py
 
 # Test Bacalhau config generation
-./generate_bacalhau_config.py
+./scripts/generate_bacalhau_config.py
 
-# Test health check
-./health_check.sh
-```
-
-### Debug Deployment Issues
-```bash
-# View SkyPilot logs
-sky logs bacalhau-sensors
-
-# SSH to specific node for debugging
-sky ssh bacalhau-sensors --node-id 1
-
-# Check SkyPilot status
-sky status --refresh
-
-# View detailed cluster info
-sky status bacalhau-sensors
+# Test health check script
+./scripts/health_check.sh
 ```
 
 ## 🌐 **Multi-Cloud Support**
 
 ### Current Support
 - **AWS**: Full support with spot instances, auto-recovery
-- **GCP, Azure**: Infrastructure ready, coming soon
+- **GCP, Azure**: SkyPilot supports them, configuration needed
 
 ### Cloud Provider Detection
-The system automatically detects cloud providers:
-```python
-# AWS: instance IDs start with 'i-'
-# GCP: uses metadata.google.internal
-# Azure: uses Azure metadata service
+```bash
+# AWS: Uses IMDS for instance metadata
+curl -s http://169.254.169.254/latest/meta-data/instance-id
+
+# Node identity automatically detects cloud provider
+# and generates appropriate sensor identities
 ```
 
 ## 📊 **Monitoring & Health**
@@ -267,70 +250,67 @@ Every deployment includes comprehensive monitoring:
 ### Status Dashboard
 ```bash
 # View cluster overview
-curl -sSL https://tada.wang/install.sh | bash -s -- status
+./cluster-deploy status
 
-# Detailed health report
-curl -sSL https://tada.wang/install.sh | bash -s -- logs
+# Detailed health report via logs
+./cluster-deploy logs
 
-# Monitor specific node
-curl -sSL https://tada.wang/install.sh | bash -s -- logs --node 2
+# SSH to specific node for debugging
+./cluster-deploy ssh
 ```
 
 ## 🔒 **Security**
 
 ### Credential Management
-- **Never committed to git** - automatic .gitignore
-- **Read-only mounts** in containers
+- **Never committed to git** - credentials/ in .gitignore
+- **Docker volume mounts** for secure credential access
 - **Encrypted in transit** - HTTPS/TLS everywhere
 - **Least privilege** - minimal required permissions
 
-### Network Security
-- **Security groups** auto-configured for required ports only
-- **Public IPs** for external access (configurable)
-- **VPC isolation** where supported
-- **Standard cloud provider security**
+### Container Security
+- **Official SkyPilot image** - berkeley/skypilot
+- **Read-only mounts** where possible
+- **Isolated container environment**
+- **Automatic container cleanup**
 
 ## 🚀 **Performance**
 
 ### Deployment Speed
-- **~3 minutes** for 6-node cluster deployment
-- **Parallel deployment** across regions
-- **Automatic spot optimization** - cheapest available instances
+- **~5-10 minutes** for 9-node global cluster deployment
+- **Parallel deployment** across regions via SkyPilot
+- **Docker container reuse** - fast subsequent deployments
 
 ### Resource Efficiency
 - **t3.medium instances** (2 vCPU, 4GB RAM)
 - **30GB disk** per node
 - **Spot pricing** - up to 90% cost savings
-- **Auto-scaling ready**
+- **Automatic spot recovery** - SkyPilot handles preemptions
 
 ### Reliability
-- **Automatic spot recovery** from preemptions
-- **Health monitoring** with restart capability
+- **Docker container isolation** - consistent environment
+- **Health monitoring** with automatic restart
 - **Multi-region distribution** for availability
-- **Retry logic** for transient failures
-
-## 📚 **Comparison to Legacy System**
-
-| Feature | Legacy v1.x | SkyPilot v2.0 |
-|---------|-------------|---------------|
-| **Installation** | Complex setup | One-line curl |
-| **Cloud Support** | AWS only | Multi-cloud |
-| **Spot Recovery** | Manual | Automatic |
-| **Configuration** | Complex YAML | Simple YAML |
-| **File Transfer** | Tarball+SCP | SkyPilot mounts |
-| **State Management** | JSON files | SkyPilot native |
-| **Networking** | Manual setup | Auto-configured |
-| **Health Monitoring** | Basic scripts | Comprehensive |
-| **Code Complexity** | 2000+ lines | ~500 lines |
+- **SkyPilot retry logic** for transient failures
 
 ## 🆘 **Troubleshooting**
 
 ### Common Issues
 
-#### 1. AWS Credentials
+#### 1. Docker Not Running
 ```bash
-# Check AWS access
-aws sts get-caller-identity
+# Check Docker status
+docker --version
+docker info
+
+# Start Docker (varies by OS)
+# macOS: Open Docker Desktop
+# Linux: sudo systemctl start docker
+```
+
+#### 2. AWS Credentials
+```bash
+# Check AWS access through container
+docker exec skypilot-cluster-deploy aws sts get-caller-identity
 
 # Configure if needed
 aws configure
@@ -338,63 +318,69 @@ aws configure
 aws sso login
 ```
 
-#### 2. SkyPilot Issues
+#### 3. Container Issues
 ```bash
-# Check SkyPilot status
-sky check
+# Check container status
+docker ps --filter name=skypilot-cluster-deploy
 
-# View cluster logs
-sky logs bacalhau-sensors
+# View container logs
+docker logs skypilot-cluster-deploy
 
-# Reset if needed
-sky down bacalhau-sensors
+# Restart container
+./cluster-deploy cleanup
+./cluster-deploy status  # This will restart the container
 ```
 
-#### 3. Node Communication
+#### 4. SkyPilot Issues
 ```bash
-# SSH to problematic node
-curl -sSL https://tada.wang/install.sh | bash -s -- ssh --node 1
+# Check SkyPilot through container
+docker exec skypilot-cluster-deploy sky check
 
-# Check Docker services
-sudo docker ps
-sudo docker logs bacalhau-compute
+# View cluster status
+docker exec skypilot-cluster-deploy sky status
+
+# Reset cluster if needed
+docker exec skypilot-cluster-deploy sky down --all --yes
 ```
 
 ### Debug Commands
 ```bash
-# Verbose SkyPilot output
-export SKYPILOT_DEBUG=1
+# Verbose deployment
+bash -x ./cluster-deploy create
 
-# View all SkyPilot clusters
-sky status --all
+# Direct SkyPilot commands
+docker exec skypilot-cluster-deploy sky status --refresh
 
-# Check specific node health
-curl -sSL https://tada.wang/install.sh | bash -s -- logs --node 1
+# SSH to node for debugging
+./cluster-deploy ssh
+# Then run: sudo docker ps, sudo docker logs <container>
 ```
 
 ## 🤝 **Contributing**
 
 ### Development Setup
 ```bash
-git clone https://github.com/bacalhau-project/aws-spot-deployer
-cd aws-spot-deployer/skypilot-deployment
+git clone <repository-url>
+cd bacalhau-skypilot
 
-# Test changes
-./sky-deploy help
-sky launch --dry-run bacalhau-cluster.yaml
+# Ensure Docker is running
+docker --version
+
+# Test the script
+./cluster-deploy help
 ```
 
 ### Testing Changes
-1. **Local testing**: Use `sky launch --dry-run`
-2. **Single node test**: Deploy to one region first
-3. **Full cluster test**: Test complete deployment
-4. **Cross-cloud test**: Verify cloud-agnostic features
+1. **Local testing**: Use `./cluster-deploy status` to test Docker setup
+2. **Configuration test**: Modify `cluster.yaml` and test parsing
+3. **Single node test**: Deploy to one region first
+4. **Full cluster test**: Test complete 9-node deployment
 
 ### Code Standards
-- **No backward compatibility** - clean, modern approach
-- **UV-first** - all Python execution via `uv run`
-- **SkyPilot native** - leverage SkyPilot capabilities
-- **Comprehensive health checks** - validate everything
+- **Docker-first** - all SkyPilot operations via container
+- **Shell scripting** - bash with proper error handling
+- **Volume mounts** - leverage Docker for isolation
+- **SkyPilot native** - use SkyPilot capabilities fully
 
 ## 📄 **License**
 
@@ -402,11 +388,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🔗 **Links**
 
-- **Repository**: https://github.com/bacalhau-project/aws-spot-deployer
 - **SkyPilot Documentation**: https://docs.skypilot.co/
 - **Bacalhau Documentation**: https://docs.bacalhau.org/
-- **Issues & Support**: https://github.com/bacalhau-project/aws-spot-deployer/issues
+- **Docker Documentation**: https://docs.docker.com/
 
 ---
 
-**Ready to deploy?** Start with: `curl -sSL https://tada.wang/install.sh | bash -s -- setup`
+**Ready to deploy?** Ensure Docker is running, then: `./cluster-deploy create`

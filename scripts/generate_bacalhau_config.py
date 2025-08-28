@@ -26,7 +26,10 @@ def get_instance_metadata():
             instance_id = result.stdout.split()[-1]
 
         result = subprocess.run(
-            ["ec2-metadata", "--availability-zone"], capture_output=True, text=True, timeout=5
+            ["ec2-metadata", "--availability-zone"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
             # Extract region from AZ (e.g., us-west-2a -> us-west-2)
@@ -112,7 +115,10 @@ def generate_bacalhau_config():
     else:
         print("⚠ No orchestrator credentials found - node will run in standalone mode")
         # For standalone mode, still configure the node
-        config["node"]["orchestrator"] = {"endpoint": "nats://localhost:4222", "insecure": True}
+        config["node"]["orchestrator"] = {
+            "endpoint": "nats://localhost:4222",
+            "insecure": True,
+        }
 
     return config
 

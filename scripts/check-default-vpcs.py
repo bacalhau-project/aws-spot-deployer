@@ -35,7 +35,9 @@ def check_default_vpc(region):
         ec2 = boto3.client("ec2", region_name=region)
 
         # Check for default VPC
-        response = ec2.describe_vpcs(Filters=[{"Name": "is-default", "Values": ["true"]}])
+        response = ec2.describe_vpcs(
+            Filters=[{"Name": "is-default", "Values": ["true"]}]
+        )
 
         vpcs = response.get("Vpcs", [])
 
@@ -45,7 +47,9 @@ def check_default_vpc(region):
             cidr = vpc["CidrBlock"]
 
             # Get subnet count
-            subnet_response = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
+            subnet_response = ec2.describe_subnets(
+                Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+            )
             subnet_count = len(subnet_response.get("Subnets", []))
 
             # Get availability zones
@@ -125,7 +129,9 @@ def main():
         task = progress.add_task("Scanning regions...", total=len(regions))
 
         with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {executor.submit(check_default_vpc, region): region for region in regions}
+            futures = {
+                executor.submit(check_default_vpc, region): region for region in regions
+            }
 
             for future in as_completed(futures):
                 region = futures[future]
@@ -159,10 +165,18 @@ def main():
     with_errors = [r for r in results if r["error"]]
 
     stats_table = Table(show_header=False, box=None)
-    stats_table.add_row("✅ Regions with default VPC:", f"[green]{len(with_default)}[/green]")
-    stats_table.add_row("❌ Regions without default VPC:", f"[red]{len(without_default)}[/red]")
-    stats_table.add_row("⚠️  Regions with errors:", f"[yellow]{len(with_errors)}[/yellow]")
-    stats_table.add_row("[bold]Total regions checked:[/bold]", f"[bold]{len(results)}[/bold]")
+    stats_table.add_row(
+        "✅ Regions with default VPC:", f"[green]{len(with_default)}[/green]"
+    )
+    stats_table.add_row(
+        "❌ Regions without default VPC:", f"[red]{len(without_default)}[/red]"
+    )
+    stats_table.add_row(
+        "⚠️  Regions with errors:", f"[yellow]{len(with_errors)}[/yellow]"
+    )
+    stats_table.add_row(
+        "[bold]Total regions checked:[/bold]", f"[bold]{len(results)}[/bold]"
+    )
     console.print(stats_table)
 
     # Detailed table
@@ -177,14 +191,22 @@ def main():
     table.add_column("AZs", justify="center", width=5)
 
     for result in results:
-        style = "green" if result["has_default"] else "red" if not result["error"] else "yellow"
+        style = (
+            "green"
+            if result["has_default"]
+            else "red"
+            if not result["error"]
+            else "yellow"
+        )
         table.add_row(
             result["region"],
             result["status"],
             result["vpc_id"] or "-",
             result["cidr"] or "-",
             str(result["subnet_count"]) if result["subnet_count"] > 0 else "-",
-            str(result["availability_zones"]) if result["availability_zones"] > 0 else "-",
+            str(result["availability_zones"])
+            if result["availability_zones"] > 0
+            else "-",
             style=style,
         )
 

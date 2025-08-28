@@ -3,202 +3,157 @@
 # requires-python = ">=3.9"
 # dependencies = []
 # ///
-"""Quick smoke test to catch import errors and basic issues."""
+"""Quick smoke test for SkyPilot cluster deployment tool."""
 
+import os
+import subprocess
 import sys
+from pathlib import Path
 from typing import List, Tuple
 
 
-def test_imports() -> List[Tuple[str, str]]:
-    """Test all critical imports."""
+def test_deployment_script() -> List[Tuple[str, str]]:
+    """Test deployment script basics."""
     errors = []
 
-    # Test main entry point
+    script_path = Path("cluster-deploy")
+    if not script_path.exists():
+        errors.append(("cluster-deploy", "Main deployment script not found"))
+        return errors
+
+    # Check if script is executable
+    if not os.access(script_path, os.X_OK):
+        errors.append(("cluster-deploy", "Script is not executable"))
+
+    # Test script syntax
     try:
-        import spot_deployer.main
+        result = subprocess.run(
+            ["bash", "-n", str(script_path)], capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            errors.append(("cluster-deploy", f"Syntax error: {result.stderr}"))
+    except Exception as e:
+        errors.append(("cluster-deploy", f"Failed to check syntax: {e}"))
 
-        if not hasattr(spot_deployer.main, "main"):
-            errors.append(("main", "Missing main function"))
-    except ImportError as e:
-        errors.append(("main", str(e)))
-
-    # Test all commands
-    commands = [
-        "create",
-        "destroy",
-        "list",
-        "setup",
-        "help",
-        "readme",
-        "version",
-        "validate",
-        "nuke",
-    ]
-    for cmd in commands:
-        try:
-            module = __import__(f"spot_deployer.commands.{cmd}", fromlist=[f"cmd_{cmd}"])
-            if not hasattr(module, f"cmd_{cmd}"):
-                errors.append((cmd, f"Missing cmd_{cmd} function"))
-        except ImportError as e:
-            errors.append((cmd, str(e)))
-
-    # Test generate command separately (uses 'main' instead of 'cmd_generate')
+    # Test help command (should not fail)
     try:
-        module = __import__("spot_deployer.commands.generate", fromlist=["main"])
-        if not hasattr(module, "main"):
-            errors.append(("generate", "Missing main function"))
-    except ImportError as e:
-        errors.append(("generate", str(e)))
-
-    # Test core modules
-    core_modules = [
-        ("config", ["SimpleConfig"]),
-        ("state", ["SimpleStateManager"]),
-        ("constants", ["DEFAULT_CONFIG_FILE", "DEFAULT_STATE_FILE"]),
-        ("deployment", ["DeploymentConfig"]),
-        ("deployment_discovery", ["DeploymentDiscovery", "DeploymentMode"]),
-        ("convention_scanner", ["ConventionScanner"]),
-    ]
-
-    for core_module, attrs in core_modules:
-        try:
-            module = __import__(f"spot_deployer.core.{core_module}", fromlist=attrs)
-            for attr in attrs:
-                if not hasattr(module, attr):
-                    errors.append((f"core.{core_module}", f"Missing {attr}"))
-        except ImportError as e:
-            errors.append((f"core.{core_module}", str(e)))
-
-    # Test utilities
-    utils = [
-        ("aws_manager", ["AWSResourceManager"]),
-        ("ssh_manager", ["SSHManager"]),
-        ("ui_manager", ["UIManager"]),
-        ("portable_cloud_init", ["PortableCloudInitGenerator"]),
-        ("config_validator", ["ConfigValidator"]),
-        ("display", ["rich_print", "rich_error", "rich_success"]),
-        ("tables", ["create_instance_table", "add_instance_row"]),
-        ("logging", ["setup_logger", "ConsoleLogger"]),
-        ("tarball_handler", ["TarballHandler"]),
-        ("shutdown_handler", ["ShutdownHandler"]),
-        ("file_uploader", ["FileUploader"]),
-        ("service_installer", ["ServiceInstaller"]),
-    ]
-
-    for util_module, functions in utils:
-        try:
-            module = __import__(f"spot_deployer.utils.{util_module}", fromlist=functions)
-            for func in functions:
-                if not hasattr(module, func):
-                    errors.append((f"utils.{util_module}", f"Missing {func}"))
-        except ImportError as e:
-            errors.append((f"utils.{util_module}", str(e)))
-
-    # Test templates
-    template_modules = [
-        ("cloud_init_templates", ["CloudInitTemplate"]),
-    ]
-
-    for template_module, attrs in template_modules:
-        try:
-            module = __import__(f"spot_deployer.templates.{template_module}", fromlist=attrs)
-            for attr in attrs:
-                if not hasattr(module, attr):
-                    errors.append((f"templates.{template_module}", f"Missing {attr}"))
-        except ImportError as e:
-            errors.append((f"templates.{template_module}", str(e)))
+        result = subprocess.run(
+            ["./cluster-deploy", "help"], capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            errors.append(
+                ("cluster-deploy help", f"Help command failed: {result.stderr}")
+            )
+    except Exception as e:
+        errors.append(("cluster-deploy help", f"Failed to run help: {e}"))
 
     return errors
 
 
-def test_deployment_discovery():
-    """Test deployment discovery functionality."""
-    try:
-        from spot_deployer.core.deployment_discovery import DeploymentDiscovery
+def test_required_files() -> List[Tuple[str, str]]:
+    """Test that required files exist."""
+    errors = []
 
-        dd = DeploymentDiscovery()
-        result = dd.discover()
+    required_files = [
+        "cluster.yaml",
+        "README.md",
+        "instance/config/bacalhau-config-template.yaml",
+        "instance/config/sensor-config.yaml",
+        "config/sensor-config.yaml",
+        "compose/bacalhau-compose.yml",
+        "compose/sensor-compose.yml",
+        "scripts/generate_node_identity.py",
+        "scripts/generate_bacalhau_config.py",
+        "scripts/health_check.sh",
+    ]
 
-        # Just check that it returns something and has the expected attributes
-        if not hasattr(result, "mode"):
-            return "DeploymentDiscoveryResult missing 'mode' attribute"
-        if not hasattr(result, "deployment_config"):
-            return "DeploymentDiscoveryResult missing 'deployment_config' attribute"
+    for file_path in required_files:
+        if not Path(file_path).exists():
+            errors.append((file_path, "Required file not found"))
 
-        return None
-    except Exception as e:
-        return str(e)
-
-
-def test_config_validator():
-    """Test config validator functionality."""
-    try:
-        # Just test that we can import and instantiate the validator
-        # Skip the actual validation to avoid output during smoke tests
-        from spot_deployer.utils.config_validator import ConfigValidator
-
-        validator = ConfigValidator()
-
-        # Basic check that it has the expected methods
-        if not hasattr(validator, "validate_config_file"):
-            return "ConfigValidator missing validate_config_file method"
-        if not hasattr(validator, "validate_runtime_environment"):
-            return "ConfigValidator missing validate_runtime_environment method"
-
-        return None
-    except Exception as e:
-        return str(e)
+    return errors
 
 
-def main():
-    """Run smoke tests."""
-    # Check if running in quiet mode (for pre-commit)
+def test_python_scripts() -> List[Tuple[str, str]]:
+    """Test Python script syntax."""
+    errors = []
+
+    python_scripts = [
+        "scripts/generate_node_identity.py",
+        "scripts/generate_bacalhau_config.py",
+    ]
+
+    for script in python_scripts:
+        if not Path(script).exists():
+            continue
+
+        try:
+            result = subprocess.run(
+                ["python3", "-m", "py_compile", script],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                errors.append((script, f"Python syntax error: {result.stderr}"))
+        except Exception as e:
+            errors.append((script, f"Failed to check Python syntax: {e}"))
+
+    return errors
+
+
+def main() -> int:
+    """Run all smoke tests."""
     quiet = "--quiet" in sys.argv
 
     if not quiet:
-        print("🔍 Running smoke tests...")
+        print("🧪 Running SkyPilot deployment smoke tests...")
 
-    # Test imports
-    import_errors = test_imports()
-    if import_errors:
-        print("\n❌ Import errors found:")
-        for module, error in import_errors:
-            print(f"  - {module}: {error}")
-        sys.exit(1)
-    elif not quiet:
-        print("✅ All imports successful")
+    all_errors = []
 
-    # Test deployment discovery
-    dd_error = test_deployment_discovery()
-    if dd_error:
-        print(f"\n❌ Deployment discovery error: {dd_error}")
-        sys.exit(1)
-    elif not quiet:
-        print("✅ Deployment discovery working")
+    # Run all tests
+    test_functions = [
+        ("Deployment Script", test_deployment_script),
+        ("Required Files", test_required_files),
+        ("Python Scripts", test_python_scripts),
+    ]
 
-    # Test config validator
-    cv_error = test_config_validator()
-    if cv_error:
-        print(f"\n❌ Config validator error: {cv_error}")
-        sys.exit(1)
-    elif not quiet:
-        print("✅ Config validator working")
+    for test_name, test_func in test_functions:
+        if not quiet:
+            print(f"  • {test_name}...", end=" ", flush=True)
 
-    # Test that help command is callable
-    if not quiet:
         try:
-            from spot_deployer.commands.help import cmd_help
-
-            # This should work without any setup
-            cmd_help()
-            print("✅ Help command callable")
+            errors = test_func()
+            if errors:
+                all_errors.extend(errors)
+                if not quiet:
+                    print(f"❌ ({len(errors)} errors)")
+            else:
+                if not quiet:
+                    print("✅")
         except Exception as e:
-            print(f"❌ Help command failed: {e}")
-            sys.exit(1)
+            error_msg = f"Test function failed: {e}"
+            all_errors.append((test_name, error_msg))
+            if not quiet:
+                print(f"❌ {error_msg}")
 
-    if not quiet:
-        print("\n✨ All smoke tests passed!")
+    # Report results
+    if all_errors:
+        if not quiet:
+            print(f"\n❌ {len(all_errors)} errors found:")
+            for module, error in all_errors:
+                print(f"  - {module}: {error}")
+        else:
+            # For quiet mode, print to stderr so pre-commit can capture it
+            print("❌ Smoke test failures:", file=sys.stderr)
+            for module, error in all_errors:
+                print(f"  - {module}: {error}", file=sys.stderr)
+        return 1
+    else:
+        if not quiet:
+            print("\n✅ All smoke tests passed!")
+        return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

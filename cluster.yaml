@@ -1,13 +1,19 @@
-name: bacalhau-sensors
-num_nodes: 6
+name: databricks-wind-farm-cluster
+
+# Global deployment - one node per zone across the world
+num_nodes: 9
 
 resources:
-  # Multi-cloud/region support - let SkyPilot choose best AWS region
+  # Multi-cloud worldwide deployment - SkyPilot will spread across zones globally
   infra: aws
-  # Alternative options:
-  # infra: aws/us-west-2          # Specific region
-  # infra: aws/us-west-2/*        # Any zone in us-west-2
-  # infra: aws/us-west-2/us-west-2a  # Specific zone
+  # This automatically distributes nodes across available zones worldwide:
+  # - us-west-2a (US West - Oregon)
+  # - us-east-1a (US East - Virginia)
+  # - eu-west-1a (Europe - Ireland)
+  # - ap-south-1a (Asia Pacific - Mumbai)
+  # - ap-southeast-2a (Asia Pacific - Sydney)
+  # - sa-east-1a (South America - São Paulo)
+  # - And more zones as needed for fault tolerance
 
   # Instance configuration optimized for spot
   instance_type: t3.medium
@@ -17,9 +23,6 @@ resources:
   # Ensure public IPs for external communication
   # Note: SkyPilot automatically handles security groups and ingress
 
-# Working directory on remote instances
-workdir: /opt/bacalhau-deployment
-
 # File mounts - deploy all necessary files
 file_mounts:
   # Credentials (these files must exist locally)
@@ -28,7 +31,7 @@ file_mounts:
   /tmp/credentials/aws-credentials: ./credentials/aws-credentials
 
   # Configuration files
-  /tmp/config/bacalhau-config.yaml: ./config/bacalhau-config.yaml
+  /tmp/config/bacalhau-config-template.yaml: ./instance/config/bacalhau-config-template.yaml
   /tmp/config/sensor-config.yaml: ./config/sensor-config.yaml
 
   # Docker Compose files
@@ -37,12 +40,16 @@ file_mounts:
 
   # Scripts
   /tmp/scripts/generate_node_identity.py: ./scripts/generate_node_identity.py
-  /tmp/scripts/setup_services.sh: ./scripts/setup_services.sh
   /tmp/scripts/health_check.sh: ./scripts/health_check.sh
   /tmp/scripts/generate_bacalhau_config.py: ./scripts/generate_bacalhau_config.py
 
 # Environment variables
 envs:
+  # Deployment tagging
+  DEPLOYMENT_PROJECT: "databricks-wind-farm-cluster"
+  DEPLOYMENT_ID: "${CLUSTER_DEPLOYMENT_ID}"
+  DEPLOYMENT_PURPOSE: "bacalhau-compute-node"
+
   # Bacalhau configuration
   BACALHAU_DATA_DIR: "/bacalhau_data"
   BACALHAU_NODE_DIR: "/bacalhau_node"
@@ -74,7 +81,6 @@ setup: |
     wget \
     unzip \
     jq \
-    ec2-metadata \
     net-tools
 
   # Install Docker
@@ -93,6 +99,10 @@ setup: |
     /opt/sensor/config \
     /opt/sensor/data \
     /opt/sensor/exports \
+    /opt/credentials \
+    /opt/config \
+    /opt/compose \
+    /opt/scripts \
     /var/log/bacalhau \
     /root/.aws \
     /home/ubuntu/.aws
@@ -106,11 +116,13 @@ setup: |
     /home/ubuntu/.aws
 
   # Move uploaded files to proper locations
-  sudo cp /tmp/credentials/* /opt/credentials/ 2>/dev/null || true
-  sudo mkdir -p /opt/credentials && sudo mv /tmp/credentials/* /opt/credentials/
-  sudo mv /tmp/config/* /opt/config/
-  sudo mv /tmp/compose/* /opt/compose/
-  sudo mv /tmp/scripts/* /opt/scripts/
+  sudo mv /tmp/credentials/* /opt/credentials/ 2>/dev/null || echo "No credentials files to move"
+  sudo mv /tmp/compose/* /opt/compose/ 2>/dev/null || echo "No compose files to move"
+  sudo mv /tmp/scripts/* /opt/scripts/ 2>/dev/null || echo "No script files to move"
+
+  # Move config files to correct locations
+  sudo mv /tmp/config/bacalhau-config-template.yaml /opt/config/ 2>/dev/null || echo "No bacalhau config to move"
+  sudo mv /tmp/config/sensor-config.yaml /opt/sensor/config/ 2>/dev/null || echo "No sensor config to move"
 
   # Make scripts executable
   sudo chmod +x /opt/scripts/*.sh /opt/scripts/*.py
@@ -119,6 +131,41 @@ setup: |
   sudo cp /opt/credentials/aws-credentials /root/.aws/credentials 2>/dev/null || true
   sudo cp /opt/credentials/aws-credentials /home/ubuntu/.aws/credentials 2>/dev/null || true
   sudo chmod 600 /root/.aws/credentials /home/ubuntu/.aws/credentials 2>/dev/null || true
+
+  # Tag AWS resources for proper identification and cleanup
+  INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo "unknown")
+  REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null | sed 's/.$//' || echo "us-west-2")
+
+  if [ "$INSTANCE_ID" != "unknown" ] && [ "$REGION" != "unknown" ]; then
+    # Install AWS CLI if not present
+    if ! command -v aws &> /dev/null; then
+      curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      unzip awscliv2.zip
+      sudo ./aws/install
+      rm -rf aws awscliv2.zip
+    fi
+
+    # Tag the instance
+    aws ec2 create-tags --region "$REGION" --resources "$INSTANCE_ID" --tags \
+      Key=Project,Value=databricks-wind-farm-cluster \
+      Key=DeploymentID,Value="${DEPLOYMENT_ID}" \
+      Key=Purpose,Value=bacalhau-compute-node \
+      Key=ManagedBy,Value=skypilot \
+      Key=Environment,Value=production 2>/dev/null || true
+
+    # Tag associated volumes
+    VOLUMES=$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+      --query 'Reservations[].Instances[].BlockDeviceMappings[].Ebs.VolumeId' --output text 2>/dev/null || echo "")
+
+    for volume in $VOLUMES; do
+      aws ec2 create-tags --region "$REGION" --resources "$volume" --tags \
+        Key=Project,Value=databricks-wind-farm-cluster \
+        Key=DeploymentID,Value="${DEPLOYMENT_ID}" \
+        Key=Purpose,Value=bacalhau-storage \
+        Key=ManagedBy,Value=skypilot \
+        Key=Environment,Value=production 2>/dev/null || true
+    done
+  fi
 
 # Run phase - start services
 run: |
@@ -149,7 +196,7 @@ run: |
   # Generate node identity for sensor
   echo "Generating node identity..."
   cd /opt/sensor
-  INSTANCE_ID=$(ec2-metadata --instance-id | cut -d ' ' -f 2 2>/dev/null || echo "unknown-$(date +%s)")
+  INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || echo "unknown-$(date +%s)")
   sudo INSTANCE_ID=$INSTANCE_ID python3 /opt/scripts/generate_node_identity.py
 
   # Start Bacalhau compute node
@@ -182,3 +229,23 @@ run: |
   /opt/scripts/health_check.sh
 
   echo "Deployment complete! Node is ready for Bacalhau workloads."
+
+  # Keep the task alive by tailing logs and monitoring services
+  echo "=== Keeping cluster alive - monitoring services ==="
+  while true; do
+    echo "$(date): Cluster is running - Bacalhau and sensor services active"
+
+    # Check if Docker containers are still running
+    if ! sudo docker ps --filter "status=running" | grep -q bacalhau; then
+      echo "WARNING: Bacalhau container not running, restarting..."
+      cd /opt/compose && sudo docker compose -f bacalhau-compose.yml up -d
+    fi
+
+    if ! sudo docker ps --filter "status=running" | grep -q sensor; then
+      echo "WARNING: Sensor container not running, restarting..."
+      cd /opt/compose && sudo docker compose -f sensor-compose.yml up -d
+    fi
+
+    # Sleep for 5 minutes between checks
+    sleep 300
+  done
