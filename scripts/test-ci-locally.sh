@@ -40,7 +40,7 @@ if ! command -v uv &> /dev/null; then
 fi
 
 # Sync dependencies
-run_step "Install Dependencies" "uv sync --frozen"
+run_step "Install Dependencies" "uv sync --frozen --group dev"
 
 # Code Quality Checks (match CI exactly)
 echo -e "\n${BLUE}🔍 Code Quality Checks${NC}"

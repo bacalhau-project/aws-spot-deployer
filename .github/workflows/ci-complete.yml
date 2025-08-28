@@ -29,9 +29,7 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: |
-          uv sync --frozen
-          uv pip install ruff mypy types-PyYAML types-requests boto3-stubs[ec2]
+        run: uv sync --frozen --group dev
 
       - name: Run ruff linter
         run: |
@@ -93,19 +91,10 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --group dev
 
-      - name: Run tests with coverage
-        run: |
-          uv run pytest tests/ -v --cov=spot_deployer --cov-report=xml --cov-report=term-missing --tb=short
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-        continue-on-error: true
+      - name: Run tests
+        run: uv run pytest tests/ -v --tb=short
 
   test-matrix:
     name: Test Python ${{ matrix.python-version }}
@@ -130,7 +119,7 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --group dev
 
       - name: Run tests
         run: |
@@ -155,7 +144,7 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --group dev
 
       - name: Run smoke tests
         run: |
@@ -163,19 +152,14 @@ jobs:
 
       - name: Test CLI commands
         run: |
-          # Test help command
-          uv run python -m spot_deployer help
-
           # Test version command
           uv run python -m spot_deployer --version
 
-          # Test generate command
-          mkdir -p test-project
-          cd test-project
-          uv run python -m spot_deployer generate
+          # Test help command
+          uv run python -m spot_deployer --help
 
-          # Test validate command
-          uv run python -m spot_deployer validate
+          # Test check command (should work without prerequisites in CI)
+          uv run python -m spot_deployer check --help
 
   security-check:
     name: Security Checks

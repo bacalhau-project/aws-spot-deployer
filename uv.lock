@@ -465,6 +465,8 @@ dev = [
     { name = "bandit" },
     { name = "mypy" },
     { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
     { name = "types-pyyaml" },
 ]
 
@@ -486,6 +488,8 @@ dev = [
     { name = "bandit", specifier = ">=1.8.6" },
     { name = "mypy", specifier = ">=1.17.1" },
     { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-cov", specifier = ">=4.0.0" },
+    { name = "ruff", specifier = ">=0.1.0" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20250822" },
 ]
 
