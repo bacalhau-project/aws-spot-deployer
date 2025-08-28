@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "spot-deployer"
+name = "spot-deployer-cli"
 dynamic = ["version"]
 description = "Deploy SkyPilot clusters globally with one command"
 readme = "README.md"
@@ -43,10 +43,10 @@ dependencies = [
 
 
 [project.urls]
-Homepage = "https://github.com/your-org/bacalhau-skypilot"
-Documentation = "https://github.com/your-org/bacalhau-skypilot#readme"
-Repository = "https://github.com/your-org/bacalhau-skypilot"
-"Bug Tracker" = "https://github.com/your-org/bacalhau-skypilot/issues"
+Homepage = "https://github.com/bacalhau-project/aws-spot-deployer"
+Documentation = "https://github.com/bacalhau-project/aws-spot-deployer#readme"
+Repository = "https://github.com/bacalhau-project/aws-spot-deployer"
+"Bug Tracker" = "https://github.com/bacalhau-project/aws-spot-deployer/issues"
 
 [project.scripts]
 spot-deployer = "spot_deployer.cli:cli"
