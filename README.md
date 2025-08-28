@@ -10,19 +10,19 @@ Deploy clusters across worldwide regions with a single command:
 
 ```bash
 # Install and run instantly with uvx (no local setup required)
-uvx run spot-deployer create
+uvx spot-deployer create
 
 # Check status
-uvx run spot-deployer status
+uvx spot-deployer status
 
 # View logs
-uvx run spot-deployer logs
+uvx spot-deployer logs
 
 # SSH to cluster
-uvx run spot-deployer ssh
+uvx spot-deployer ssh
 
 # Clean up
-uvx run spot-deployer destroy
+uvx spot-deployer destroy
 ```
 
 ## ✨ **PyPI Package Architecture**
@@ -34,7 +34,7 @@ uvx run spot-deployer destroy
 - **Cross-platform**: Works on any system with Python 3.9+
 
 ### 🔥 **What This Provides**
-- ✅ **Instant execution** → `uvx run spot-deployer` works immediately
+- ✅ **Instant execution** → `uvx spot-deployer` works immediately
 - ✅ **Rich terminal UI** → Beautiful tables and progress indicators
 - ✅ **Proper YAML parsing** → No fragile grep/sed operations
 - ✅ **Type safety** → Full type annotations throughout
@@ -58,7 +58,7 @@ uvx run spot-deployer destroy
 
 ### Deployment Flow
 ```
-uvx run spot-deployer create → Python CLI → SkyPilot deploy → Health check
+uvx spot-deployer create → Python CLI → SkyPilot deploy → Health check
 ```
 
 ### Package Architecture
@@ -138,46 +138,46 @@ envs:
 ### Core Operations
 ```bash
 # Deploy cluster across global regions
-uvx run spot-deployer create
+uvx spot-deployer create
 
 # Check cluster status and health
-uvx run spot-deployer status
+uvx spot-deployer status
 
 # List all nodes with details
-uvx run spot-deployer list
+uvx spot-deployer list
 
 # View deployment logs
-uvx run spot-deployer logs
+uvx spot-deployer logs
 
 # SSH to cluster head node
-uvx run spot-deployer ssh
+uvx spot-deployer ssh
 
 # Destroy entire cluster
-uvx run spot-deployer destroy
+uvx spot-deployer destroy
 
 # Clean up local Docker resources
-uvx run spot-deployer cleanup
+uvx spot-deployer cleanup
 
 # Check prerequisites and configuration
-uvx run spot-deployer check
+uvx spot-deployer check
 
 # Show version
-uvx run spot-deployer --version
+uvx spot-deployer --version
 
 # Show help
-uvx run spot-deployer --help
+uvx spot-deployer --help
 ```
 
 ### Advanced Options
 ```bash
 # Custom config file
-uvx run spot-deployer create -c my-config.yaml
+uvx spot-deployer create -c my-config.yaml
 
 # Show logs to console instead of log file
-uvx run spot-deployer create --console
+uvx spot-deployer create --console
 
 # Custom log file location
-uvx run spot-deployer create --log-file deployment.log
+uvx spot-deployer create --log-file deployment.log
 ```
 
 ## 🧪 **Local Development & Testing**
@@ -185,13 +185,13 @@ uvx run spot-deployer create --log-file deployment.log
 ### Quick Test
 ```bash
 # Test the CLI without installation
-uvx run spot-deployer --version
+uvx spot-deployer --version
 
 # Check prerequisites
-uvx run spot-deployer check
+uvx spot-deployer check
 
 # Test with dry run (if available)
-uvx run spot-deployer create --help
+uvx spot-deployer create --help
 ```
 
 ### Local Development
@@ -216,16 +216,16 @@ uv run ruff check .
 ### Debug Deployment
 ```bash
 # Enable console logging for debugging
-uvx run spot-deployer create --console
+uvx spot-deployer create --console
 
 # Check SkyPilot status
-uvx run spot-deployer status
+uvx spot-deployer status
 
 # View detailed logs
-uvx run spot-deployer logs
+uvx spot-deployer logs
 
 # SSH to node for debugging
-uvx run spot-deployer ssh
+uvx spot-deployer ssh
 ```
 
 ### Test Individual Components

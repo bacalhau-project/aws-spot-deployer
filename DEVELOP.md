@@ -305,7 +305,7 @@ Automatic deployment happens on version tags:
 
 Users can install with:
 ```bash
-uvx run spot-deployer create    # Latest from PyPI
+uvx spot-deployer create    # Latest from PyPI
 pip install spot-deployer       # Traditional pip install
 ```
 
