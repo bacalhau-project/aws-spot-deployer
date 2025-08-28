@@ -5,7 +5,7 @@ set -e
 # Usage: curl -sSL https://tada.wang/install.sh | bash
 
 SCRIPT_NAME="SkyPilot Spot Deployer Installer"
-PACKAGE_NAME="spot-deployer"
+PACKAGE_NAME="amauo"
 MIN_PYTHON_VERSION="3.9"
 
 # Colors for output

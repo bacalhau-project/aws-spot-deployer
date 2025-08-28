@@ -1,4 +1,4 @@
-# 🌍 SkyPilot Spot Deployer - Deploy Global Clusters with One Command
+# 🌍 Amauo - Deploy Global Clusters with One Command
 
 **Python-powered worldwide deployment of Bacalhau compute nodes using SkyPilot.**
 
@@ -10,19 +10,19 @@ Deploy clusters across worldwide regions with a single command:
 
 ```bash
 # Install and run instantly with uvx (no local setup required)
-uvx spot-deployer create
+uvx amauo create
 
 # Check status
-uvx spot-deployer status
+uvx amauo status
 
 # View logs
-uvx spot-deployer logs
+uvx amauo logs
 
 # SSH to cluster
-uvx spot-deployer ssh
+uvx amauo ssh
 
 # Clean up
-uvx spot-deployer destroy
+uvx amauo destroy
 ```
 
 ## ✨ **PyPI Package Architecture**
@@ -34,7 +34,7 @@ uvx spot-deployer destroy
 - **Cross-platform**: Works on any system with Python 3.9+
 
 ### 🔥 **What This Provides**
-- ✅ **Instant execution** → `uvx spot-deployer` works immediately
+- ✅ **Instant execution** → `uvx amauo` works immediately
 - ✅ **Rich terminal UI** → Beautiful tables and progress indicators
 - ✅ **Proper YAML parsing** → No fragile grep/sed operations
 - ✅ **Type safety** → Full type annotations throughout
@@ -58,12 +58,12 @@ uvx spot-deployer destroy
 
 ### Deployment Flow
 ```
-uvx spot-deployer create → Python CLI → SkyPilot deploy → Health check
+uvx amauo create → Python CLI → SkyPilot deploy → Health check
 ```
 
 ### Package Architecture
 ```
-PyPI Package (spot-deployer):
+PyPI Package (amauo):
 ├── Click CLI framework
 ├── Rich terminal UI
 ├── ClusterManager (Python)
@@ -138,46 +138,46 @@ envs:
 ### Core Operations
 ```bash
 # Deploy cluster across global regions
-uvx spot-deployer create
+uvx amauo create
 
 # Check cluster status and health
-uvx spot-deployer status
+uvx amauo status
 
 # List all nodes with details
-uvx spot-deployer list
+uvx amauo list
 
 # View deployment logs
-uvx spot-deployer logs
+uvx amauo logs
 
 # SSH to cluster head node
-uvx spot-deployer ssh
+uvx amauo ssh
 
 # Destroy entire cluster
-uvx spot-deployer destroy
+uvx amauo destroy
 
 # Clean up local Docker resources
-uvx spot-deployer cleanup
+uvx amauo cleanup
 
 # Check prerequisites and configuration
-uvx spot-deployer check
+uvx amauo check
 
 # Show version
-uvx spot-deployer --version
+uvx amauo --version
 
 # Show help
-uvx spot-deployer --help
+uvx amauo --help
 ```
 
 ### Advanced Options
 ```bash
 # Custom config file
-uvx spot-deployer create -c my-config.yaml
+uvx amauo create -c my-config.yaml
 
 # Show logs to console instead of log file
-uvx spot-deployer create --console
+uvx amauo create --console
 
 # Custom log file location
-uvx spot-deployer create --log-file deployment.log
+uvx amauo create --log-file deployment.log
 ```
 
 ## 🧪 **Local Development & Testing**
@@ -185,13 +185,13 @@ uvx spot-deployer create --log-file deployment.log
 ### Quick Test
 ```bash
 # Test the CLI without installation
-uvx spot-deployer --version
+uvx amauo --version
 
 # Check prerequisites
-uvx spot-deployer check
+uvx amauo check
 
 # Test with dry run (if available)
-uvx spot-deployer create --help
+uvx amauo create --help
 ```
 
 ### Local Development
@@ -216,16 +216,16 @@ uv run ruff check .
 ### Debug Deployment
 ```bash
 # Enable console logging for debugging
-uvx spot-deployer create --console
+uvx amauo create --console
 
 # Check SkyPilot status
-uvx spot-deployer status
+uvx amauo status
 
 # View detailed logs
-uvx spot-deployer logs
+uvx amauo logs
 
 # SSH to node for debugging
-uvx spot-deployer ssh
+uvx amauo ssh
 ```
 
 ### Test Individual Components

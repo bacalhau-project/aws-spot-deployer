@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import pytest
 import yaml
 
-from spot_deployer.manager import ClusterManager
+from amauo.manager import ClusterManager
 
 
 @pytest.fixture
@@ -112,7 +112,7 @@ def test_get_sky_cluster_name_json(mock_run, manager):
 
 
 @patch("subprocess.run")
-@patch("spot_deployer.manager.ClusterManager.ensure_docker_container")
+@patch("amauo.manager.ClusterManager.ensure_docker_container")
 def test_get_sky_cluster_name_text_fallback(mock_ensure_docker, mock_run, manager):
     """Test getting cluster name from text output fallback."""
     mock_ensure_docker.return_value = True
