@@ -3,16 +3,16 @@ name: Validate Deployments
 on:
   push:
     paths:
-      - 'examples/**'
-      - 'test-deployment/**'
-      - '.spot/**'
-      - 'spot_deployer/**'
+      - "examples/**"
+      - "test-deployment/**"
+      - ".spot/**"
+      - "spot_deployer/**"
   pull_request:
     paths:
-      - 'examples/**'
-      - 'test-deployment/**'
-      - '.spot/**'
-      - 'spot_deployer/**'
+      - "examples/**"
+      - "test-deployment/**"
+      - ".spot/**"
+      - "spot_deployer/**"
 
 jobs:
   validate-examples:

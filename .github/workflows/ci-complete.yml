@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -35,12 +35,12 @@ jobs:
 
       - name: Run ruff linter
         run: |
-          uv run ruff check spot_deployer/ tests/ --output-format=github
-          uv run ruff format --check spot_deployer/ tests/
+          uv run ruff check src/spot_deployer/ tests/ --output-format=github
+          uv run ruff format --check src/spot_deployer/ tests/
 
       - name: Run mypy type checker
         run: |
-          uv run mypy spot_deployer/ --ignore-missing-imports --check-untyped-defs
+          uv run mypy src/spot_deployer/ --ignore-missing-imports --check-untyped-defs
 
   pre-commit:
     name: Pre-commit Checks
@@ -187,13 +187,11 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-
-
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
 
       - name: Run Bandit security linter
         run: |
