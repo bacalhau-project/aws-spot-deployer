@@ -97,7 +97,7 @@ class ClusterManager:
         """Extract cluster name from YAML config."""
         try:
             config = self.load_cluster_config(config_file)
-            return config.get("name", "cluster")
+            return str(config.get("name", "cluster"))
         except Exception:
             return "cluster"
 
@@ -195,7 +195,8 @@ class ClusterManager:
                 data = json.loads(stdout)
                 clusters = data.get("clusters", [])
                 if clusters and isinstance(clusters, list):
-                    return clusters[0].get("name")
+                    cluster_name = clusters[0].get("name")
+                    return str(cluster_name) if cluster_name else None
             except json.JSONDecodeError:
                 pass
 
@@ -265,7 +266,7 @@ class ClusterManager:
             success, stdout, stderr = self.run_sky_cmd("check")
             if success and stdout and "AWS: enabled" in stdout:
                 try:
-                    result = subprocess.run(
+                    aws_result = subprocess.run(
                         [
                             "aws",
                             "sts",
@@ -281,7 +282,9 @@ class ClusterManager:
                         check=False,
                     )
                     account = (
-                        result.stdout.strip() if result.returncode == 0 else "unknown"
+                        aws_result.stdout.strip()
+                        if aws_result.returncode == 0
+                        else "unknown"
                     )
                     self.log_success(f"AWS credentials available (Account: {account})")
                 except FileNotFoundError:
