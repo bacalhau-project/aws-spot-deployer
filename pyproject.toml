@@ -1,16 +1,16 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "spot-deployer-cli"
+name = "amauo"
 dynamic = ["version"]
 description = "Deploy SkyPilot clusters globally with one command"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 authors = [
-    {name = "SkyPilot Deployer Team", email = "deployer@skypilot.co"},
+    {name = "Amauo Team", email = "hello@amauo.dev"},
 ]
 keywords = [
     "skypilot",
@@ -43,17 +43,19 @@ dependencies = [
 
 
 [project.urls]
-Homepage = "https://github.com/bacalhau-project/aws-spot-deployer"
-Documentation = "https://github.com/bacalhau-project/aws-spot-deployer#readme"
-Repository = "https://github.com/bacalhau-project/aws-spot-deployer"
-"Bug Tracker" = "https://github.com/bacalhau-project/aws-spot-deployer/issues"
+Homepage = "https://github.com/bacalhau-project/amauo"
+Documentation = "https://github.com/bacalhau-project/amauo#readme"
+Repository = "https://github.com/bacalhau-project/amauo"
+"Bug Tracker" = "https://github.com/bacalhau-project/amauo/issues"
 
 [project.scripts]
-spot-deployer = "spot_deployer.cli:cli"
+amauo = "amauo.cli:cli"
 
 [tool.hatch.version]
-path = "src/spot_deployer/__init__.py"
-pattern = "__version__ = [\"'](?P<version>[^\"']+)[\"']"
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/amauo/_version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -63,7 +65,7 @@ include = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/spot_deployer"]
+packages = ["src/amauo"]
 
 [tool.ruff]
 line-length = 88
@@ -115,5 +117,6 @@ dev = [
     "pytest>=8.4.1",
     "pytest-cov>=4.0.0",
     "ruff>=0.1.0",
+    "twine>=6.1.0",
     "types-pyyaml>=6.0.12.20250822",
 ]

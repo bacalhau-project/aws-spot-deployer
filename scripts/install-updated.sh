@@ -5,9 +5,9 @@
 set -e
 
 # Configuration
-GITHUB_REPO="bacalhau-project/aws-spot-deployer"
-INSTALL_DIR="$HOME/.spot-deployer"
-BINARY_NAME="spot-deployer"
+GITHUB_REPO="bacalhau-project/aws-amauo"
+INSTALL_DIR="$HOME/.amauo"
+BINARY_NAME="amauo"
 DOCKER_IMAGE="ghcr.io/${GITHUB_REPO}"
 
 # Colors for output
@@ -104,8 +104,8 @@ create_wrapper() {
 #!/bin/bash
 # Spot Deployer wrapper script
 
-INSTALL_DIR="$HOME/.spot-deployer"
-DOCKER_IMAGE="ghcr.io/bacalhau-project/aws-spot-deployer"
+INSTALL_DIR="$HOME/.amauo"
+DOCKER_IMAGE="ghcr.io/bacalhau-project/aws-amauo"
 VERSION="VERSION_PLACEHOLDER"
 
 # Ensure directories exist

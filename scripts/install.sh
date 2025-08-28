@@ -16,7 +16,7 @@ set -e
 
 # Configuration
 REPO_OWNER="bacalhau-project"
-REPO_NAME="aws-spot-deployer"
+REPO_NAME="aws-amauo"
 DEFAULT_IMAGE="ghcr.io/${REPO_OWNER}/${REPO_NAME}"
 GITHUB_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 
@@ -206,7 +206,7 @@ run_docker() {
             exit 1
         fi
 
-        log_info "Running: spot-deployer $COMMAND"
+        log_info "Running: amauo $COMMAND"
         "${docker_cmd[@]}"
     fi
 }

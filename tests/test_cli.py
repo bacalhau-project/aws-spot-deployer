@@ -7,7 +7,7 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from spot_deployer.cli import cli
+from amauo.cli import cli
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def test_cli_version():
     result = runner.invoke(cli, ["--version"])
 
     assert result.exit_code == 0
-    assert "spot-deployer version" in result.output
+    assert "amauo version" in result.output
 
 
 def test_cli_help():
@@ -39,8 +39,8 @@ def test_cli_help():
     result = runner.invoke(cli, ["--help"])
 
     assert result.exit_code == 0
-    assert "SkyPilot Spot Deployer" in result.output
-    assert "Deploy global clusters" in result.output
+    assert "Amauo" in result.output
+    assert "Deploy" in result.output
 
 
 def test_cli_no_command():
@@ -49,10 +49,10 @@ def test_cli_no_command():
     result = runner.invoke(cli, [])
 
     assert result.exit_code == 0
-    assert "SkyPilot Spot Deployer" in result.output
+    assert "Amauo" in result.output
 
 
-@patch("spot_deployer.cli.ClusterManager")
+@patch("amauo.cli.ClusterManager")
 def test_create_command_missing_config(mock_manager_class):
     """Test create command with missing config file."""
     mock_manager = Mock()
@@ -65,7 +65,7 @@ def test_create_command_missing_config(mock_manager_class):
     assert "Config file not found" in result.output
 
 
-@patch("spot_deployer.cli.ClusterManager")
+@patch("amauo.cli.ClusterManager")
 @patch("pathlib.Path.exists")
 def test_create_command_success(mock_exists, mock_manager_class, temp_config):
     """Test successful create command."""
@@ -83,7 +83,7 @@ def test_create_command_success(mock_exists, mock_manager_class, temp_config):
     mock_manager.deploy_cluster.assert_called_once_with(temp_config)
 
 
-@patch("spot_deployer.cli.ClusterManager")
+@patch("amauo.cli.ClusterManager")
 def test_destroy_command(mock_manager_class):
     """Test destroy command."""
     mock_manager = Mock()
@@ -97,7 +97,7 @@ def test_destroy_command(mock_manager_class):
     mock_manager.destroy_cluster.assert_called_once()
 
 
-@patch("spot_deployer.cli.ClusterManager")
+@patch("amauo.cli.ClusterManager")
 def test_status_command(mock_manager_class):
     """Test status command."""
     mock_manager = Mock()
@@ -113,7 +113,7 @@ def test_status_command(mock_manager_class):
     mock_manager.show_status.assert_called_once()
 
 
-@patch("spot_deployer.cli.ClusterManager")
+@patch("amauo.cli.ClusterManager")
 def test_list_command(mock_manager_class):
     """Test list command."""
     mock_manager = Mock()
@@ -129,7 +129,7 @@ def test_list_command(mock_manager_class):
     mock_manager.list_nodes.assert_called_once()
 
 
-@patch("spot_deployer.cli.ClusterManager")
+@patch("amauo.cli.ClusterManager")
 def test_console_flag(mock_manager_class):
     """Test -f/--console flag."""
     mock_manager_class.return_value = Mock()

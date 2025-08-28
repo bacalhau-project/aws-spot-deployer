@@ -50,20 +50,20 @@ def cli(
     version: bool,
 ) -> None:
     """
-    🌍 SkyPilot Spot Deployer - Deploy global clusters with one command.
+    🌟 Amauo - Deploy clusters effortlessly across the cloud.
 
     Deploy Bacalhau compute nodes across multiple cloud regions using SkyPilot
     for cloud orchestration and spot instance management.
 
     Examples:
-        uvx spot-deployer create              # Deploy cluster
-        uvx spot-deployer status              # Check status
-        uvx spot-deployer list                # List nodes
-        uvx spot-deployer destroy             # Clean up
+        uvx amauo create              # Deploy cluster
+        uvx amauo status              # Check status
+        uvx amauo list                # List nodes
+        uvx amauo destroy             # Clean up
     """
     if version:
         runtime_version = get_runtime_version()
-        click.echo(f"spot-deployer version {runtime_version}")
+        click.echo(f"amauo version {runtime_version}")
         sys.exit(0)
 
     # Store common options in context
@@ -76,7 +76,7 @@ def cli(
     # Show help if no command provided
     if ctx.invoked_subcommand is None:
         runtime_version = get_runtime_version()
-        click.echo(f"SkyPilot Spot Deployer v{runtime_version}")
+        click.echo(f"Amauo v{runtime_version}")
         click.echo(ctx.get_help())
 
 
@@ -95,7 +95,7 @@ def create(ctx: click.Context) -> None:
         sys.exit(1)
 
     runtime_version = get_runtime_version()
-    console.print(f"[blue]SkyPilot Spot Deployer v{runtime_version}[/blue]")
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
 
     if not manager.check_prerequisites():
         sys.exit(1)
@@ -111,7 +111,7 @@ def destroy(ctx: click.Context) -> None:
     manager: ClusterManager = ctx.obj["manager"]
 
     runtime_version = get_runtime_version()
-    console.print(f"[blue]SkyPilot Spot Deployer v{runtime_version}[/blue]")
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
 
     if not manager.destroy_cluster():
         sys.exit(1)
@@ -124,7 +124,7 @@ def status(ctx: click.Context) -> None:
     manager: ClusterManager = ctx.obj["manager"]
 
     runtime_version = get_runtime_version()
-    console.print(f"[blue]SkyPilot Spot Deployer v{runtime_version}[/blue]")
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
 
     if not manager.check_prerequisites():
         sys.exit(1)
@@ -140,7 +140,7 @@ def list_nodes(ctx: click.Context) -> None:
     manager: ClusterManager = ctx.obj["manager"]
 
     runtime_version = get_runtime_version()
-    console.print(f"[blue]SkyPilot Spot Deployer v{runtime_version}[/blue]")
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
 
     if not manager.check_prerequisites():
         sys.exit(1)
@@ -156,7 +156,7 @@ def ssh(ctx: click.Context) -> None:
     manager: ClusterManager = ctx.obj["manager"]
 
     runtime_version = get_runtime_version()
-    console.print(f"[blue]SkyPilot Spot Deployer v{runtime_version}[/blue]")
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
 
     if not manager.check_prerequisites():
         sys.exit(1)
@@ -172,7 +172,7 @@ def logs(ctx: click.Context) -> None:
     manager: ClusterManager = ctx.obj["manager"]
 
     runtime_version = get_runtime_version()
-    console.print(f"[blue]SkyPilot Spot Deployer v{runtime_version}[/blue]")
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
 
     if not manager.check_prerequisites():
         sys.exit(1)
@@ -188,7 +188,7 @@ def cleanup(ctx: click.Context) -> None:
     manager: ClusterManager = ctx.obj["manager"]
 
     runtime_version = get_runtime_version()
-    console.print(f"[blue]SkyPilot Spot Deployer v{runtime_version}[/blue]")
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
     manager.cleanup_docker()
 
 
@@ -199,7 +199,7 @@ def check(ctx: click.Context) -> None:
     manager: ClusterManager = ctx.obj["manager"]
 
     runtime_version = get_runtime_version()
-    console.print(f"[blue]SkyPilot Spot Deployer v{runtime_version}[/blue]")
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
 
     if not manager.check_prerequisites():
         sys.exit(1)

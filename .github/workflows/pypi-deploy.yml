@@ -43,11 +43,11 @@ jobs:
 
     - name: Run type checking
       run: |
-        uv run mypy src/spot_deployer/
+        uv run mypy src/amauo/
 
     - name: Test CLI installation
       run: |
-        uv run python -m spot_deployer --version
+        uv run python -m amauo --version
 
   build:
     runs-on: ubuntu-latest

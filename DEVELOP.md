@@ -305,8 +305,8 @@ Automatic deployment happens on version tags:
 
 Users can install with:
 ```bash
-uvx spot-deployer create    # Latest from PyPI
-pip install spot-deployer       # Traditional pip install
+uvx amauo create    # Latest from PyPI
+pip install amauo       # Traditional pip install
 ```
 
 ## 🎯 Quality Standards
