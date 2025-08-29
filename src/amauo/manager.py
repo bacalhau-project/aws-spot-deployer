@@ -260,7 +260,7 @@ class ClusterManager:
         version = stdout.split("\n")[0] if stdout else "unknown"
         self.log_success(f"SkyPilot available: {version}")
 
-        # Check AWS credentials
+        # Check AWS credentials - this should fail fast to prevent deployment errors
         aws_creds_path = Path.home() / ".aws" / "credentials"
         if aws_creds_path.exists() or os.getenv("AWS_ACCESS_KEY_ID"):
             success, stdout, stderr = self.run_sky_cmd("check")
@@ -288,17 +288,27 @@ class ClusterManager:
                     )
                     self.log_success(f"AWS credentials available (Account: {account})")
                 except FileNotFoundError:
-                    self.log_warning(
+                    self.log_error(
                         "AWS credentials configured but aws CLI not available"
                     )
+                    return False
             else:
-                self.log_warning(
+                self.log_error(
                     "AWS credentials configured but not working with SkyPilot"
                 )
                 if stderr:
-                    self.log_warning(f"SkyPilot check error: {stderr}")
+                    self.log_error(f"SkyPilot check error: {stderr}")
+                self.log_error("Fix AWS credentials before deployment. Common fixes:")
+                self.log_error("  - Run: aws sso login")
+                self.log_error("  - Or check: aws sts get-caller-identity")
+                self.log_error("  - Or verify ~/.aws/credentials")
+                return False
         else:
-            self.log_warning("AWS credentials not found. Configure them in ~/.aws/")
+            self.log_error("AWS credentials not found. Configure them in ~/.aws/")
+            self.log_error(
+                "Run 'aws configure' or 'aws sso login' to set up credentials"
+            )
+            return False
 
         return True
 
