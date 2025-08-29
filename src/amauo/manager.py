@@ -479,6 +479,32 @@ class ClusterManager:
             # User interrupted - that's fine
             pass
 
+    def _extract_node_info_from_logs(self) -> dict[str, dict[str, Any]]:
+        """Extract node information from recent cluster logs."""
+        cluster_name = self.get_sky_cluster_name()
+        if not cluster_name:
+            return {}
+
+        try:
+            # Get recent logs
+            success, stdout, stderr = self.run_sky_cmd(
+                "logs", cluster_name, "--tail=100"
+            )
+            if not success or not stdout:
+                return {}
+
+            nodes: dict[str, dict[str, Any]] = {}
+
+            for line in stdout.split("\n"):
+                node_info = self._parse_deployment_log_line(line.strip())
+                if node_info:
+                    node_id = f"{node_info['node']}-{node_info['rank']}"
+                    nodes[node_id] = node_info
+
+            return nodes
+        except Exception:
+            return {}
+
     def deploy_cluster(self, config_file: str = "cluster.yaml") -> bool:
         """Deploy cluster using SkyPilot."""
         config_path = Path(config_file)
@@ -628,7 +654,7 @@ class ClusterManager:
         self.log_header(f"Cluster Nodes: {cluster_name}")
 
         # Get cluster info
-        success, stdout, stderr = self.run_sky_cmd("status", "--name", cluster_name)
+        success, stdout, stderr = self.run_sky_cmd("status", cluster_name)
         if not success:
             self.log_error("Failed to get cluster information")
             if stderr:
@@ -660,11 +686,25 @@ class ClusterManager:
         table.add_column("Zone", style="yellow")
         table.add_column("Launched", style="blue")
 
-        # Add rows (basic info since we can't easily query each node individually)
-        for i in range(num_nodes):
-            table.add_row(
-                f"node-{i}", "querying...", "querying...", "various", launch_time
-            )
+        # Try to get real node information from recent logs
+        nodes_info = self._extract_node_info_from_logs()
+
+        if nodes_info:
+            # Show real node data from logs
+            for node_id, info in nodes_info.items():
+                table.add_row(
+                    info.get("node", node_id),
+                    f"rank-{info.get('rank', '?')}",
+                    f"{info.get('ip', 'unknown')} (private)",
+                    "AWS VPC",
+                    launch_time,
+                )
+        else:
+            # Fallback to generic info
+            for i in range(num_nodes):
+                table.add_row(
+                    f"node-{i}", "querying...", "querying...", "various", launch_time
+                )
 
         self.console.print(table)
         self.console.print(f"\n[green]Total nodes: {num_nodes}[/green]")
