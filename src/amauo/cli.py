@@ -1,7 +1,7 @@
 """
 Command-line interface for amauo.
 
-Provides a Click-based CLI for deploying and managing Bacalhau compute nodes 
+Provides a Click-based CLI for deploying and managing Bacalhau compute nodes
 across multiple cloud regions using the proven SPAT architecture.
 """
 
@@ -67,7 +67,7 @@ def cli(
     # Store common options in context
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config
-    
+
     # Initialize SPAT components
     try:
         ctx.obj["config"] = SimpleConfig(config)
@@ -75,7 +75,7 @@ def cli(
     except Exception as e:
         if ctx.invoked_subcommand not in ["setup", "help", "version"]:
             console.print(f"[red]❌ Config error: {e}[/red]")
-            console.print(f"[yellow]💡 Try running 'amauo setup' first[/yellow]")
+            console.print("[yellow]💡 Try running 'amauo setup' first[/yellow]")
             sys.exit(1)
 
     # Show help if no command provided
@@ -91,7 +91,7 @@ def create(ctx: click.Context) -> None:
     """Deploy Bacalhau compute nodes across multiple regions."""
     config: SimpleConfig = ctx.obj["config"]
     state: SimpleStateManager = ctx.obj["state"]
-    
+
     try:
         cmd_create(config, state)
     except KeyboardInterrupt:
@@ -106,10 +106,11 @@ def create(ctx: click.Context) -> None:
 @click.pass_context
 def destroy(ctx: click.Context) -> None:
     """Destroy all instances and clean up resources."""
+    config: SimpleConfig = ctx.obj["config"]
     state: SimpleStateManager = ctx.obj["state"]
-    
+
     try:
-        cmd_destroy(state)
+        cmd_destroy(config=config, state=state)
     except KeyboardInterrupt:
         console.print("\n[yellow]⚠️  Destruction interrupted by user[/yellow]")
         sys.exit(130)
@@ -123,7 +124,7 @@ def destroy(ctx: click.Context) -> None:
 def list_nodes(ctx: click.Context) -> None:
     """List all running instances with detailed information."""
     state: SimpleStateManager = ctx.obj["state"]
-    
+
     try:
         cmd_list(state)
     except Exception as e:
@@ -136,7 +137,7 @@ def list_nodes(ctx: click.Context) -> None:
 def setup(ctx: click.Context) -> None:
     """Set up initial configuration."""
     config_path: str = ctx.obj["config_path"]
-    
+
     try:
         # Create config if it doesn't exist, then initialize it
         config_file = Path(config_path)
@@ -155,7 +156,7 @@ regions:
       machine_type: t3.medium
       image: auto
 """)
-        
+
         config = SimpleConfig(config_path)
         cmd_setup(config)
     except Exception as e:
@@ -164,11 +165,14 @@ regions:
 
 
 @cli.command()
-@click.pass_context  
+@click.pass_context
 def nuke(ctx: click.Context) -> None:
     """Emergency cleanup - destroy ALL instances across ALL regions."""
+    config: SimpleConfig = ctx.obj["config"]
+    state: SimpleStateManager = ctx.obj["state"]
+
     try:
-        cmd_nuke()
+        cmd_nuke(config=config, state=state)
     except KeyboardInterrupt:
         console.print("\n[yellow]⚠️  Nuke interrupted by user[/yellow]")
         sys.exit(130)
@@ -210,20 +214,21 @@ def help() -> None:
 @cli.command()
 @click.option(
     "--cluster-file",
-    default="cluster.yaml", 
+    default="cluster.yaml",
     help="SkyPilot cluster config file",
-    show_default=True
+    show_default=True,
 )
 @click.option(
     "--output-file",
     default="config.yaml",
     help="Output SPAT config file",
-    show_default=True  
+    show_default=True,
 )
 def migrate(cluster_file: str, output_file: str) -> None:
     """Migrate from SkyPilot cluster.yaml to SPAT config.yaml format."""
     try:
         from .config_adapter import migrate_config
+
         migrate_config(cluster_file, output_file)
     except Exception as e:
         console.print(f"[red]❌ Migration failed: {e}[/red]")

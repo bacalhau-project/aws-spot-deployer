@@ -33,7 +33,7 @@ class CloudInitTemplate:
         if not self.template_path or not self.template_path.exists():
             raise FileNotFoundError(f"Template file not found: {self.template_path}")
 
-        with open(self.template_path, "r") as f:
+        with open(self.template_path) as f:
             self.template_content = f.read()
 
         logger.debug(f"Loaded template from {self.template_path}")
@@ -110,7 +110,9 @@ class CloudInitTemplate:
         if deployment_config:
             # Packages
             if deployment_config.packages:
-                packages_yaml = "\n".join(f"  - {pkg}" for pkg in deployment_config.packages)
+                packages_yaml = "\n".join(
+                    f"  - {pkg}" for pkg in deployment_config.packages
+                )
                 vars["PACKAGES"] = packages_yaml
             else:
                 vars["PACKAGES"] = ""
@@ -133,7 +135,9 @@ class CloudInitTemplate:
                 else:
                     service_names.append(Path(service).name)
             vars["SERVICES"] = (
-                "\n".join(f"  - {name}" for name in service_names) if service_names else ""
+                "\n".join(f"  - {name}" for name in service_names)
+                if service_names
+                else ""
             )
 
             # Upload destinations
@@ -230,7 +234,9 @@ runcmd:
 
         if self.template_content:
             # Check for unsubstituted variables
-            unsubstituted = re.findall(r"\{\{([^}]+)\}\}|\$\{([^}]+)\}", self.template_content)
+            unsubstituted = re.findall(
+                r"\{\{([^}]+)\}\}|\$\{([^}]+)\}", self.template_content
+            )
             if unsubstituted:
                 unique_vars = set(var[0] or var[1] for var in unsubstituted)
                 # Check if these will be substituted
@@ -375,7 +381,9 @@ class TemplateInjector:
                 return self.base_template
         except yaml.YAMLError:
             # If not valid YAML, return as-is
-            logger.warning("Base template is not valid YAML, returning without injections")
+            logger.warning(
+                "Base template is not valid YAML, returning without injections"
+            )
             return self.base_template
 
         # Inject packages
@@ -410,4 +418,6 @@ class TemplateInjector:
             cloud_init["bootcmd"].extend(self.injections["bootcmd"])
 
         # Convert back to YAML
-        return "#cloud-config\n" + yaml.dump(cloud_init, default_flow_style=False, sort_keys=False)
+        return "#cloud-config\n" + yaml.dump(
+            cloud_init, default_flow_style=False, sort_keys=False
+        )

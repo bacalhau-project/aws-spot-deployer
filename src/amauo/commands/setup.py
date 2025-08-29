@@ -70,7 +70,7 @@ def cmd_setup(config: SimpleConfig) -> None:
     # Check if config exists and merge if it does
     if os.path.exists(config.config_file):
         try:
-            with open(config.config_file, "r") as f:
+            with open(config.config_file) as f:
                 existing_config = yaml.safe_load(f) or {}
 
             # Merge configs, preserving user values
@@ -105,7 +105,9 @@ def cmd_setup(config: SimpleConfig) -> None:
         is_valid, _ = validator.validate_config_file(config.config_file)
 
         if not is_valid:
-            console.print("\n[bold red]Configuration has issues that need to be fixed:[/bold red]")
+            console.print(
+                "\n[bold red]Configuration has issues that need to be fixed:[/bold red]"
+            )
             validator.suggest_fixes()
 
         if console:

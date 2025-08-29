@@ -14,6 +14,7 @@ from botocore.exceptions import ClientError
 from rich.layout import Layout
 from rich.panel import Panel
 
+from .._version import __version__
 from ..core.config import SimpleConfig
 from ..core.deployment import DeploymentConfig
 from ..core.deployment_discovery import DeploymentDiscovery, DeploymentMode
@@ -34,7 +35,6 @@ from ..utils.portable_cloud_init import PortableCloudInitGenerator
 from ..utils.shutdown_handler import ShutdownContext
 from ..utils.ssh import transfer_files_scp, wait_for_ssh_only
 from ..utils.tables import add_instance_row, create_instance_table
-from .._version import __version__
 
 
 def update_instance_state(state, instance_id: str, status: str):
@@ -75,7 +75,9 @@ def transfer_portable_files(
             # Get tarball size for verification
             local_size = os.path.getsize(shared_tarball_path)
             tarball_size_mb = local_size / 1024 / 1024
-            log_function(f"Local tarball size: {local_size} bytes ({tarball_size_mb:.1f} MB)")
+            log_function(
+                f"Local tarball size: {local_size} bytes ({tarball_size_mb:.1f} MB)"
+            )
 
             # Connect via SSH
             log_function("Establishing SSH connection...")
@@ -89,7 +91,9 @@ def transfer_portable_files(
             log_function("✓ SSH connection established")
 
             if progress_callback:
-                progress_callback("Upload", 10, f"Uploading tarball ({tarball_size_mb:.1f} MB)")
+                progress_callback(
+                    "Upload", 10, f"Uploading tarball ({tarball_size_mb:.1f} MB)"
+                )
 
             # Update state
             if state and instance_id:
@@ -97,7 +101,9 @@ def transfer_portable_files(
 
             # Upload the tarball
             log_function("Uploading tarball to /tmp/deployment.tar.gz...")
-            success = ssh_manager.transfer_file(shared_tarball_path, "/tmp/deployment.tar.gz")
+            success = ssh_manager.transfer_file(
+                shared_tarball_path, "/tmp/deployment.tar.gz"
+            )
 
             if not success:
                 log_function("ERROR: Tarball upload failed")
@@ -179,7 +185,9 @@ def transfer_portable_files(
             ssh_manager = SSHManager(host, username, key_path)
 
             # Test SSH connection first
-            test_result = ssh_manager.execute_command("echo 'SSH connection established'")
+            test_result = ssh_manager.execute_command(
+                "echo 'SSH connection established'"
+            )
             if test_result:
                 log_function("✓ SSH connected successfully")
             else:
@@ -194,9 +202,13 @@ def transfer_portable_files(
             tarball_size_mb = os.path.getsize(tarball_path) / 1024 / 1024
             log_function(f"Uploading tarball ({tarball_size_mb:.1f} MB)...")
             if progress_callback:
-                progress_callback("Upload", 25, f"Uploading tarball ({tarball_size_mb:.1f} MB)")
+                progress_callback(
+                    "Upload", 25, f"Uploading tarball ({tarball_size_mb:.1f} MB)"
+                )
 
-            success = ssh_manager.transfer_file(str(tarball_path), "/tmp/deployment.tar.gz")
+            success = ssh_manager.transfer_file(
+                str(tarball_path), "/tmp/deployment.tar.gz"
+            )
 
             if not success:
                 log_function("ERROR: Failed to upload tarball")
@@ -367,7 +379,9 @@ def post_creation_setup(
             logger.info(f"[{instance_id} @ {instance_ip}] Waiting for SSH...")
             update_status_func(instance_key, "⏳ Waiting for SSH...")
 
-            if not wait_for_ssh_only(instance_ip, username, expanded_key_path, timeout=300):
+            if not wait_for_ssh_only(
+                instance_ip, username, expanded_key_path, timeout=300
+            ):
                 logger.error(f"[{instance_id} @ {instance_ip}] SSH timeout")
                 update_status_func(instance_key, "❌ SSH timeout", is_final=True)
                 return
@@ -413,7 +427,9 @@ def post_creation_setup(
                         shared_tarball_path=shared_tarball_path,
                     )
                 except Exception as e:
-                    logger.error(f"[{instance_id} @ {instance_ip}] Transfer failed: {e}")
+                    logger.error(
+                        f"[{instance_id} @ {instance_ip}] Transfer failed: {e}"
+                    )
                     success = False
             else:
                 # Legacy deployment or no files to upload
@@ -430,7 +446,9 @@ def post_creation_setup(
                         f"[{instance_id} @ {instance_ip}] Created upload complete marker (no files)"
                     )
                 except Exception as e:
-                    logger.error(f"[{instance_id} @ {instance_ip}] Failed to create marker: {e}")
+                    logger.error(
+                        f"[{instance_id} @ {instance_ip}] Failed to create marker: {e}"
+                    )
 
                 if files_directory and scripts_directory:
                     success = transfer_files_scp(
@@ -453,13 +471,17 @@ def post_creation_setup(
 
             if not success:
                 logger.error(f"[{instance_id} @ {instance_ip}] File transfer failed")
-                update_status_func(instance_key, "ERROR: File upload failed", is_final=True)
+                update_status_func(
+                    instance_key, "ERROR: File upload failed", is_final=True
+                )
                 return
 
             logger.info(
                 f"[{instance_id} @ {instance_ip}] SUCCESS: Files uploaded and setup.sh started"
             )
-            update_status_func(instance_key, "✅ Setup running in background", is_final=True)
+            update_status_func(
+                instance_key, "✅ Setup running in background", is_final=True
+            )
 
             # Deployment script is now running in background
             logger.info(
@@ -474,7 +496,9 @@ def post_creation_setup(
             update_status_func(instance_key, f"ERROR: {error_msg}", is_final=True)
 
     # Process instances in parallel
-    with ThreadPoolExecutor(max_workers=len(instances), thread_name_prefix="Setup") as executor:
+    with ThreadPoolExecutor(
+        max_workers=len(instances), thread_name_prefix="Setup"
+    ) as executor:
         futures = []
         for i, instance in enumerate(instances):
             region = instance.get("region", "unknown")
@@ -522,7 +546,9 @@ def create_instances_in_region_with_table(
         ec2 = aws_manager.ec2
 
         # Find or create VPC
-        vpc_status = "Creating dedicated VPC" if config.use_dedicated_vpc() else "Finding VPC"
+        vpc_status = (
+            "Creating dedicated VPC" if config.use_dedicated_vpc() else "Finding VPC"
+        )
         for key in instance_keys:
             update_status_func(key, vpc_status)
 
@@ -594,13 +620,15 @@ def create_instances_in_region_with_table(
         if public_key_path:
             try:
                 expanded_path = os.path.expanduser(public_key_path)
-                with open(expanded_path, "r") as f:
+                with open(expanded_path) as f:
                     ssh_public_key = f.read().strip()
                     log_message(f"Loaded SSH public key from {public_key_path}")
             except Exception as e:
                 log_message(f"WARNING: Could not read SSH public key: {e}")
 
-        generator = PortableCloudInitGenerator(deployment_config, ssh_public_key=ssh_public_key)
+        generator = PortableCloudInitGenerator(
+            deployment_config, ssh_public_key=ssh_public_key
+        )
 
         # Check if a template is specified
         if deployment_config.template:
@@ -610,7 +638,9 @@ def create_instances_in_region_with_table(
             template_path = Path(deployment_config.template)
             if template_path.exists():
                 log_message(f"Using custom template file: {deployment_config.template}")
-                cloud_init_script = generator.generate_with_template(template_path=template_path)
+                cloud_init_script = generator.generate_with_template(
+                    template_path=template_path
+                )
             else:
                 log_message(f"Using library template: {deployment_config.template}")
                 cloud_init_script = generator.generate_with_template(
@@ -698,8 +728,12 @@ def create_instances_in_region_with_table(
                     retry_count += 1
                     last_error = e
                     if retry_count < max_retries:
-                        wait_time = 2**retry_count  # Exponential backoff: 2, 4, 8 seconds
-                        log_message(f"Rate limited in {region}, retrying in {wait_time} seconds...")
+                        wait_time = (
+                            2**retry_count
+                        )  # Exponential backoff: 2, 4, 8 seconds
+                        log_message(
+                            f"Rate limited in {region}, retrying in {wait_time} seconds..."
+                        )
                         time.sleep(wait_time)
                     else:
                         raise
@@ -719,7 +753,9 @@ def create_instances_in_region_with_table(
         typed_instances = cast(List[Dict[str, Any]], result["Instances"])
         instance_ids = [inst["InstanceId"] for inst in typed_instances]
 
-        log_message(f"Created {len(instance_ids)} instances in {region}, waiting for public IPs...")
+        log_message(
+            f"Created {len(instance_ids)} instances in {region}, waiting for public IPs..."
+        )
 
         # Immediately save instances to state with minimal info
         if state:
@@ -755,7 +791,9 @@ def create_instances_in_region_with_table(
             try:
                 instances_data = ec2.describe_instances(InstanceIds=instance_ids)
 
-                typed_reservations = cast(List[Dict[str, Any]], instances_data["Reservations"])
+                typed_reservations = cast(
+                    List[Dict[str, Any]], instances_data["Reservations"]
+                )
 
                 for reservation in typed_reservations:
                     typed_reservation = cast(Dict[str, Any], reservation)
@@ -789,7 +827,9 @@ def create_instances_in_region_with_table(
                                     "SUCCESS: Created",
                                     instance_id=inst_id,
                                     ip=public_ip,
-                                    created=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    created=datetime.now().strftime(
+                                        "%Y-%m-%d %H:%M:%S"
+                                    ),
                                 )
 
                                 # Update the IP map for logging context
@@ -822,7 +862,9 @@ def create_instances_in_region_with_table(
         for i, inst_id in enumerate(instance_ids):
             if not any(ci["id"] == inst_id for ci in created_instances):
                 key = instance_keys[i]
-                update_status_func(key, "ERROR: No public IP", instance_id=inst_id, is_final=True)
+                update_status_func(
+                    key, "ERROR: No public IP", instance_id=inst_id, is_final=True
+                )
 
         return created_instances
 
@@ -875,7 +917,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             rich_error("❌ Invalid portable deployment structure:")
             for error in discovery_result.validation_errors:
                 rich_error(f"   • {error}")
-            rich_print("\n[yellow]Run 'spot generate' to create the required structure.[/yellow]")
+            rich_print(
+                "\n[yellow]Run 'spot generate' to create the required structure.[/yellow]"
+            )
             return
 
         deployment_config = discovery_result.deployment_config
@@ -903,7 +947,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     else:
         # No deployment structure found
         rich_error("❌ No deployment structure found")
-        rich_print("\n[yellow]Run 'spot generate' to create the required structure.[/yellow]")
+        rich_print(
+            "\n[yellow]Run 'spot generate' to create the required structure.[/yellow]"
+        )
         return
 
     # Validate configuration first
@@ -966,7 +1012,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     try:
         sts = boto3.client("sts")
         caller_identity = sts.get_caller_identity()
-        creator = caller_identity.get("Arn", "unknown").split("/")[-1]  # Get username from ARN
+        creator = caller_identity.get("Arn", "unknown").split("/")[
+            -1
+        ]  # Get username from ARN
     except Exception:
         creator = "unknown"
 
@@ -1122,11 +1170,11 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         # Create log panel
         log_content = ""
         try:
-            with open(log_filename, "r") as f:
+            with open(log_filename) as f:
                 # Read last 10 lines for the log panel
                 lines = [line.rstrip() for line in f.readlines()[-10:]]
                 log_content = "\n".join(lines)
-        except (FileNotFoundError, IOError):
+        except (OSError, FileNotFoundError):
             log_content = "Log file not available yet..."
 
         log_panel = Panel(
@@ -1143,7 +1191,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
 
         return layout
 
-    def update_status(key, status, instance_id=None, ip=None, created=None, is_final=False):
+    def update_status(
+        key, status, instance_id=None, ip=None, created=None, is_final=False
+    ):
         with lock:
             if key in creation_status:
                 creation_status[key]["status"] = status
@@ -1217,7 +1267,10 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                     executor.submit(create_region_instances, r, c)
                     for r, c in region_instance_map.items()
                 ]
-                while any(f.running() for f in futures) and not shutdown_ctx.shutdown_requested:
+                while (
+                    any(f.running() for f in futures)
+                    and not shutdown_ctx.shutdown_requested
+                ):
                     live.update(generate_layout())
                     time.sleep(0.25)
 
@@ -1249,7 +1302,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     rich_success(f"Deployment process complete for {len(all_instances)} instances.")
 
     # Count skipped regions
-    skipped_count = sum(1 for item in creation_status.values() if "SKIPPED" in item["status"])
+    skipped_count = sum(
+        1 for item in creation_status.values() if "SKIPPED" in item["status"]
+    )
     if skipped_count > 0:
         skipped_regions = set()
         for key, item in creation_status.items():
@@ -1299,7 +1354,9 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         for inst in all_instances:
             inst_type = inst.get("type", "unknown")
             instance_types[inst_type] = instance_types.get(inst_type, 0) + 1
-            total_cost_estimate += cost_per_hour.get(inst_type, 0.05)  # Default to $0.05/hr
+            total_cost_estimate += cost_per_hour.get(
+                inst_type, 0.05
+            )  # Default to $0.05/hr
 
         # Add rows to the summary table
         summary_table.add_row("Total Instances", str(total_instances))

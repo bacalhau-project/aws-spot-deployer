@@ -15,7 +15,7 @@ class SimpleStateManager:
     def load_instances(self) -> List[Dict[Any, Any]]:
         """Load instances from JSON file."""
         try:
-            with open(self.state_file, "r") as f:
+            with open(self.state_file) as f:
                 data = json.load(f)
                 return cast(List[Dict[Any, Any]], data.get("instances", []))
         except FileNotFoundError:

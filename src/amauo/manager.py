@@ -6,29 +6,28 @@ instead of SkyPilot Docker containers. Provides compatibility layer for existing
 """
 
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from rich.console import Console
 
+from .commands import cmd_create, cmd_destroy, cmd_list
 from .config_adapter import ConfigAdapter
 from .core.config import SimpleConfig
 from .core.state import SimpleStateManager
-from .commands import cmd_create, cmd_destroy, cmd_list
 
 
 class ClusterManager:
     """
-    Compatibility layer that bridges the old SkyPilot-based interface 
+    Compatibility layer that bridges the old SkyPilot-based interface
     to the new SPAT-based architecture.
     """
 
     def __init__(
         self,
         log_to_console: bool = False,
-        log_file: str = "cluster-deploy.log", 
+        log_file: str = "cluster-deploy.log",
         debug: bool = False,
     ):
         self.console = Console()
@@ -90,7 +89,9 @@ class ClusterManager:
 
         # If we have a cluster.yaml but no config.yaml, migrate automatically
         if cluster_file.exists() and not spat_config_file.exists():
-            self.log_info("Found cluster.yaml but no config.yaml - migrating automatically")
+            self.log_info(
+                "Found cluster.yaml but no config.yaml - migrating automatically"
+            )
             try:
                 adapter = ConfigAdapter()
                 adapter.convert_full_migration("cluster.yaml", "config.yaml")
@@ -98,7 +99,9 @@ class ClusterManager:
                 return True
             except Exception as e:
                 self.log_error(f"Failed to migrate cluster.yaml: {e}")
-                self.log_error("Please run 'amauo migrate' or create config.yaml manually")
+                self.log_error(
+                    "Please run 'amauo migrate' or create config.yaml manually"
+                )
                 return False
 
         # If we have the specific config file requested
@@ -108,12 +111,14 @@ class ClusterManager:
 
         # Config file doesn't exist
         self.log_error(f"Configuration file not found: {config_file}")
-        
+
         if cluster_file.exists():
-            self.log_info("Found cluster.yaml - run 'amauo migrate' to convert to SPAT format")
+            self.log_info(
+                "Found cluster.yaml - run 'amauo migrate' to convert to SPAT format"
+            )
         else:
             self.log_info("Run 'amauo setup' to create initial configuration")
-        
+
         return False
 
     def _initialize_spat_components(self, config_file: str = "config.yaml") -> bool:
@@ -148,9 +153,11 @@ class ClusterManager:
                 account_id = response.get("Account")
                 arn = response.get("Arn", "unknown")
                 user = arn.split("/")[-1] if "/" in arn else "unknown"
-                
-                self.log_success(f"AWS credentials valid (Account: {account_id}, User: {user})")
-                
+
+                self.log_success(
+                    f"AWS credentials valid (Account: {account_id}, User: {user})"
+                )
+
             except NoCredentialsError:
                 self.log_error("No AWS credentials found")
                 self.log_error("Configure credentials with: aws configure")
@@ -162,7 +169,9 @@ class ClusterManager:
                     self.log_error("AWS credentials expired")
                     self.log_error("Refresh with: aws sso login")
                 elif error_code in ["InvalidUserID.NotFound", "AccessDenied"]:
-                    self.log_error("AWS credentials invalid or insufficient permissions")
+                    self.log_error(
+                        "AWS credentials invalid or insufficient permissions"
+                    )
                 else:
                     self.log_error(f"AWS credential error: {e}")
                 return False
@@ -197,7 +206,9 @@ class ClusterManager:
             self.log_error(f"Prerequisites check failed: {e}")
             return False
 
-    def deploy_cluster(self, config_file: str = "config.yaml", follow: bool = False) -> bool:
+    def deploy_cluster(
+        self, config_file: str = "config.yaml", follow: bool = False
+    ) -> bool:
         """Deploy cluster using SPAT architecture."""
         if not self._initialize_spat_components(config_file):
             return False
@@ -206,7 +217,7 @@ class ClusterManager:
 
         try:
             # Use SPAT create command
-            cmd_create(self.config, self.state)
+            cmd_create(config=self.config, state=self.state)
             self.log_success("Deployment completed successfully!")
             return True
 
@@ -225,12 +236,12 @@ class ClusterManager:
         self.log_header("Destroying All Instances")
 
         try:
-            cmd_destroy(self.state)
+            cmd_destroy(config=self.config, state=self.state)
             self.log_success("All instances destroyed successfully!")
             return True
 
         except KeyboardInterrupt:
-            self.log_warning("Destruction interrupted by user") 
+            self.log_warning("Destruction interrupted by user")
             return False
         except Exception as e:
             self.log_error(f"Destruction failed: {e}")
@@ -242,7 +253,7 @@ class ClusterManager:
             return False
 
         try:
-            cmd_list(self.state)
+            cmd_list(state=self.state)
             return True
         except Exception as e:
             self.log_error(f"Status failed: {e}")
@@ -268,16 +279,24 @@ class ClusterManager:
             public_ip = instance.get("public_ip")
             instance_id = instance.get("id")
             region = instance.get("region")
-            
+
             if public_ip and public_ip != "pending":
                 username = self.config.username() if self.config else "ubuntu"
-                private_key_path = self.config.private_ssh_key_path() if self.config else "~/.ssh/id_rsa"
-                
+                private_key_path = (
+                    self.config.private_ssh_key_path()
+                    if self.config
+                    else "~/.ssh/id_rsa"
+                )
+
                 self.console.print(f"  {i+1}. [{region}] {instance_id}")
-                self.console.print(f"     ssh -i {private_key_path} {username}@{public_ip}")
+                self.console.print(
+                    f"     ssh -i {private_key_path} {username}@{public_ip}"
+                )
 
         if len(instances) > 3:
-            self.console.print(f"     ... and {len(instances) - 3} more (use 'amauo list' to see all)")
+            self.console.print(
+                f"     ... and {len(instances) - 3} more (use 'amauo list' to see all)"
+            )
 
         return True
 
@@ -298,32 +317,34 @@ class ClusterManager:
             return False
 
         self.log_header("Deployment Monitor")
-        
+
         # Show current instances
         self.show_status()
 
         if follow:
             self.log_info("Use 'amauo list' to refresh instance status")
-            self.log_info("Logs are available in: {}".format(self.log_file))
+            self.log_info(f"Logs are available in: {self.log_file}")
 
         return True
 
     def cleanup_docker(self) -> bool:
         """Cleanup - no Docker containers to clean in SPAT approach."""
-        self.log_info("No Docker containers to clean up (SPAT uses native AWS deployment)")
+        self.log_info(
+            "No Docker containers to clean up (SPAT uses native AWS deployment)"
+        )
         return True
 
     def debug_container_credentials(self) -> None:
         """Debug function - show AWS credentials instead of container credentials."""
         self.log_info("AWS credential debug information:")
-        
+
         try:
             import boto3
-            
+
             # Show current AWS identity
             sts = boto3.client("sts")
             response = sts.get_caller_identity()
-            
+
             self.log_info(f"Account: {response.get('Account')}")
             self.log_info(f"ARN: {response.get('Arn')}")
             self.log_info(f"User ID: {response.get('UserId')}")
@@ -345,7 +366,7 @@ class ClusterManager:
         """Load configuration - compatibility method."""
         if not self._initialize_spat_components(config_file):
             return {}
-        
+
         return self.config.data if self.config else {}
 
     def get_sky_cluster_name(self) -> Optional[str]:

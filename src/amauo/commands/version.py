@@ -4,8 +4,8 @@ import os
 import subprocess
 from typing import Any, Dict
 
-from ..utils.display import console
 from .._version import __version__
+from ..utils.display import console
 
 
 def get_runtime_info():

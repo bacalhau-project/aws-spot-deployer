@@ -34,7 +34,7 @@ class ConfigValidator:
 
         # Load and parse YAML
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config = yaml.safe_load(f) or {}
         except yaml.YAMLError as e:
             self.errors.append(f"Invalid YAML syntax: {e}")
@@ -73,7 +73,9 @@ class ConfigValidator:
         valid_keys = {"aws", "regions"}
         unknown_keys = set(config.keys()) - valid_keys
         if unknown_keys:
-            self.warnings.append(f"Unknown configuration keys: {', '.join(unknown_keys)}")
+            self.warnings.append(
+                f"Unknown configuration keys: {', '.join(unknown_keys)}"
+            )
 
     def _validate_aws_section(self, aws_config: Dict) -> None:
         """Validate AWS configuration section."""
@@ -85,7 +87,9 @@ class ConfigValidator:
 
         for field, description in required_fields.items():
             if field not in aws_config:
-                self.errors.append(f"Missing required AWS field '{field}' ({description})")
+                self.errors.append(
+                    f"Missing required AWS field '{field}' ({description})"
+                )
 
         # Validate SSH keys
         if "public_ssh_key_path" in aws_config:
@@ -106,14 +110,20 @@ class ConfigValidator:
                     f"'total_instances' must be a positive integer, got: {instances}"
                 )
             elif instances == 0:
-                self.warnings.append("'total_instances' is 0 - no instances will be created")
+                self.warnings.append(
+                    "'total_instances' is 0 - no instances will be created"
+                )
             elif instances > 100:
-                self.warnings.append(f"'total_instances' is {instances} - this may be expensive!")
+                self.warnings.append(
+                    f"'total_instances' is {instances} - this may be expensive!"
+                )
 
         if "instance_storage_gb" in aws_config:
             storage = aws_config["instance_storage_gb"]
             if not isinstance(storage, (int, float)) or storage < 8:
-                self.errors.append(f"'instance_storage_gb' must be at least 8 GB, got: {storage}")
+                self.errors.append(
+                    f"'instance_storage_gb' must be at least 8 GB, got: {storage}"
+                )
 
         if "spot_price_limit" in aws_config:
             price = aws_config["spot_price_limit"]
@@ -125,13 +135,17 @@ class ConfigValidator:
             self._validate_directory(aws_config["files_directory"], "files_directory")
 
         if "scripts_directory" in aws_config:
-            self._validate_directory(aws_config["scripts_directory"], "scripts_directory")
+            self._validate_directory(
+                aws_config["scripts_directory"], "scripts_directory"
+            )
 
         # Validate boolean fields
         bool_fields = ["use_dedicated_vpc", "ensure_default_vpc", "associate_public_ip"]
         for field in bool_fields:
             if field in aws_config and not isinstance(aws_config[field], bool):
-                self.errors.append(f"'{field}' must be true or false, got: {aws_config[field]}")
+                self.errors.append(
+                    f"'{field}' must be true or false, got: {aws_config[field]}"
+                )
 
     def _validate_ssh_key(self, key_path: str, key_type: str) -> None:
         """Validate SSH key file exists and has correct permissions."""
@@ -192,7 +206,9 @@ class ConfigValidator:
                 continue
 
             if len(region_config) != 1:
-                self.errors.append(f"Region entry {i + 1} must have exactly one region key")
+                self.errors.append(
+                    f"Region entry {i + 1} must have exactly one region key"
+                )
                 continue
 
             region_name = list(region_config.keys())[0]
@@ -211,7 +227,9 @@ class ConfigValidator:
             # Validate region config
             region_data = region_config[region_name]
             if not isinstance(region_data, dict):
-                self.errors.append(f"Configuration for region {region_name} must be a dictionary")
+                self.errors.append(
+                    f"Configuration for region {region_name} must be a dictionary"
+                )
                 continue
 
             # Check machine type
@@ -221,7 +239,9 @@ class ConfigValidator:
                 machine_type = region_data["machine_type"]
                 # Basic validation of instance type format
                 if not isinstance(machine_type, str) or not machine_type:
-                    self.errors.append(f"Invalid machine_type for {region_name}: {machine_type}")
+                    self.errors.append(
+                        f"Invalid machine_type for {region_name}: {machine_type}"
+                    )
                 elif "." not in machine_type:
                     self.warnings.append(
                         f"Unusual machine_type format for {region_name}: {machine_type}"
@@ -229,7 +249,9 @@ class ConfigValidator:
 
             # Check image
             if "image" not in region_data:
-                self.warnings.append(f"No 'image' specified for {region_name}, will use 'auto'")
+                self.warnings.append(
+                    f"No 'image' specified for {region_name}, will use 'auto'"
+                )
             elif region_data["image"] not in ["auto", "latest"] and not region_data[
                 "image"
             ].startswith("ami-"):
@@ -273,7 +295,9 @@ class ConfigValidator:
 
         for cmd, description in required_commands:
             if not self._command_exists(cmd):
-                env_errors.append(f"{description} not found: '{cmd}' command is required")
+                env_errors.append(
+                    f"{description} not found: '{cmd}' command is required"
+                )
 
         if env_errors:
             self.ui.print_error("Environment validation failed:")

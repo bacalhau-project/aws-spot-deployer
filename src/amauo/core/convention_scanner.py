@@ -41,7 +41,11 @@ class ConventionScanner:
 
         # Build and return config
         config = DeploymentConfig(
-            version=1, packages=packages, scripts=scripts, uploads=uploads, services=services
+            version=1,
+            packages=packages,
+            scripts=scripts,
+            uploads=uploads,
+            services=services,
         )
         # Set tarball_source to use the deployment directory
         config.tarball_source = str(self.deployment_dir)
@@ -99,7 +103,7 @@ class ConventionScanner:
         # Check for packages.txt (explicit package list)
         packages_txt = self.deployment_dir / "packages.txt"
         if packages_txt.exists():
-            with open(packages_txt, "r") as f:
+            with open(packages_txt) as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith("#"):
@@ -130,11 +134,16 @@ class ConventionScanner:
 
         if setup_script.exists():
             scripts.append(
-                {"command": "/opt/deployment/setup.sh", "working_dir": "/opt/deployment"}
+                {
+                    "command": "/opt/deployment/setup.sh",
+                    "working_dir": "/opt/deployment",
+                }
             )
             logger.debug("Found setup.sh as main script")
         elif init_script.exists():
-            scripts.append({"command": "/opt/deployment/init.sh", "working_dir": "/opt/deployment"})
+            scripts.append(
+                {"command": "/opt/deployment/init.sh", "working_dir": "/opt/deployment"}
+            )
             logger.debug("Found init.sh as main script")
 
         # Scan scripts directory for additional scripts
@@ -158,9 +167,15 @@ class ConventionScanner:
 
         # Check for install script
         install_script = self.deployment_dir / "install.sh"
-        if install_script.exists() and install_script not in [setup_script, init_script]:
+        if install_script.exists() and install_script not in [
+            setup_script,
+            init_script,
+        ]:
             scripts.append(
-                {"command": "/opt/deployment/install.sh", "working_dir": "/opt/deployment"}
+                {
+                    "command": "/opt/deployment/install.sh",
+                    "working_dir": "/opt/deployment",
+                }
             )
             logger.debug("Found install.sh")
 
@@ -168,7 +183,10 @@ class ConventionScanner:
         start_script = self.deployment_dir / "start.sh"
         if start_script.exists():
             scripts.append(
-                {"command": "/opt/deployment/start.sh", "working_dir": "/opt/deployment"}
+                {
+                    "command": "/opt/deployment/start.sh",
+                    "working_dir": "/opt/deployment",
+                }
             )
             logger.debug("Found start.sh")
 
@@ -196,7 +214,11 @@ class ConventionScanner:
         configs_dir = self.deployment_dir / "configs"
         if configs_dir.exists() and configs_dir.is_dir():
             uploads.append(
-                {"source": str(configs_dir), "destination": "/opt/configs", "permissions": "644"}
+                {
+                    "source": str(configs_dir),
+                    "destination": "/opt/configs",
+                    "permissions": "644",
+                }
             )
             logger.debug("Found configs directory")
 
@@ -204,7 +226,11 @@ class ConventionScanner:
         files_dir = self.deployment_dir / "files"
         if files_dir.exists() and files_dir.is_dir():
             uploads.append(
-                {"source": str(files_dir), "destination": "/opt/files", "permissions": "644"}
+                {
+                    "source": str(files_dir),
+                    "destination": "/opt/files",
+                    "permissions": "644",
+                }
             )
             logger.debug("Found files directory")
 
@@ -279,7 +305,9 @@ class ConventionScanner:
 
         return services
 
-    def _log_discovery(self, packages: list, scripts: list, uploads: list, services: list):
+    def _log_discovery(
+        self, packages: list, scripts: list, uploads: list, services: list
+    ):
         """Log what was discovered during scanning.
 
         Args:

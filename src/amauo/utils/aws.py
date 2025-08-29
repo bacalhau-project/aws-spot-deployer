@@ -22,7 +22,9 @@ AMI_CACHE: Dict[str, str] = {}
 CACHE_LOCK = threading.Lock()
 
 
-def cache_file_fresh(filepath: str, max_age_hours: int = DEFAULT_CACHE_AGE_HOURS) -> bool:
+def cache_file_fresh(
+    filepath: str, max_age_hours: int = DEFAULT_CACHE_AGE_HOURS
+) -> bool:
     """Check if cache file is fresh."""
     if not os.path.exists(filepath):
         return False
@@ -34,7 +36,7 @@ def load_cache(filepath: str) -> Optional[Dict]:
     """Load data from cache file."""
     if cache_file_fresh(filepath):
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 return cast(Optional[Dict[Any, Any]], json.load(f))
         except Exception:
             pass
@@ -97,15 +99,21 @@ def get_latest_ubuntu_ami(
             ],
         )
 
-        log_message(f"AMI response for {region}: {len(response.get('Images', []))} images found")
+        log_message(
+            f"AMI response for {region}: {len(response.get('Images', []))} images found"
+        )
 
         if response["Images"]:
             # Sort by creation date to get latest
-            images = sorted(response["Images"], key=lambda x: x["CreationDate"], reverse=True)
+            images = sorted(
+                response["Images"], key=lambda x: x["CreationDate"], reverse=True
+            )
             ami_id = images[0]["ImageId"]
             log_message(f"Found AMI for {region}: {ami_id}")
             # Cache result
-            save_cache(cache_file, {"ami_id": ami_id, "timestamp": datetime.now().isoformat()})
+            save_cache(
+                cache_file, {"ami_id": ami_id, "timestamp": datetime.now().isoformat()}
+            )
             # Store in memory cache
             with CACHE_LOCK:
                 AMI_CACHE[region] = ami_id
@@ -182,7 +190,9 @@ def check_aws_auth() -> bool:
 [bold]Account:[/bold] {account}
 [bold]Region:[/bold] {boto3.Session().region_name or "us-east-1"}"""
 
-            console.print(Panel(auth_info, title="AWS Credentials", border_style="green"))
+            console.print(
+                Panel(auth_info, title="AWS Credentials", border_style="green")
+            )
         else:
             print(f"✓ AWS Auth: {cred_type} - {cred_info} (Account: {account})")
 
@@ -195,7 +205,9 @@ def check_aws_auth() -> bool:
         return False
 
 
-def create_simple_security_group(ec2, vpc_id: str, group_name: str = "spot-deployer-sg") -> str:
+def create_simple_security_group(
+    ec2, vpc_id: str, group_name: str = "spot-deployer-sg"
+) -> str:
     """Create basic security group."""
     try:
         # Check for existing security group
@@ -281,7 +293,9 @@ def create_deployment_vpc(
         waiter.wait(VpcIds=[vpc_id])
 
         # Enable DNS hostnames for the VPC
-        ec2_client.modify_vpc_attribute(VpcId=vpc_id, EnableDnsHostnames={"Value": True})
+        ec2_client.modify_vpc_attribute(
+            VpcId=vpc_id, EnableDnsHostnames={"Value": True}
+        )
 
         # Tag the VPC
         ec2_client.create_tags(
@@ -305,7 +319,9 @@ def create_deployment_vpc(
         subnet_id = subnet_response["Subnet"]["SubnetId"]
 
         # Enable auto-assign public IP on subnet
-        ec2_client.modify_subnet_attribute(SubnetId=subnet_id, MapPublicIpOnLaunch={"Value": True})
+        ec2_client.modify_subnet_attribute(
+            SubnetId=subnet_id, MapPublicIpOnLaunch={"Value": True}
+        )
 
         # Tag the subnet
         ec2_client.create_tags(
@@ -345,7 +361,9 @@ def create_deployment_vpc(
 
         # Add route to Internet Gateway
         ec2_client.create_route(
-            RouteTableId=main_route_table_id, DestinationCidrBlock="0.0.0.0/0", GatewayId=igw_id
+            RouteTableId=main_route_table_id,
+            DestinationCidrBlock="0.0.0.0/0",
+            GatewayId=igw_id,
         )
 
         # Tag the route table
@@ -420,7 +438,9 @@ def delete_deployment_vpc(ec2_client, vpc_id: str) -> bool:
             ec2_client.delete_internet_gateway(InternetGatewayId=igw_id)
 
         # Delete subnets
-        subnets = ec2_client.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
+        subnets = ec2_client.describe_subnets(
+            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+        )
 
         for subnet in subnets["Subnets"]:
             ec2_client.delete_subnet(SubnetId=subnet["SubnetId"])
@@ -432,11 +452,15 @@ def delete_deployment_vpc(ec2_client, vpc_id: str) -> bool:
 
         for rt in route_tables["RouteTables"]:
             # Skip if it's the main route table
-            if not any(assoc.get("Main", False) for assoc in rt.get("Associations", [])):
+            if not any(
+                assoc.get("Main", False) for assoc in rt.get("Associations", [])
+            ):
                 try:
                     ec2_client.delete_route_table(RouteTableId=rt["RouteTableId"])
                 except Exception as e:
-                    print(f"Warning: Could not delete route table {rt['RouteTableId']}: {e}")
+                    print(
+                        f"Warning: Could not delete route table {rt['RouteTableId']}: {e}"
+                    )
 
         # Finally, delete the VPC
         ec2_client.delete_vpc(VpcId=vpc_id)
@@ -455,7 +479,9 @@ def ensure_default_vpc(ec2_client, region: str) -> Optional[str]:
     """
     try:
         # Check for existing default VPC
-        vpcs = ec2_client.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
+        vpcs = ec2_client.describe_vpcs(
+            Filters=[{"Name": "isDefault", "Values": ["true"]}]
+        )
 
         if vpcs["Vpcs"]:
             return cast(Optional[str], vpcs["Vpcs"][0]["VpcId"])

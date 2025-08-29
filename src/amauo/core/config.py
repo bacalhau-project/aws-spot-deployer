@@ -26,7 +26,7 @@ class SimpleConfig:
     def _load_config(self) -> Dict:
         """Load YAML configuration."""
         try:
-            with open(self.config_file, "r") as f:
+            with open(self.config_file) as f:
                 return yaml.safe_load(f) or {}
         except FileNotFoundError:
             print(f"Config file {self.config_file} not found. Run 'setup' first.")
@@ -79,7 +79,7 @@ class SimpleConfig:
         if key_path:
             if os.path.exists(key_path):
                 try:
-                    with open(key_path, "r") as f:
+                    with open(key_path) as f:
                         return f.read().strip()
                 except Exception as e:
                     print(f"Error reading public key from {key_path}: {e}")
@@ -98,7 +98,9 @@ class SimpleConfig:
 
     def scripts_directory(self) -> str:
         """Get scripts directory path."""
-        return cast(str, self.data.get("aws", {}).get("scripts_directory", "instance/scripts"))
+        return cast(
+            str, self.data.get("aws", {}).get("scripts_directory", "instance/scripts")
+        )
 
     def output_directory(self) -> str:
         """Get output directory path."""
@@ -123,12 +125,17 @@ class SimpleConfig:
     def startup_script(self) -> str:
         """Get startup script path."""
         return cast(
-            str, self.data.get("aws", {}).get("startup_script", "instance/scripts/startup.py")
+            str,
+            self.data.get("aws", {}).get(
+                "startup_script", "instance/scripts/startup.py"
+            ),
         )
 
     def additional_commands_script(self) -> Optional[str]:
         """Get additional commands script path."""
-        return cast(Optional[str], self.data.get("aws", {}).get("additional_commands_script"))
+        return cast(
+            Optional[str], self.data.get("aws", {}).get("additional_commands_script")
+        )
 
     def docker_compose_template(self) -> str:
         """Get Docker Compose template path."""
@@ -149,7 +156,9 @@ class SimpleConfig:
 
     def security_group_name(self) -> str:
         """Get security group name."""
-        return cast(str, self.data.get("aws", {}).get("security_group_name", "spot-deployer-sg"))
+        return cast(
+            str, self.data.get("aws", {}).get("security_group_name", "spot-deployer-sg")
+        )
 
     def vpc_tag_name(self) -> Optional[str]:
         """Get VPC tag name for filtering."""
