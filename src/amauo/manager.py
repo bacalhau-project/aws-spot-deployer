@@ -179,22 +179,49 @@ class ClusterManager:
             self.log_error(f"Failed to manage Docker container: {e}")
             return False
 
-    def run_sky_cmd(self, *args: str) -> tuple[bool, str, str]:
+    def run_sky_cmd(self, *args: str, timeout: int = 10) -> tuple[bool, str, str]:
         """Run sky command in Docker container. Returns (success, stdout, stderr)."""
         if not self.ensure_docker_container():
             return False, "", "Failed to start container"
 
         cmd = ["docker", "exec", self.docker_container, "sky"] + list(args)
+        cmd_str = " ".join(args)
+
+        if self.log_to_console:
+            print(f"[DEBUG] Running: sky {cmd_str} (timeout={timeout}s)")
+
+        start_time = time.time()
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=False, timeout=timeout
+            )
+            elapsed = time.time() - start_time
+            if self.log_to_console:
+                print(
+                    f"[DEBUG] Completed in {elapsed:.1f}s (returncode={result.returncode})"
+                )
             return result.returncode == 0, result.stdout, result.stderr
+        except subprocess.TimeoutExpired:
+            elapsed = time.time() - start_time
+            if self.log_to_console:
+                print(f"[DEBUG] Timed out after {elapsed:.1f}s")
+            return (
+                False,
+                "",
+                f"Command 'sky {cmd_str}' timed out after {timeout} seconds",
+            )
         except Exception as e:
+            elapsed = time.time() - start_time
+            if self.log_to_console:
+                print(f"[DEBUG] Failed after {elapsed:.1f}s: {e}")
             return False, "", str(e)
 
     def get_sky_cluster_name(self) -> Optional[str]:
         """Get actual SkyPilot cluster name from status."""
-        # Try JSON format first
-        success, stdout, stderr = self.run_sky_cmd("status", "--format", "json")
+        # Try JSON format first with shorter timeout
+        success, stdout, stderr = self.run_sky_cmd(
+            "status", "--format", "json", timeout=5
+        )
         if success and stdout.strip():
             try:
                 data = json.loads(stdout)
@@ -204,9 +231,12 @@ class ClusterManager:
                     return str(cluster_name) if cluster_name else None
             except json.JSONDecodeError:
                 pass
+        elif "timed out" in stderr:
+            self.log_warning("Status command timed out, SkyPilot may be having issues")
+            return None
 
         # Fallback to text parsing
-        success, stdout, stderr = self.run_sky_cmd("status")
+        success, stdout, stderr = self.run_sky_cmd("status", timeout=5)
         if success and stdout:
             for line in stdout.split("\n"):
                 line = line.strip()
@@ -214,6 +244,8 @@ class ClusterManager:
                     parts = line.split()
                     if parts and parts[0].startswith("sky-"):
                         return parts[0]
+        elif "timed out" in stderr:
+            self.log_warning("Status command timed out, SkyPilot may be having issues")
 
         return None
 
@@ -268,41 +300,78 @@ class ClusterManager:
         # Check AWS credentials - this should fail fast to prevent deployment errors
         aws_creds_path = Path.home() / ".aws" / "credentials"
         if aws_creds_path.exists() or os.getenv("AWS_ACCESS_KEY_ID"):
-            success, stdout, stderr = self.run_sky_cmd("check")
-            if success and stdout and "AWS: enabled" in stdout:
-                try:
-                    aws_result = subprocess.run(
-                        [
-                            "aws",
-                            "sts",
-                            "get-caller-identity",
-                            "--query",
-                            "Account",
-                            "--output",
-                            "text",
-                            "--no-paginate",
-                        ],
-                        capture_output=True,
-                        text=True,
-                        check=False,
-                    )
-                    account = (
-                        aws_result.stdout.strip()
-                        if aws_result.returncode == 0
-                        else "unknown"
-                    )
-                    self.log_success(f"AWS credentials available (Account: {account})")
-                except FileNotFoundError:
+            # First do a quick AWS CLI check
+            try:
+                aws_result = subprocess.run(
+                    [
+                        "aws",
+                        "sts",
+                        "get-caller-identity",
+                        "--query",
+                        "Account",
+                        "--output",
+                        "text",
+                        "--no-paginate",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=10,
+                )
+                if aws_result.returncode != 0:
+                    self.log_error("AWS credentials not working")
+                    if "ExpiredToken" in aws_result.stderr:
+                        self.log_error("AWS credentials expired. Run: aws sso login")
+                    elif (
+                        "Invalid" in aws_result.stderr
+                        or "AccessDenied" in aws_result.stderr
+                    ):
+                        self.log_error(
+                            "AWS credentials invalid. Check: aws sts get-caller-identity"
+                        )
+                    else:
+                        self.log_error(f"AWS error: {aws_result.stderr.strip()}")
                     self.log_error(
-                        "AWS credentials configured but aws CLI not available"
+                        "Fix AWS credentials before deployment. Common fixes:"
                     )
+                    self.log_error("  - Run: aws sso login")
+                    self.log_error("  - Or check: aws sts get-caller-identity")
+                    self.log_error("  - Or verify ~/.aws/credentials")
                     return False
+
+                account = aws_result.stdout.strip()
+            except subprocess.TimeoutExpired:
+                self.log_error("AWS credential check timed out")
+                self.log_error(
+                    "This usually means credential issues. Try: aws sso login"
+                )
+                return False
+            except FileNotFoundError:
+                self.log_error("AWS credentials configured but aws CLI not available")
+                return False
+
+            # Now check SkyPilot's AWS integration with timeout
+            success, stdout, stderr = self.run_sky_cmd("check", timeout=15)
+            if success and stdout and "AWS: enabled" in stdout:
+                self.log_success(f"AWS credentials available (Account: {account})")
             else:
                 self.log_error(
                     "AWS credentials configured but not working with SkyPilot"
                 )
-                if stderr:
-                    self.log_error(f"SkyPilot check error: {stderr}")
+
+                if "timed out" in stderr:
+                    self.log_error("SkyPilot check timed out - this usually indicates:")
+                    self.log_error("  - AWS credential expiration")
+                    self.log_error("  - Network connectivity issues")
+                    self.log_error("  - SkyPilot server problems")
+                elif "500 Server Error" in stderr or "HTTPError" in stderr:
+                    self.log_error("SkyPilot server error - this usually indicates:")
+                    self.log_error("  - AWS credential issues (expired/invalid)")
+                    self.log_error("  - Try: aws sso login")
+                    self.log_error("  - Or restart Docker container")
+                elif stderr:
+                    self.log_error(f"SkyPilot check error: {stderr[:200]}...")
+
                 self.log_error("Fix AWS credentials before deployment. Common fixes:")
                 self.log_error("  - Run: aws sso login")
                 self.log_error("  - Or check: aws sts get-caller-identity")
@@ -821,11 +890,13 @@ class ClusterManager:
             return {}
 
         try:
-            # Get recent logs
+            # Get recent logs with shorter timeout
             success, stdout, stderr = self.run_sky_cmd(
-                "logs", cluster_name, "--tail=100"
+                "logs", cluster_name, "--tail=100", timeout=8
             )
             if not success or not stdout:
+                if "timed out" in stderr:
+                    self.log_warning("Log retrieval timed out, using minimal node info")
                 return {}
 
             nodes: dict[str, dict[str, Any]] = {}
@@ -1064,10 +1135,15 @@ class ClusterManager:
         self.log_header(f"Cluster Nodes: {cluster_name}")
 
         # Get cluster info
-        success, stdout, stderr = self.run_sky_cmd("status", cluster_name)
+        success, stdout, stderr = self.run_sky_cmd("status", cluster_name, timeout=10)
         if not success:
             self.log_error("Failed to get cluster information")
-            if stderr:
+            if "timed out" in stderr:
+                self.log_error("SkyPilot status command timed out. This may indicate:")
+                self.log_error("  - AWS credential issues (try: aws sso login)")
+                self.log_error("  - SkyPilot server problems")
+                self.log_error("  - Network connectivity issues")
+            elif stderr:
                 self.log_error(f"SkyPilot error: {stderr}")
             return False
 
