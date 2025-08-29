@@ -80,13 +80,13 @@ def test_create_command_success(mock_exists, mock_manager_class, temp_config):
 
     assert result.exit_code == 0
     mock_manager.check_prerequisites.assert_called_once()
-    mock_manager.deploy_cluster.assert_called_once_with(temp_config, detached=False)
+    mock_manager.deploy_cluster.assert_called_once_with(temp_config, follow=False)
 
 
 @patch("amauo.cli.ClusterManager")
 @patch("pathlib.Path.exists")
-def test_create_command_detached(mock_exists, mock_manager_class, temp_config):
-    """Test create command with detached flag."""
+def test_create_command_follow(mock_exists, mock_manager_class, temp_config):
+    """Test create command with follow flag."""
     mock_exists.return_value = True
     mock_manager = Mock()
     mock_manager.check_prerequisites.return_value = True
@@ -94,11 +94,11 @@ def test_create_command_detached(mock_exists, mock_manager_class, temp_config):
     mock_manager_class.return_value = mock_manager
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["-c", temp_config, "create", "--detached"])
+    result = runner.invoke(cli, ["-c", temp_config, "create", "--follow"])
 
     assert result.exit_code == 0
     mock_manager.check_prerequisites.assert_called_once()
-    mock_manager.deploy_cluster.assert_called_once_with(temp_config, detached=True)
+    mock_manager.deploy_cluster.assert_called_once_with(temp_config, follow=True)
 
 
 @patch("amauo.cli.ClusterManager")

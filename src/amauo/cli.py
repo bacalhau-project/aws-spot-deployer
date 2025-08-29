@@ -82,13 +82,13 @@ def cli(
 
 @cli.command()
 @click.option(
-    "--detached",
-    "-d",
+    "--follow",
+    "-f",
     is_flag=True,
-    help="Run deployment in detached mode without real-time monitoring",
+    help="Follow deployment progress with real-time monitoring",
 )
 @click.pass_context
-def create(ctx: click.Context, detached: bool) -> None:
+def create(ctx: click.Context, follow: bool) -> None:
     """Deploy a global cluster across multiple regions."""
     manager: ClusterManager = ctx.obj["manager"]
     config_file: str = ctx.obj["config"]
@@ -106,7 +106,7 @@ def create(ctx: click.Context, detached: bool) -> None:
     if not manager.check_prerequisites():
         sys.exit(1)
 
-    if not manager.deploy_cluster(config_file, detached=detached):
+    if not manager.deploy_cluster(config_file, follow=follow):
         sys.exit(1)
 
 
