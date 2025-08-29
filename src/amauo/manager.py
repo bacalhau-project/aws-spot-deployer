@@ -27,11 +27,15 @@ class ClusterManager:
     """Manages SkyPilot cluster operations through Docker container."""
 
     def __init__(
-        self, log_to_console: bool = False, log_file: str = "cluster-deploy.log"
+        self,
+        log_to_console: bool = False,
+        log_file: str = "cluster-deploy.log",
+        debug: bool = False,
     ):
         self.console = Console()
         self.log_to_console = log_to_console
         self.log_file = Path(log_file)
+        self.debug = debug
         self.docker_container = "skypilot-cluster-deploy"
         self.skypilot_image = "berkeleyskypilot/skypilot"
 
@@ -60,6 +64,16 @@ class ClusterManager:
     def log_warning(self, message: str) -> None:
         """Log warning message."""
         self.log("WARNING", message, "yellow")
+
+    def log_debug(self, message: str) -> None:
+        """Log debug message (only shown if debug mode is enabled)."""
+        if self.debug:
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[
+                :-3
+            ]  # Include milliseconds
+            self.console.print(
+                f"[dim][DEBUG {timestamp}] {message}[/dim]", style="cyan"
+            )
 
     def log_error(self, message: str) -> None:
         """Log error message."""
@@ -108,6 +122,7 @@ class ClusterManager:
 
     def ensure_docker_container(self) -> bool:
         """Ensure Docker container is running."""
+        self.log_debug("Checking if Docker container is running...")
         try:
             # Check if container is already running
             result = subprocess.run(
@@ -126,8 +141,10 @@ class ClusterManager:
             )
 
             if result.stdout.strip():
+                self.log_debug("Docker container already running")
                 return True  # Container already running
 
+            self.log_debug("Docker container not running, starting new one...")
             self.log_info("Starting SkyPilot Docker container...")
 
             # Remove any existing stopped container
@@ -255,30 +272,44 @@ class ClusterManager:
 
     def run_sky_cmd(self, *args: str, timeout: int = 10) -> tuple[bool, str, str]:
         """Run sky command in Docker container. Returns (success, stdout, stderr)."""
+        cmd_str = " ".join(args)
+        self.log_debug(f"Starting: sky {cmd_str} (timeout={timeout}s)")
+
         if not self.ensure_docker_container():
+            self.log_debug("Failed: container not available")
             return False, "", "Failed to start container"
 
         cmd = ["docker", "exec", self.docker_container, "sky"] + list(args)
-        cmd_str = " ".join(args)
-
-        if self.log_to_console:
-            print(f"[DEBUG] Running: sky {cmd_str} (timeout={timeout}s)")
-
         start_time = time.time()
+
         try:
+            self.log_debug(f"Executing: {' '.join(cmd[:3])} ...")
             result = subprocess.run(
                 cmd, capture_output=True, text=True, check=False, timeout=timeout
             )
             elapsed = time.time() - start_time
-            if self.log_to_console:
-                print(
-                    f"[DEBUG] Completed in {elapsed:.1f}s (returncode={result.returncode})"
+
+            # Log result
+            status = "SUCCESS" if result.returncode == 0 else "FAILED"
+            self.log_debug(
+                f"Completed: sky {cmd_str} -> {status} in {elapsed:.1f}s (exit={result.returncode})"
+            )
+
+            # Log stdout/stderr lengths for debugging
+            if result.stdout:
+                self.log_debug(
+                    f"stdout: {len(result.stdout)} chars, first 100: {result.stdout[:100]!r}"
                 )
+            if result.stderr:
+                self.log_debug(
+                    f"stderr: {len(result.stderr)} chars, first 100: {result.stderr[:100]!r}"
+                )
+
             return result.returncode == 0, result.stdout, result.stderr
+
         except subprocess.TimeoutExpired:
             elapsed = time.time() - start_time
-            if self.log_to_console:
-                print(f"[DEBUG] Timed out after {elapsed:.1f}s")
+            self.log_debug(f"TIMEOUT: sky {cmd_str} after {elapsed:.1f}s")
             return (
                 False,
                 "",
@@ -286,8 +317,7 @@ class ClusterManager:
             )
         except Exception as e:
             elapsed = time.time() - start_time
-            if self.log_to_console:
-                print(f"[DEBUG] Failed after {elapsed:.1f}s: {e}")
+            self.log_debug(f"ERROR: sky {cmd_str} failed after {elapsed:.1f}s: {e}")
             return False, "", str(e)
 
     def get_sky_cluster_name(self) -> Optional[str]:
@@ -1299,6 +1329,10 @@ class ClusterManager:
                 self.log_error(f"SkyPilot error: {stderr}")
             return False
 
+        # Debug: show the actual status output
+        self.log_debug(f"Status output for parsing: {stdout}")
+        self.log_debug(f"Status output lines: {repr(stdout.split(chr(10)))}")
+
         # Parse launch time
         launch_time = "unknown"
         if stdout:
@@ -1325,7 +1359,11 @@ class ClusterManager:
         table.add_column("Launched", style="blue")
 
         # Try to get real node information from recent logs first
+        self.log_debug("Attempting to extract node info from logs...")
         nodes_info = self._extract_node_info_from_logs()
+        self.log_debug(
+            f"Log extraction found {len(nodes_info)} nodes: {list(nodes_info.keys())}"
+        )
 
         if nodes_info:
             # Show real node data from logs
@@ -1339,7 +1377,10 @@ class ClusterManager:
                 )
         else:
             # Fallback: try to get node info from status output
+            self.log_debug("Log extraction failed, trying status output parsing...")
             status_nodes = self._extract_nodes_from_status(stdout)
+            self.log_debug(f"Status extraction found {len(status_nodes)} nodes")
+
             if status_nodes:
                 for i, node_info in enumerate(status_nodes):
                     table.add_row(
@@ -1351,6 +1392,9 @@ class ClusterManager:
                     )
             else:
                 # Last resort: generic info with explanatory message
+                self.log_debug(
+                    "All extraction methods failed, using generic placeholders"
+                )
                 for i in range(num_nodes):
                     table.add_row(
                         f"worker-{i}",

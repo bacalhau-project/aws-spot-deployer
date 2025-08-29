@@ -157,7 +157,7 @@ def test_console_flag(mock_manager_class):
 
     # Verify manager was created with log_to_console=True
     mock_manager_class.assert_called_once_with(
-        log_to_console=True, log_file="cluster-deploy.log"
+        log_to_console=True, log_file="cluster-deploy.log", debug=False
     )
 
 

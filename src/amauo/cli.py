@@ -37,6 +37,11 @@ console = Console()
     show_default=True,
 )
 @click.option(
+    "--debug",
+    is_flag=True,
+    help="Enable detailed debug logging",
+)
+@click.option(
     "--version",
     is_flag=True,
     help="Show version and exit",
@@ -47,6 +52,7 @@ def cli(
     config: str,
     console: bool,
     log_file: str,
+    debug: bool,
     version: bool,
 ) -> None:
     """
@@ -71,7 +77,10 @@ def cli(
     ctx.obj["config"] = config
     ctx.obj["console"] = console
     ctx.obj["log_file"] = log_file
-    ctx.obj["manager"] = ClusterManager(log_to_console=console, log_file=log_file)
+    ctx.obj["debug"] = debug
+    ctx.obj["manager"] = ClusterManager(
+        log_to_console=console, log_file=log_file, debug=debug
+    )
 
     # Show help if no command provided
     if ctx.invoked_subcommand is None:
