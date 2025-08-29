@@ -215,6 +215,19 @@ def check(ctx: click.Context) -> None:
 
 @cli.command()
 @click.pass_context
+def debug(ctx: click.Context) -> None:
+    """Debug AWS credentials and Docker container state."""
+    manager: ClusterManager = ctx.obj["manager"]
+
+    runtime_version = get_runtime_version()
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
+
+    console.print("\n[blue]🔍 Container Debug Information[/blue]")
+    manager.debug_container_credentials()
+
+
+@cli.command()
+@click.pass_context
 def version(ctx: click.Context) -> None:
     """Show detailed version information."""
     runtime_version = get_runtime_version()

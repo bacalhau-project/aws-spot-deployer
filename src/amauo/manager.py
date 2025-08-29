@@ -179,6 +179,80 @@ class ClusterManager:
             self.log_error(f"Failed to manage Docker container: {e}")
             return False
 
+    def restart_docker_container(self) -> bool:
+        """Restart the Docker container to refresh credentials."""
+        self.log_info("Restarting SkyPilot Docker container...")
+
+        # Stop and remove existing container
+        subprocess.run(
+            ["docker", "stop", self.docker_container],
+            capture_output=True,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        subprocess.run(
+            ["docker", "rm", self.docker_container],
+            capture_output=True,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+        # Start fresh container
+        return self.ensure_docker_container()
+
+    def debug_container_credentials(self) -> None:
+        """Debug AWS credentials inside the Docker container."""
+        if not self.ensure_docker_container():
+            self.log_error("Cannot debug - container not running")
+            return
+
+        self.log_info("Debugging AWS credentials inside container:")
+
+        # Check if .aws directory exists
+        result = subprocess.run(
+            ["docker", "exec", self.docker_container, "ls", "-la", "/root/.aws/"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            self.log_info("AWS directory contents:")
+            for line in result.stdout.strip().split("\n"):
+                self.log_info(f"  {line}")
+        else:
+            self.log_error("No /root/.aws directory in container")
+
+        # Test AWS CLI in container
+        result = subprocess.run(
+            [
+                "docker",
+                "exec",
+                self.docker_container,
+                "aws",
+                "sts",
+                "get-caller-identity",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            self.log_success("AWS CLI works in container")
+        else:
+            self.log_error(f"AWS CLI failed in container: {result.stderr[:100]}")
+
+        # Check SkyPilot config
+        result = subprocess.run(
+            ["docker", "exec", self.docker_container, "ls", "-la", "/root/.sky/"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            self.log_info("SkyPilot directory contents:")
+            for line in result.stdout.strip().split("\n"):
+                self.log_info(f"  {line}")
+
     def run_sky_cmd(self, *args: str, timeout: int = 10) -> tuple[bool, str, str]:
         """Run sky command in Docker container. Returns (success, stdout, stderr)."""
         if not self.ensure_docker_container():
@@ -355,8 +429,24 @@ class ClusterManager:
             if success and stdout and "AWS: enabled" in stdout:
                 self.log_success(f"AWS credentials available (Account: {account})")
             else:
+                self.log_warning(
+                    "AWS credentials work locally but not in SkyPilot container"
+                )
+                self.log_info(
+                    "Attempting to restart Docker container to refresh credentials..."
+                )
+
+                if self.restart_docker_container():
+                    # Try SkyPilot check again after restart
+                    success2, stdout2, stderr2 = self.run_sky_cmd("check", timeout=15)
+                    if success2 and stdout2 and "AWS: enabled" in stdout2:
+                        self.log_success(
+                            f"AWS credentials available after restart (Account: {account})"
+                        )
+                        return True
+
                 self.log_error(
-                    "AWS credentials configured but not working with SkyPilot"
+                    "AWS credentials still not working with SkyPilot after restart"
                 )
 
                 if "timed out" in stderr:
@@ -367,15 +457,14 @@ class ClusterManager:
                 elif "500 Server Error" in stderr or "HTTPError" in stderr:
                     self.log_error("SkyPilot server error - this usually indicates:")
                     self.log_error("  - AWS credential issues (expired/invalid)")
-                    self.log_error("  - Try: aws sso login")
-                    self.log_error("  - Or restart Docker container")
+                    self.log_error("  - Stale SkyPilot server state")
                 elif stderr:
                     self.log_error(f"SkyPilot check error: {stderr[:200]}...")
 
-                self.log_error("Fix AWS credentials before deployment. Common fixes:")
-                self.log_error("  - Run: aws sso login")
-                self.log_error("  - Or check: aws sts get-caller-identity")
-                self.log_error("  - Or verify ~/.aws/credentials")
+                self.log_error("Try these additional fixes:")
+                self.log_error("  - Run: aws sso login (again)")
+                self.log_error("  - Check: aws sts get-caller-identity")
+                self.log_error("  - Wait a few minutes for SSO tokens to propagate")
                 return False
         else:
             self.log_error("AWS credentials not found. Configure them in ~/.aws/")
