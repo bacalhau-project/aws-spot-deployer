@@ -627,7 +627,9 @@ class ClusterManager:
         except Exception:
             return {}
 
-    def deploy_cluster(self, config_file: str = "cluster.yaml") -> bool:
+    def deploy_cluster(
+        self, config_file: str = "cluster.yaml", detached: bool = False
+    ) -> bool:
         """Deploy cluster using SkyPilot."""
         config_path = Path(config_file)
         if not config_path.exists():
@@ -658,12 +660,26 @@ class ClusterManager:
                     print(stdout)
                 if stderr:
                     print(stderr, file=sys.stderr)
+            elif detached:
+                # Detached mode - no monitoring UI
+                self.console.print("🔧 [yellow]Running in detached mode...[/yellow]")
+                self.console.print(f"📄 Logs: {self.log_file}")
+                self.console.print(
+                    "💡 [dim]Use 'amauo monitor --follow' to track progress[/dim]"
+                )
+
+                success, stdout, stderr = self.run_sky_cmd(
+                    "launch", config_file, "--name", cluster_name, "--yes"
+                )
             else:
                 # Show friendly progress monitor
                 self.console.print(
                     "🚀 Starting deployment with real-time progress monitor..."
                 )
                 self.console.print(f"📄 Detailed logs: {self.log_file}")
+                self.console.print(
+                    "💡 [dim]Tip: Use 'amauo create --detached' to skip monitoring[/dim]"
+                )
 
                 # Ensure log file directory exists
                 self.log_file.parent.mkdir(parents=True, exist_ok=True)
