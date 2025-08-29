@@ -1,8 +1,8 @@
-# 🌍 Amauo - Deploy Global Clusters with One Command
+# 🌍 Amauo - AWS Spot Instance Deployment Tool
 
-**Python-powered worldwide deployment of Bacalhau compute nodes using SkyPilot.**
+**Modern AWS spot instance deployment tool** for deploying Bacalhau compute nodes and sensor simulations. Features a clean Python package structure with beautiful Rich terminal output.
 
-Deploy Bacalhau compute nodes instantly across global cloud regions. Built with modern Python tooling for reliability and maintainability.
+Deploy Bacalhau compute nodes across AWS regions using spot instances for cost-effective distributed computing.
 
 ## 🚀 **One-Command Global Deployment**
 
@@ -13,13 +13,10 @@ Deploy clusters across worldwide regions with a single command:
 uvx amauo create
 
 # Check status
-uvx amauo status
+uvx amauo list
 
-# View logs
-uvx amauo logs
-
-# SSH to cluster
-uvx amauo ssh
+# Setup configuration
+uvx amauo setup
 
 # Clean up
 uvx amauo destroy
@@ -29,60 +26,60 @@ uvx amauo destroy
 
 ### 🌟 **Zero Setup Required**
 - **uvx execution**: No installation or environment setup needed
-- **Python packaging**: Clean Click-based CLI with Rich output
-- **Direct deployment**: Uses SkyPilot directly without containers
-- **Cross-platform**: Works on any system with Python 3.9+
+- **Python packaging**: Clean CLI with Rich output and proper error handling
+- **Direct AWS deployment**: Uses boto3 for native AWS integration
+- **Cross-platform**: Works on any system with Python 3.12+
 
 ### 🔥 **What This Provides**
 - ✅ **Instant execution** → `uvx amauo` works immediately
 - ✅ **Rich terminal UI** → Beautiful tables and progress indicators
-- ✅ **Proper YAML parsing** → No fragile grep/sed operations
+- ✅ **Proper YAML parsing** → Clean configuration management
 - ✅ **Type safety** → Full type annotations throughout
-- ✅ **Maintainable code** → Structured Python instead of bash
+- ✅ **AWS-native** → Direct boto3 integration, no container overhead
 
 ### 🎯 **Superior Features**
-- **Automatic spot preemption recovery** - Never lose your cluster
+- **Automatic spot preemption handling** - Cost-effective deployment
 - **Built-in health monitoring** - Comprehensive node validation
-- **Multi-region deployment** - Distributed across availability zones
-- **Cloud-agnostic node identity** - Works on AWS, GCP, Azure
+- **Multi-region deployment** - Distributed across AWS regions
+- **Deterministic node identity** - Consistent sensor identities
 - **Secure credential management** - Never commit secrets
 
 ## 🏗️ **Architecture**
 
 ### Modern Stack
-- **Python Package**: PyPI-distributed Click CLI with Rich output
-- **SkyPilot**: Direct cloud orchestration and spot management
+- **Python Package**: PyPI-distributed CLI with Rich output
+- **AWS Integration**: Direct boto3 calls for native cloud operations
 - **Bacalhau**: Distributed compute with Docker engine support
-- **YAML Processing**: Proper PyYAML parsing instead of bash text manipulation
+- **YAML Processing**: Proper PyYAML parsing and configuration management
 - **Type Safety**: Full mypy type checking throughout
 
 ### Deployment Flow
 ```
-uvx amauo create → Python CLI → SkyPilot deploy → Health check
+uvx amauo create → Python CLI → AWS boto3 → Spot Instance Deploy → Health check
 ```
 
 ### Package Architecture
 ```
 PyPI Package (amauo):
-├── Click CLI framework
-├── Rich terminal UI
-├── ClusterManager (Python)
+├── CLI framework with Rich UI
+├── AWS Resource Manager
+├── SSH Manager for remote operations
 ├── YAML configuration parsing
-├── SkyPilot integration
-└── Prerequisites checking
+├── State management (JSON-based)
+└── Node identity generation
 ```
 
 ## 📋 **Prerequisites**
 
 ### Required
-- **Python 3.9+** (for uvx, usually already installed)
+- **Python 3.12+** (for uvx, usually already installed)
 - **AWS Account** with EC2 permissions
 - **AWS Credentials** configured in `~/.aws/credentials` or environment
 
 ### Automatic
 The CLI automatically handles:
-- **SkyPilot installation** and dependency management
-- **Prerequisites checking** (AWS access, SkyPilot setup)
+- **AWS resource management** (VPC, Security Groups, Key Pairs)
+- **Prerequisites checking** (AWS access, SSH keys)
 - **YAML configuration** parsing and validation
 - **File synchronization** to remote nodes
 
@@ -106,66 +103,49 @@ cp ~/.aws/credentials credentials/aws-credentials
 ```
 
 ### Deployment Settings
-Edit `cluster.yaml` to customize:
+Edit `config.yaml` to customize:
 
 ```yaml
-name: databricks-wind-farm-cluster
+aws:
+  total_instances: 3
+  username: ubuntu
+  ssh_key_name: my-key
+  files_directory: "deployment-files"
+  scripts_directory: "instance/scripts"
 
-# Global deployment - one node per zone across the world
-num_nodes: 9
-
-resources:
-  infra: aws
-  instance_type: t3.medium
-  use_spot: true
-  disk_size: 30
-
-# Files to deploy to each node
-file_mounts:
-  /tmp/credentials/orchestrator_endpoint: ./credentials/orchestrator_endpoint
-  /tmp/credentials/orchestrator_token: ./credentials/orchestrator_token
-  # ... other files
-
-# Environment variables for deployment
-envs:
-  DEPLOYMENT_PROJECT: "databricks-wind-farm-cluster"
-  BACALHAU_DATA_DIR: "/bacalhau_data"
-  # ... other env vars
+regions:
+  - us-west-2:
+      machine_type: t3.medium
+      image: auto  # Auto-discovers latest Ubuntu 22.04
+  - us-east-1:
+      machine_type: t3.medium
+      image: auto
 ```
 
 ## 🔧 **Commands**
 
 ### Core Operations
 ```bash
-# Deploy cluster across global regions
+# Deploy instances across AWS regions
 uvx amauo create
 
-# Check cluster status and health
-uvx amauo status
-
-# List all nodes with details
+# List all running instances with details
 uvx amauo list
 
-# View deployment logs
-uvx amauo logs
-
-# SSH to cluster head node
-uvx amauo ssh
-
-# Destroy entire cluster
+# Destroy all instances
 uvx amauo destroy
 
-# Clean up local Docker resources
-uvx amauo cleanup
-
-# Check prerequisites and configuration
-uvx amauo check
+# Setup initial configuration
+uvx amauo setup
 
 # Show version
-uvx amauo --version
+uvx amauo version
 
 # Show help
-uvx amauo --help
+uvx amauo help
+
+# Migrate from legacy spot-deployer
+uvx amauo migrate
 ```
 
 ### Advanced Options
