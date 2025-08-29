@@ -98,14 +98,19 @@ def test_logging_methods(manager):
 
 
 @patch("subprocess.run")
-def test_get_sky_cluster_name_json(mock_run, manager):
-    """Test getting cluster name from JSON output."""
-    # Mock docker ps and sky status commands
-    json_output = '{"clusters": [{"name": "sky-abc123-root"}]}'
-    mock_run.side_effect = [
-        Mock(stdout="container_id", returncode=0),  # docker ps
-        Mock(stdout=json_output, stderr="", returncode=0),  # sky status --format json
-    ]
+@patch("amauo.manager.ClusterManager.ensure_docker_container")
+def test_get_sky_cluster_name_text(mock_ensure_docker, mock_run, manager):
+    """Test getting cluster name from text output."""
+    mock_ensure_docker.return_value = True
+
+    # Mock sky status command
+    text_output = """Enabled Infra: aws
+
+Clusters
+NAME           INFRA    STATUS
+sky-abc123-root AWS     UP
+"""
+    mock_run.return_value = Mock(stdout=text_output, stderr="", returncode=0)
 
     cluster_name = manager.get_sky_cluster_name()
     assert cluster_name == "sky-abc123-root"
@@ -113,8 +118,8 @@ def test_get_sky_cluster_name_json(mock_run, manager):
 
 @patch("subprocess.run")
 @patch("amauo.manager.ClusterManager.ensure_docker_container")
-def test_get_sky_cluster_name_text_fallback(mock_ensure_docker, mock_run, manager):
-    """Test getting cluster name from text output fallback."""
+def test_get_sky_cluster_name_multiple_clusters(mock_ensure_docker, mock_run, manager):
+    """Test getting cluster name when multiple clusters exist."""
     mock_ensure_docker.return_value = True
 
     # Mock sky status commands
@@ -123,11 +128,9 @@ def test_get_sky_cluster_name_text_fallback(mock_ensure_docker, mock_run, manage
 Clusters
 NAME           INFRA    STATUS
 sky-def456-root AWS     UP
+sky-another-cluster AWS DOWN
 """
-    mock_run.side_effect = [
-        Mock(stdout="", stderr="", returncode=1),  # sky status --format json (fails)
-        Mock(stdout=text_output, stderr="", returncode=0),  # sky status (text)
-    ]
+    mock_run.return_value = Mock(stdout=text_output, stderr="", returncode=0)
 
     cluster_name = manager.get_sky_cluster_name()
     assert cluster_name == "sky-def456-root"
