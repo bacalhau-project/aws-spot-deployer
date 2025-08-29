@@ -186,13 +186,13 @@ class ClusterManager:
         # Stop and remove existing container
         subprocess.run(
             ["docker", "stop", self.docker_container],
-            capture_output=True,
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
         )
         subprocess.run(
             ["docker", "rm", self.docker_container],
-            capture_output=True,
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
         )
