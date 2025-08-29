@@ -58,6 +58,19 @@ def test_amauo_cli() -> list[tuple[str, str]]:
     except Exception as e:
         errors.append(("amauo create --help", f"Failed to run create help: {e}"))
 
+    # Test version command
+    try:
+        result = subprocess.run(
+            ["uv", "run", "amauo", "version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            errors.append(("amauo version", f"Version command failed: {result.stderr}"))
+    except Exception as e:
+        errors.append(("amauo version", f"Failed to run version command: {e}"))
+
     return errors
 
 

@@ -156,9 +156,26 @@ def test_command_help():
         "logs",
         "cleanup",
         "check",
+        "version",
+        "monitor",
     ]
 
     for command in commands:
         result = runner.invoke(cli, [command, "--help"])
         assert result.exit_code == 0
         assert command in result.output.lower()
+
+
+def test_version_command():
+    """Test version command shows detailed version info."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["version"])
+    assert result.exit_code == 0
+    assert "Amauo v" in result.output
+    # Should show either dev or PyPI version
+    assert (
+        "Local development version" in result.output
+        or "PyPI release version" in result.output
+    )
+    assert "Python:" in result.output
+    assert "Installation:" in result.output

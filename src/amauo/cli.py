@@ -207,6 +207,54 @@ def check(ctx: click.Context) -> None:
     console.print("[green]✅ All prerequisites satisfied![/green]")
 
 
+@cli.command()
+@click.pass_context
+def version(ctx: click.Context) -> None:
+    """Show detailed version information."""
+    runtime_version = get_runtime_version()
+
+    # Determine if this is a development or PyPI installation
+    is_dev = "dev" in runtime_version or "+" in runtime_version
+
+    console.print(f"[bold cyan]Amauo v{runtime_version}[/bold cyan]")
+
+    if is_dev:
+        console.print("[yellow]📦 Local development version[/yellow]")
+        if "+" in runtime_version:
+            # Extract commit hash
+            commit_part = runtime_version.split("+")[-1]
+            console.print(f"[dim]   Commit: {commit_part}[/dim]")
+    else:
+        console.print("[green]📦 PyPI release version[/green]")
+
+    console.print(f"[dim]   Installation: {Path(__file__).parent}[/dim]")
+
+    # Show Python version
+    python_version = (
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    )
+    console.print(f"[dim]   Python: {python_version}[/dim]")
+
+
+@cli.command()
+@click.option(
+    "--follow", "-f", is_flag=True, help="Follow deployment progress continuously"
+)
+@click.pass_context
+def monitor(ctx: click.Context, follow: bool) -> None:
+    """Monitor active deployments and cluster health."""
+    manager: ClusterManager = ctx.obj["manager"]
+
+    runtime_version = get_runtime_version()
+    console.print(f"[blue]Amauo v{runtime_version}[/blue]")
+
+    if not manager.check_prerequisites():
+        sys.exit(1)
+
+    if not manager.monitor_deployments(follow=follow):
+        sys.exit(1)
+
+
 def main() -> None:
     """Entry point for the CLI."""
     try:

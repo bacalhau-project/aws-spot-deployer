@@ -894,6 +894,150 @@ class ClusterManager:
                 self.log_error(f"SkyPilot error: {stderr}")
             return False
 
+    def monitor_deployments(self, follow: bool = False) -> bool:
+        """Monitor active deployments and cluster health."""
+        try:
+            self.console.print(
+                "\n🔍 [bold cyan]Deployment Health Monitor[/bold cyan]\n"
+            )
+
+            # Check if SkyPilot container is running
+            if not self.ensure_docker_container():
+                self.log_error("SkyPilot container not available")
+                return False
+
+            # Get cluster status
+            success, stdout, stderr = self.run_sky_cmd("status")
+            if not success:
+                self.log_error(f"Failed to get cluster status: {stderr}")
+                return False
+
+            # Parse and display cluster information
+            lines = stdout.split("\n")
+            clusters_found = []
+
+            # Find cluster information
+            in_clusters_section = False
+            for line in lines:
+                if "NAME" in line and "INFRA" in line and "RESOURCES" in line:
+                    in_clusters_section = True
+                    continue
+                elif in_clusters_section and line.strip():
+                    # Stop if we hit another section
+                    if line.startswith("Managed jobs") or line.startswith("Services"):
+                        break
+                    # Look for cluster lines (they contain status info)
+                    if any(
+                        status in line for status in ["INIT", "UP", "STOPPED", "DOWN"]
+                    ):
+                        clusters_found.append(line.strip())
+
+            if not clusters_found:
+                self.console.print("✅ [green]No active clusters found[/green]")
+                return True
+
+            # Display cluster status
+            self.console.print("📊 [bold]Active Clusters:[/bold]")
+            for cluster_line in clusters_found:
+                parts = cluster_line.split()
+                if len(parts) >= 3:
+                    name = parts[0]
+
+                    # Find status in the line
+                    if "INIT" in cluster_line:
+                        status_color = "yellow"
+                        status_icon = "🔄"
+                        health = "Initializing"
+                    elif "UP" in cluster_line:
+                        status_color = "green"
+                        status_icon = "✅"
+                        health = "Running"
+                    elif "STOPPED" in cluster_line:
+                        status_color = "red"
+                        status_icon = "⏹️"
+                        health = "Stopped"
+                    else:
+                        status_color = "gray"
+                        status_icon = "❓"
+                        health = "Unknown"
+
+                    # Extract infrastructure and resources
+                    infra = parts[1] if len(parts) > 1 else "Unknown"
+                    resources_start = (
+                        cluster_line.find(parts[2]) if len(parts) > 2 else -1
+                    )
+                    status_start = (
+                        cluster_line.rfind("INIT")
+                        if "INIT" in cluster_line
+                        else cluster_line.rfind("UP")
+                        if "UP" in cluster_line
+                        else -1
+                    )
+
+                    if resources_start != -1 and status_start != -1:
+                        resources = cluster_line[resources_start:status_start].strip()
+                    elif len(parts) > 2:
+                        resources = parts[2]
+                    else:
+                        resources = "Unknown"
+
+                    self.console.print(
+                        f"  {status_icon} [{status_color}]{name}[/{status_color}] - {health}"
+                    )
+                    self.console.print(f"     Infrastructure: {infra}")
+                    self.console.print(f"     Resources: {resources}")
+
+            # Check for managed jobs
+            job_success, job_stdout, job_stderr = self.run_sky_cmd("jobs", "queue")
+            if job_success and "No in-progress managed jobs" not in job_stdout:
+                self.console.print("\n⚡ [bold]Active Managed Jobs:[/bold]")
+                job_lines = job_stdout.split("\n")
+                for line in job_lines:
+                    if line.strip() and "job" in line.lower():
+                        self.console.print(f"  🔄 {line.strip()}")
+
+            # If following, monitor continuously
+            if follow:
+                self.console.print(
+                    "\n👀 [dim]Monitoring continuously (Ctrl+C to exit)...[/dim]"
+                )
+
+                # Use the existing streaming monitor but for active clusters
+                active_cluster = None
+                for cluster_line in clusters_found:
+                    if "INIT" in cluster_line:
+                        parts = cluster_line.split()
+                        active_cluster = parts[0]
+                        break
+
+                if active_cluster:
+                    self.console.print(
+                        f"🔍 [blue]Following deployment of: {active_cluster}[/blue]"
+                    )
+                    self._monitor_deployment_progress_streaming(active_cluster)
+                else:
+                    # Just refresh status periodically
+                    import time
+
+                    while True:
+                        time.sleep(5)
+                        # Re-run status check
+                        success, stdout, stderr = self.run_sky_cmd("status")
+                        if success:
+                            timestamp = time.strftime("%H:%M:%S")
+                            self.console.print(
+                                f"[dim]{timestamp} - Cluster status updated[/dim]"
+                            )
+
+            return True
+
+        except KeyboardInterrupt:
+            self.console.print("\n[yellow]⚠️  Monitoring stopped by user[/yellow]")
+            return True
+        except Exception as e:
+            self.log_error(f"Monitoring failed: {e}")
+            return False
+
     def cleanup_docker(self) -> bool:
         """Clean up Docker container."""
         try:
