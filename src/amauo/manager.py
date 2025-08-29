@@ -979,9 +979,9 @@ class ClusterManager:
             return {}
 
         try:
-            # Get recent logs with shorter timeout
+            # Get recent logs with longer timeout
             success, stdout, stderr = self.run_sky_cmd(
-                "logs", cluster_name, "--tail=100", timeout=8
+                "logs", cluster_name, "--tail=100", timeout=20
             )
             if not success or not stdout:
                 if "timed out" in stderr:
@@ -999,6 +999,59 @@ class ClusterManager:
             return nodes
         except Exception:
             return {}
+
+    def _extract_nodes_from_status(self, status_output: str) -> list[dict[str, str]]:
+        """Extract node information from 'sky status' output."""
+        nodes = []
+        try:
+            # Look for lines that contain instance information
+            # Format usually includes instance IDs, IPs, zones, etc.
+            for line in status_output.split("\n"):
+                line = line.strip()
+                # Skip header and empty lines
+                if not line or "NAME" in line or "----" in line or "Enabled" in line:
+                    continue
+
+                # Look for lines with instance details
+                # SkyPilot status format varies, but usually has instance info
+                if "i-" in line and ("running" in line.lower() or "up" in line.lower()):
+                    parts = line.split()
+                    node_info = {}
+
+                    # Try to extract instance ID (starts with i-)
+                    for part in parts:
+                        if part.startswith("i-"):
+                            node_info["instance_id"] = part
+                            break
+
+                    # Try to extract IP (looks like x.x.x.x)
+                    for part in parts:
+                        if "." in part and len(part.split(".")) == 4:
+                            try:
+                                # Validate it's an IP address
+                                ip_parts = part.split(".")
+                                if all(0 <= int(p) <= 255 for p in ip_parts):
+                                    node_info["public_ip"] = part
+                                    break
+                            except (ValueError, IndexError):
+                                continue
+
+                    # Try to extract zone (usually has format like us-west-2a)
+                    for part in parts:
+                        if len(part) >= 8 and "-" in part and part[-1:].isalpha():
+                            if any(
+                                region in part
+                                for region in ["us-", "eu-", "ap-", "ca-", "sa-"]
+                            ):
+                                node_info["zone"] = part
+                                break
+
+                    if node_info:  # Only add if we found some useful info
+                        nodes.append(node_info)
+        except Exception:
+            pass
+
+        return nodes
 
     def deploy_cluster(
         self, config_file: str = "cluster.yaml", follow: bool = False
@@ -1261,7 +1314,7 @@ class ClusterManager:
         table.add_column("Zone", style="yellow")
         table.add_column("Launched", style="blue")
 
-        # Try to get real node information from recent logs
+        # Try to get real node information from recent logs first
         nodes_info = self._extract_node_info_from_logs()
 
         if nodes_info:
@@ -1275,10 +1328,29 @@ class ClusterManager:
                     launch_time,
                 )
         else:
-            # Fallback to generic info
-            for i in range(num_nodes):
-                table.add_row(
-                    f"node-{i}", "querying...", "querying...", "various", launch_time
+            # Fallback: try to get node info from status output
+            status_nodes = self._extract_nodes_from_status(stdout)
+            if status_nodes:
+                for i, node_info in enumerate(status_nodes):
+                    table.add_row(
+                        f"worker-{i}",
+                        node_info.get("instance_id", "unknown"),
+                        node_info.get("public_ip", "unknown"),
+                        node_info.get("zone", "unknown"),
+                        launch_time,
+                    )
+            else:
+                # Last resort: generic info with explanatory message
+                for i in range(num_nodes):
+                    table.add_row(
+                        f"worker-{i}",
+                        "cluster-running",
+                        "see-sky-status",
+                        "distributed",
+                        launch_time,
+                    )
+                self.console.print(
+                    "\n[yellow]ℹ️  Use 'sky status cluster-name' for detailed instance information[/yellow]"
                 )
 
         self.console.print(table)
