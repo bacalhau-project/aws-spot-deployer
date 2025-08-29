@@ -5,7 +5,6 @@
 # ///
 """Quick smoke test for SkyPilot cluster deployment tool."""
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -15,40 +14,49 @@ if TYPE_CHECKING:
     pass
 
 
-def test_deployment_script() -> list[tuple[str, str]]:
-    """Test deployment script basics."""
+def test_amauo_cli() -> list[tuple[str, str]]:
+    """Test amauo CLI basics."""
     errors = []
 
-    script_path = Path("cluster-deploy")
-    if not script_path.exists():
-        errors.append(("cluster-deploy", "Main deployment script not found"))
-        return errors
-
-    # Check if script is executable
-    if not os.access(script_path, os.X_OK):
-        errors.append(("cluster-deploy", "Script is not executable"))
-
-    # Test script syntax
+    # Test version command
     try:
         result = subprocess.run(
-            ["bash", "-n", str(script_path)], capture_output=True, text=True, timeout=10
-        )
-        if result.returncode != 0:
-            errors.append(("cluster-deploy", f"Syntax error: {result.stderr}"))
-    except Exception as e:
-        errors.append(("cluster-deploy", f"Failed to check syntax: {e}"))
-
-    # Test help command (should not fail)
-    try:
-        result = subprocess.run(
-            ["./cluster-deploy", "help"], capture_output=True, text=True, timeout=10
+            ["uv", "run", "amauo", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode != 0:
             errors.append(
-                ("cluster-deploy help", f"Help command failed: {result.stderr}")
+                ("amauo --version", f"Version command failed: {result.stderr}")
             )
     except Exception as e:
-        errors.append(("cluster-deploy help", f"Failed to run help: {e}"))
+        errors.append(("amauo --version", f"Failed to run version: {e}"))
+
+    # Test help command
+    try:
+        result = subprocess.run(
+            ["uv", "run", "amauo", "--help"], capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 0:
+            errors.append(("amauo --help", f"Help command failed: {result.stderr}"))
+    except Exception as e:
+        errors.append(("amauo --help", f"Failed to run help: {e}"))
+
+    # Test subcommand help
+    try:
+        result = subprocess.run(
+            ["uv", "run", "amauo", "create", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            errors.append(
+                ("amauo create --help", f"Create help failed: {result.stderr}")
+            )
+    except Exception as e:
+        errors.append(("amauo create --help", f"Failed to run create help: {e}"))
 
     return errors
 
@@ -116,7 +124,7 @@ def main() -> int:
 
     # Run all tests
     test_functions = [
-        ("Deployment Script", test_deployment_script),
+        ("Amauo CLI", test_amauo_cli),
         ("Required Files", test_required_files),
         ("Python Scripts", test_python_scripts),
     ]

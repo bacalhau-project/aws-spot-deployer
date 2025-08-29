@@ -19,6 +19,7 @@ from typing import Any, Optional
 import yaml
 from rich.console import Console
 from rich.live import Live
+from rich.panel import Panel
 from rich.table import Table
 
 
@@ -479,6 +480,127 @@ class ClusterManager:
             # User interrupted - that's fine
             pass
 
+    def _monitor_deployment_progress_streaming(self, cluster_name: str) -> None:
+        """Monitor deployment progress using SkyPilot's streaming logs."""
+        nodes: dict[str, dict[str, Any]] = {}
+
+        try:
+            # Show initial status
+            initial_panel = Panel(
+                "🔄 Starting deployment monitoring...\nWaiting for cluster activity...",
+                title="🌍 Deployment Monitor",
+                border_style="blue",
+            )
+
+            with Live(initial_panel, refresh_per_second=2) as live:
+                start_time = time.time()
+                timeout = 20 * 60  # 20 minutes
+                last_activity = start_time
+
+                while time.time() - start_time < timeout:
+                    try:
+                        # Check if cluster exists first
+                        check_success, check_stdout, _ = self.run_sky_cmd(
+                            "status", cluster_name
+                        )
+
+                        if check_success and check_stdout:
+                            # Cluster exists, try to get logs
+                            log_success, log_stdout, log_stderr = self.run_sky_cmd(
+                                "logs", cluster_name, "--tail=20"
+                            )
+
+                            if log_success and log_stdout:
+                                last_activity = time.time()
+
+                                # Parse log lines for node info
+                                new_nodes_found = False
+                                for line in log_stdout.split("\n"):
+                                    line = line.strip()
+                                    if not line:
+                                        continue
+
+                                    node_info = self._parse_deployment_log_line(line)
+                                    if node_info:
+                                        node_id = (
+                                            f"{node_info['node']}-{node_info['rank']}"
+                                        )
+
+                                        if node_id not in nodes:
+                                            nodes[node_id] = {
+                                                "node": node_info["node"],
+                                                "rank": node_info["rank"],
+                                                "ip": node_info["ip"],
+                                                "recent_messages": [],
+                                                "timestamp": node_info["timestamp"],
+                                            }
+                                            new_nodes_found = True
+
+                                        # Update node info
+                                        nodes[node_id]["ip"] = node_info["ip"]
+                                        nodes[node_id]["timestamp"] = node_info[
+                                            "timestamp"
+                                        ]
+
+                                        # Keep last 5 messages for status determination
+                                        nodes[node_id]["recent_messages"].append(
+                                            node_info["message"]
+                                        )
+                                        if len(nodes[node_id]["recent_messages"]) > 5:
+                                            nodes[node_id]["recent_messages"].pop(0)
+
+                                # Update display if we have nodes
+                                if nodes:
+                                    live.update(self._create_deployment_table(nodes))
+                                elif new_nodes_found:
+                                    live.update(self._create_deployment_table(nodes))
+
+                            # If we haven't seen activity in 5 minutes, show waiting message
+                            elif time.time() - last_activity > 300:
+                                waiting_panel = Panel(
+                                    f"⏳ Waiting for deployment activity...\n"
+                                    f"Cluster: {cluster_name}\n"
+                                    f"Elapsed: {int(time.time() - start_time)}s\n"
+                                    f"Last activity: {int(time.time() - last_activity)}s ago",
+                                    title="🌍 Deployment Monitor",
+                                    border_style="yellow",
+                                )
+                                if (
+                                    not nodes
+                                ):  # Only show if we don't have nodes to display
+                                    live.update(waiting_panel)
+
+                        else:
+                            # Cluster doesn't exist yet
+                            waiting_panel = Panel(
+                                f"🔄 Waiting for cluster creation...\n"
+                                f"Cluster: {cluster_name}\n"
+                                f"Elapsed: {int(time.time() - start_time)}s",
+                                title="🌍 Deployment Monitor",
+                                border_style="blue",
+                            )
+                            if not nodes:  # Only show if we don't have nodes to display
+                                live.update(waiting_panel)
+
+                    except Exception as e:
+                        # Log errors but continue monitoring
+                        if time.time() - start_time > 30:  # Only show errors after 30s
+                            error_panel = Panel(
+                                f"⚠️  Monitor error (continuing): {str(e)}\n"
+                                f"Elapsed: {int(time.time() - start_time)}s",
+                                title="🌍 Deployment Monitor",
+                                border_style="red",
+                            )
+                            if not nodes:  # Only show if we don't have nodes to display
+                                live.update(error_panel)
+
+                    # Sleep before next check
+                    time.sleep(3)
+
+        except KeyboardInterrupt:
+            # User interrupted - that's fine
+            pass
+
     def _extract_node_info_from_logs(self) -> dict[str, dict[str, Any]]:
         """Extract node information from recent cluster logs."""
         cluster_name = self.get_sky_cluster_name()
@@ -546,20 +668,20 @@ class ClusterManager:
                 # Ensure log file directory exists
                 self.log_file.parent.mkdir(parents=True, exist_ok=True)
 
-                # Start progress monitor in background thread
+                # Start streaming progress monitor in background thread
                 monitor_thread = None
                 try:
                     monitor_thread = threading.Thread(
-                        target=self._monitor_deployment_progress,
-                        args=(self.log_file,),
+                        target=self._monitor_deployment_progress_streaming,
+                        args=(cluster_name,),
                         daemon=True,
                     )
                     monitor_thread.start()
 
                     # Give monitor a moment to start
-                    time.sleep(1)
+                    time.sleep(2)
 
-                    # Run deployment
+                    # Run deployment (the streaming monitor will track progress)
                     success, stdout, stderr = self.run_sky_cmd(
                         "launch", config_file, "--name", cluster_name, "--yes"
                     )

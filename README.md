@@ -204,7 +204,7 @@ cd bacalhau-skypilot
 uv pip install -e .
 
 # Run locally during development
-python -m spot_deployer.cli --version
+python -m amauo.cli --version
 
 # Run tests
 uv run pytest

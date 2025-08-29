@@ -15,7 +15,7 @@ uv run ruff format --check .
 
 # Run mypy type checking
 echo "🔎 Running type checks..."
-uv run mypy spot_deployer/ --ignore-missing-imports --check-untyped-defs || echo "Type checking completed with warnings"
+uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs || echo "Type checking completed with warnings"
 
 # Run smoke tests
 echo "🔥 Running smoke tests..."

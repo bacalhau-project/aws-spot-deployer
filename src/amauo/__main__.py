@@ -1,4 +1,4 @@
-"""Entry point for running spot_deployer as a module."""
+"""Entry point for running amauo as a module."""
 
 from amauo.cli import cli
 

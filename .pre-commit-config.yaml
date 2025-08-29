@@ -50,7 +50,7 @@ repos:
 
       - id: bandit-security
         name: Run bandit security check (match CI)
-        entry: uv run bandit -r src/spot_deployer/ -ll --skip B101,B108,B202,B324,B601
+        entry: uv run bandit -r src/amauo/ -ll --skip B101,B108,B202,B324,B601
         language: system
         pass_filenames: false
         always_run: true
