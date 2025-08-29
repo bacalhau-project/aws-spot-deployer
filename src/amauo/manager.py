@@ -7,14 +7,18 @@ Uses proper YAML parsing and Rich output instead of fragile bash scripting.
 
 import json
 import os
+import re
 import subprocess
 import sys
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 from rich.console import Console
+from rich.live import Live
 from rich.table import Table
 
 
@@ -312,6 +316,169 @@ class ClusterManager:
 
         return True
 
+    def _parse_deployment_log_line(self, line: str) -> Optional[dict[str, Any]]:
+        """Parse a single log line to extract node information."""
+        # Pattern: (worker8, rank=8, pid=2816, ip=172.31.41.250) message
+        pattern = r"\(([^,]+),\s*rank=(\d+),\s*pid=\d+,\s*ip=([^)]+)\)\s*(.*)"
+        match = re.match(pattern, line)
+
+        if match:
+            node_name, rank, ip, message = match.groups()
+            return {
+                "node": node_name,
+                "rank": int(rank),
+                "ip": ip,
+                "message": message.strip(),
+                "timestamp": time.time(),
+            }
+        return None
+
+    def _create_deployment_table(self, nodes: dict[str, dict[str, Any]]) -> Table:
+        """Create a Rich table showing deployment progress."""
+        table = Table(title="🌍 Global Cluster Deployment Progress", show_header=True)
+        table.add_column("Node", style="bold blue", width=12)
+        table.add_column("Rank", justify="center", width=6)
+        table.add_column("IP Address", style="cyan", width=15)
+        table.add_column("Status", width=40)
+        table.add_column("Last Update", style="dim", width=12)
+
+        # Sort nodes by rank
+        sorted_nodes = sorted(nodes.items(), key=lambda x: x[1].get("rank", 999))
+
+        for node_id, info in sorted_nodes:
+            # Determine status from recent messages
+            status = self._get_node_status(info)
+            status_color = self._get_status_color(status)
+
+            # Format last update time
+            last_update = info.get("timestamp", 0)
+            time_ago = (
+                f"{int(time.time() - last_update)}s ago"
+                if last_update > 0
+                else "Unknown"
+            )
+
+            table.add_row(
+                info.get("node", node_id),
+                str(info.get("rank", "?")),
+                info.get("ip", "Unknown"),
+                f"[{status_color}]{status}[/{status_color}]",
+                time_ago,
+            )
+
+        return table
+
+    def _get_node_status(self, node_info: dict[str, Any]) -> str:
+        """Determine node status from recent messages."""
+        recent_messages = node_info.get("recent_messages", [])
+        if not recent_messages:
+            return "Initializing"
+
+        latest_message = recent_messages[-1].lower()
+
+        # Check for specific status indicators
+        if "deployment complete" in latest_message:
+            return "✅ Deployed"
+        elif "health check summary" in latest_message:
+            return "🔍 Health Check"
+        elif "bacalhau node running" in latest_message:
+            return "🚀 Bacalhau Started"
+        elif "docker daemon is running" in latest_message:
+            return "🐳 Docker Ready"
+        elif "pulling" in latest_message or "pull" in latest_message:
+            return "📦 Pulling Images"
+        elif "starting" in latest_message or "start" in latest_message:
+            return "⚡ Starting Services"
+        elif "error" in latest_message or "failed" in latest_message:
+            return "❌ Error"
+        elif "warning" in latest_message:
+            return "⚠️ Warning"
+        else:
+            return "🔄 Working"
+
+    def _get_status_color(self, status: str) -> str:
+        """Get Rich color for status."""
+        if "✅" in status:
+            return "green"
+        elif "❌" in status:
+            return "red"
+        elif "⚠️" in status:
+            return "yellow"
+        elif "🔄" in status or "⚡" in status or "🚀" in status:
+            return "blue"
+        elif "🐳" in status or "📦" in status:
+            return "cyan"
+        else:
+            return "white"
+
+    def _monitor_deployment_progress(self, log_file_path: Path) -> None:
+        """Monitor deployment log file and update progress display."""
+        nodes: dict[str, dict[str, Any]] = {}
+
+        try:
+            with Live(
+                self._create_deployment_table(nodes), refresh_per_second=2
+            ) as live:
+                last_position = 0
+
+                # Monitor for up to 20 minutes
+                start_time = time.time()
+                timeout = 20 * 60  # 20 minutes
+
+                while time.time() - start_time < timeout:
+                    try:
+                        if log_file_path.exists():
+                            with open(log_file_path) as f:
+                                f.seek(last_position)
+                                new_lines = f.readlines()
+                                last_position = f.tell()
+
+                                for line in new_lines:
+                                    node_info = self._parse_deployment_log_line(
+                                        line.strip()
+                                    )
+                                    if node_info:
+                                        node_id = (
+                                            f"{node_info['node']}-{node_info['rank']}"
+                                        )
+
+                                        if node_id not in nodes:
+                                            nodes[node_id] = {
+                                                "node": node_info["node"],
+                                                "rank": node_info["rank"],
+                                                "ip": node_info["ip"],
+                                                "recent_messages": [],
+                                                "timestamp": node_info["timestamp"],
+                                            }
+
+                                        # Update node info
+                                        nodes[node_id]["ip"] = node_info["ip"]
+                                        nodes[node_id]["timestamp"] = node_info[
+                                            "timestamp"
+                                        ]
+
+                                        # Keep last 5 messages for status determination
+                                        nodes[node_id]["recent_messages"].append(
+                                            node_info["message"]
+                                        )
+                                        if len(nodes[node_id]["recent_messages"]) > 5:
+                                            nodes[node_id]["recent_messages"].pop(0)
+
+                                        # Update the display
+                                        live.update(
+                                            self._create_deployment_table(nodes)
+                                        )
+
+                        time.sleep(1)  # Check for updates every second
+
+                    except Exception:
+                        # Continue monitoring even if there are parsing errors
+                        continue
+
+        except KeyboardInterrupt:
+            # User interrupted - that's fine
+            pass
+
     def deploy_cluster(self, config_file: str = "cluster.yaml") -> bool:
         """Deploy cluster using SkyPilot."""
         config_path = Path(config_file)
@@ -344,19 +511,49 @@ class ClusterManager:
                 if stderr:
                     print(stderr, file=sys.stderr)
             else:
-                # Redirect to log file
+                # Show friendly progress monitor
                 self.console.print(
-                    f"Deploying cluster... (check {self.log_file} for detailed progress)"
+                    "🚀 Starting deployment with real-time progress monitor..."
                 )
-                success, stdout, stderr = self.run_sky_cmd(
-                    "launch", config_file, "--name", cluster_name, "--yes"
-                )
+                self.console.print(f"📄 Detailed logs: {self.log_file}")
+
+                # Ensure log file directory exists
                 self.log_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(self.log_file, "a", encoding="utf-8") as f:
-                    if stdout:
-                        f.write(f"=== SkyPilot Launch Output ===\n{stdout}\n")
-                    if stderr:
-                        f.write(f"=== SkyPilot Launch Errors ===\n{stderr}\n")
+
+                # Start progress monitor in background thread
+                monitor_thread = None
+                try:
+                    monitor_thread = threading.Thread(
+                        target=self._monitor_deployment_progress,
+                        args=(self.log_file,),
+                        daemon=True,
+                    )
+                    monitor_thread.start()
+
+                    # Give monitor a moment to start
+                    time.sleep(1)
+
+                    # Run deployment
+                    success, stdout, stderr = self.run_sky_cmd(
+                        "launch", config_file, "--name", cluster_name, "--yes"
+                    )
+
+                    # Log output to file
+                    with open(self.log_file, "a", encoding="utf-8") as f:
+                        if stdout:
+                            f.write(f"=== SkyPilot Launch Output ===\n{stdout}\n")
+                        if stderr:
+                            f.write(f"=== SkyPilot Launch Errors ===\n{stderr}\n")
+
+                except Exception as e:
+                    self.log_error(f"Deployment monitoring error: {e}")
+                    success, stdout, stderr = self.run_sky_cmd(
+                        "launch", config_file, "--name", cluster_name, "--yes"
+                    )
+                finally:
+                    # Wait a bit for final status updates
+                    if monitor_thread and monitor_thread.is_alive():
+                        time.sleep(3)
 
             if success:
                 self.log_success(f"Cluster '{cluster_name}' deployed successfully!")
