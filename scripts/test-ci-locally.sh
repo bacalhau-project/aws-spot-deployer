@@ -46,8 +46,8 @@ run_step "Install Dependencies" "uv sync --frozen --group dev"
 echo -e "\n${BLUE}🔍 Code Quality Checks${NC}"
 run_step "Ruff Check" "uv run ruff check src/ tests/ scripts/"
 run_step "Ruff Format Check" "uv run ruff format --check src/ tests/ scripts/"
-run_step "MyPy Type Check" "uv run mypy src/spot_deployer/ --ignore-missing-imports --check-untyped-defs"
-run_step "Bandit Security Check" "uv run bandit -r src/spot_deployer/ -ll --skip B101,B108,B202,B324,B601"
+run_step "MyPy Type Check" "uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs"
+run_step "Bandit Security Check" "uv run bandit -r src/amauo/ -ll --skip B101,B108,B202,B324,B601"
 
 # Tests
 echo -e "\n${BLUE}🧪 Running Tests${NC}"

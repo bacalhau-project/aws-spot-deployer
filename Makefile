@@ -20,10 +20,10 @@ format:  ## Run code formatting
 	uv run ruff format src/ tests/ scripts/
 
 type-check:  ## Run type checking
-	uv run mypy src/spot_deployer/ --ignore-missing-imports --check-untyped-defs
+	uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs
 
 security:  ## Run security checks
-	uv run bandit -r src/spot_deployer/ -ll --skip B101,B108,B202,B324,B601
+	uv run bandit -r src/amauo/ -ll --skip B101,B108,B202,B324,B601
 
 smoke-test:  ## Run smoke tests
 	uv run python scripts/smoke-test.py
