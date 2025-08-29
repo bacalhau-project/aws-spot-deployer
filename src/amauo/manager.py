@@ -708,32 +708,84 @@ class ClusterManager:
                     if monitor_thread and monitor_thread.is_alive():
                         time.sleep(3)
             else:
-                # Default detached mode - no monitoring UI
-                self.console.print("🚀 [green]Deploying in background...[/green]")
+                # Default background mode - start deployment and return immediately
+                self.console.print(
+                    "🚀 [green]Starting deployment in background...[/green]"
+                )
                 self.console.print(f"📄 Logs: {self.log_file}")
                 self.console.print(
                     "💡 [dim]Use 'amauo monitor --follow' to track progress[/dim]"
                 )
 
-                success, stdout, stderr = self.run_sky_cmd(
-                    "launch", config_file, "--name", cluster_name, "--yes"
-                )
+                # Ensure log file directory exists
+                self.log_file.parent.mkdir(parents=True, exist_ok=True)
 
-                # Log output to file for default mode
-                with open(self.log_file, "a", encoding="utf-8") as f:
-                    if stdout:
-                        f.write(f"=== SkyPilot Launch Output ===\n{stdout}\n")
-                    if stderr:
-                        f.write(f"=== SkyPilot Launch Errors ===\n{stderr}\n")
+                # Start SkyPilot deployment in background using detached docker exec
+                cmd = [
+                    "docker",
+                    "exec",
+                    "-d",
+                    self.docker_container,
+                    "sky",
+                    "launch",
+                    config_file,
+                    "--name",
+                    cluster_name,
+                    "--yes",
+                ]
+
+                try:
+                    # Start the process in detached mode (-d flag to docker exec)
+                    result = subprocess.run(
+                        cmd, capture_output=True, text=True, check=False
+                    )
+
+                    if result.returncode == 0:
+                        success = True
+                        self.console.print(
+                            "✅ [green]Deployment started successfully![/green]"
+                        )
+                        # Write initial log entry
+                        with open(self.log_file, "a", encoding="utf-8") as f:
+                            f.write("=== Deployment Started ===\n")
+                            f.write(f"Cluster: {cluster_name}\n")
+                            f.write(f"Config: {config_file}\n")
+                            f.write(f"Started at: {datetime.now().isoformat()}\n")
+                            f.write(
+                                "Use 'amauo monitor --follow' to track progress\n\n"
+                            )
+                    else:
+                        success = False
+                        self.console.print("❌ [red]Failed to start deployment[/red]")
+                        if result.stderr:
+                            self.console.print(f"[red]Error: {result.stderr}[/red]")
+
+                except Exception as e:
+                    success = False
+                    self.console.print(f"❌ [red]Failed to start deployment: {e}[/red]")
 
             if success:
-                self.log_success(f"Cluster '{cluster_name}' deployed successfully!")
-                self._show_completion_banner()
+                if not follow:
+                    # Background mode - deployment started, not completed
+                    self.log_success(f"Deployment started for cluster '{cluster_name}'")
+                    self.console.print(
+                        "\n💡 [dim]Deployment is running in background[/dim]"
+                    )
+                    self.console.print(
+                        "🔍 [dim]Use 'amauo monitor' to check status[/dim]"
+                    )
+                    self.console.print(
+                        "📋 [dim]Use 'amauo monitor --follow' for live updates[/dim]"
+                    )
+                else:
+                    # Follow mode - deployment completed
+                    self.log_success(f"Cluster '{cluster_name}' deployed successfully!")
+                    self._show_completion_banner()
                 return True
             else:
-                self.log_error("Deployment failed")
-                if stderr and not self.log_to_console:
-                    self.log_error(f"SkyPilot error: {stderr}")
+                self.log_error(
+                    "Deployment failed to start" if not follow else "Deployment failed"
+                )
                 return False
 
         except Exception as e:
