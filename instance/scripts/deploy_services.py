@@ -31,7 +31,9 @@ def run_command(cmd, check=True):
     """Run shell command and return result"""
     log(f"Running: {cmd}")
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=check)
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, check=check
+        )
         if result.stdout:
             log(f"Output: {result.stdout.strip()}")
         return result
@@ -187,7 +189,9 @@ def fix_service_dependencies(service_file):
 
         # Remove configure-services.service dependencies too
         content = re.sub(r"(After=.*?)\s*configure-services\.service", r"\1", content)
-        content = re.sub(r"(Requires=.*?)\s*configure-services\.service", r"\1", content)
+        content = re.sub(
+            r"(Requires=.*?)\s*configure-services\.service", r"\1", content
+        )
 
         if content != original_content:
             with open(service_file, "w") as f:

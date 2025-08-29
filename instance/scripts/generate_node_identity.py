@@ -12,7 +12,7 @@ import json
 import os
 import random
 from datetime import datetime
-from typing import Any, Dict, Tuple
+from typing import Any
 
 
 class NodeIdentityGenerator:
@@ -162,26 +162,26 @@ class NodeIdentityGenerator:
         self.seed = int(hashlib.md5(instance_id.encode()).hexdigest(), 16)
         self.rng = random.Random(self.seed)
 
-    def _add_coordinate_noise(self, lat: float, lon: float) -> Tuple[float, float]:
+    def _add_coordinate_noise(self, lat: float, lon: float) -> tuple[float, float]:
         """Add deterministic noise to coordinates based on instance ID."""
         # Use the seeded RNG for deterministic noise
         lat_noise = self.rng.uniform(-0.01, 0.01)
         lon_noise = self.rng.uniform(-0.01, 0.01)
         return round(lat + lat_noise, 6), round(lon + lon_noise, 6)
 
-    def _select_city(self) -> Dict[str, Any]:
+    def _select_city(self) -> dict[str, Any]:
         """Select a city based on instance ID hash."""
         city_index = self.seed % len(self.US_CITIES)
         return self.US_CITIES[city_index]
 
-    def _generate_sensor_id(self, city: Dict[str, Any]) -> str:
+    def _generate_sensor_id(self, city: dict[str, Any]) -> str:
         """Generate unique sensor ID based on region and number."""
         region_code = f"{city['state']}_{city['name'][:3].upper()}"
         # Generate a consistent number based on instance ID
         number = (self.seed // len(self.US_CITIES)) % 9999 + 1
         return f"SENSOR_{region_code}_{number:04d}"
 
-    def _select_manufacturer_config(self) -> Dict[str, Any]:
+    def _select_manufacturer_config(self) -> dict[str, Any]:
         """Select manufacturer and model configuration deterministically."""
         manufacturer_index = (self.seed // 100) % len(self.SENSOR_MANUFACTURERS)
         manufacturer = self.SENSOR_MANUFACTURERS[manufacturer_index]
@@ -201,7 +201,7 @@ class NodeIdentityGenerator:
             "firmware_version": firmware,
         }
 
-    def _generate_deployment_info(self) -> Dict[str, Any]:
+    def _generate_deployment_info(self) -> dict[str, Any]:
         """Generate deterministic deployment metadata."""
         deployment_types = ["rooftop", "street_pole", "ground_station", "mobile_unit"]
         deployment_type = deployment_types[self.seed % len(deployment_types)]
@@ -213,7 +213,9 @@ class NodeIdentityGenerator:
         ).strftime("%Y-%m-%d")
 
         # Use seeded RNG for deterministic values
-        height_meters = round(2.0 + (self.seed % 480) / 10.0, 1)  # 2.0-50.0 in 0.1 steps
+        height_meters = round(
+            2.0 + (self.seed % 480) / 10.0, 1
+        )  # 2.0-50.0 in 0.1 steps
         orientation_degrees = self.seed % 360
 
         return {
@@ -223,7 +225,7 @@ class NodeIdentityGenerator:
             "orientation_degrees": orientation_degrees,
         }
 
-    def generate_identity(self) -> Dict[str, Any]:
+    def generate_identity(self) -> dict[str, Any]:
         """Generate complete node identity."""
         city = self._select_city()
         lat, lon = self._add_coordinate_noise(city["lat"], city["lon"])
@@ -319,7 +321,9 @@ def main():
     parser.add_argument(
         "-i", "--instance-id", help="Override instance ID (for testing)", default=None
     )
-    parser.add_argument("--stdout", action="store_true", help="Output to stdout instead of file")
+    parser.add_argument(
+        "--stdout", action="store_true", help="Output to stdout instead of file"
+    )
 
     args = parser.parse_args()
 
@@ -344,7 +348,9 @@ def main():
     print(f"Generating node identity for instance: {instance_id}")
     print(f"Selected location: {identity['location']['address']}")
     print(f"Sensor ID: {identity['sensor_id']}")
-    print(f"Device: {identity['device_info']['manufacturer']} {identity['device_info']['model']}")
+    print(
+        f"Device: {identity['device_info']['manufacturer']} {identity['device_info']['model']}"
+    )
 
     # Output to stdout or file
     if args.stdout:

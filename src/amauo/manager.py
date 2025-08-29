@@ -481,125 +481,338 @@ class ClusterManager:
             pass
 
     def _monitor_deployment_progress_streaming(self, cluster_name: str) -> None:
-        """Monitor deployment progress using SkyPilot's streaming logs."""
-        nodes: dict[str, dict[str, Any]] = {}
-
+        """Monitor deployment progress using reliable cluster and job status detection."""
         try:
-            # Show initial status
             initial_panel = Panel(
-                "🔄 Starting deployment monitoring...\nWaiting for cluster activity...",
+                "🔄 Starting deployment monitoring...\nScanning for clusters...",
                 title="🌍 Deployment Monitor",
                 border_style="blue",
             )
 
-            with Live(initial_panel, refresh_per_second=2) as live:
+            with Live(initial_panel, refresh_per_second=1) as live:
                 start_time = time.time()
                 timeout = 20 * 60  # 20 minutes
-                last_activity = start_time
+                deployment_cluster = None
+                job_name = cluster_name  # The job name we're looking for
+                last_status = ""
+                completion_detected = False
 
-                while time.time() - start_time < timeout:
+                while time.time() - start_time < timeout and not completion_detected:
                     try:
-                        # Check if cluster exists first
-                        check_success, check_stdout, _ = self.run_sky_cmd(
-                            "status", cluster_name
-                        )
+                        elapsed = int(time.time() - start_time)
+                        status_lines = []
 
-                        if check_success and check_stdout:
-                            # Cluster exists, try to get logs
-                            log_success, log_stdout, log_stderr = self.run_sky_cmd(
-                                "logs", cluster_name, "--tail=20"
-                            )
+                        # Step 1: Find any active cluster (SkyPilot generates internal names)
+                        status_success, status_stdout, _ = self.run_sky_cmd("status")
+                        if status_success and status_stdout:
+                            lines = status_stdout.split("\n")
+                            for line in lines:
+                                if "sky-" in line and ("INIT" in line or "UP" in line):
+                                    parts = line.split()
+                                    if len(parts) >= 1:
+                                        potential_cluster = parts[0]
+                                        if deployment_cluster is None:
+                                            deployment_cluster = potential_cluster
 
-                            if log_success and log_stdout:
-                                last_activity = time.time()
+                                        # Determine cluster status
+                                        if "UP" in line:
+                                            cluster_status = "✅ Running"
+                                            border_color = "green"
+                                        elif "INIT" in line:
+                                            cluster_status = "🔄 Initializing"
+                                            border_color = "yellow"
+                                        else:
+                                            cluster_status = "❓ Unknown"
+                                            border_color = "dim"
 
-                                # Parse log lines for node info
-                                new_nodes_found = False
-                                for line in log_stdout.split("\n"):
-                                    line = line.strip()
-                                    if not line:
-                                        continue
-
-                                    node_info = self._parse_deployment_log_line(line)
-                                    if node_info:
-                                        node_id = (
-                                            f"{node_info['node']}-{node_info['rank']}"
+                                        status_lines.append(
+                                            f"🏗️  Cluster: {deployment_cluster} ({cluster_status})"
                                         )
 
-                                        if node_id not in nodes:
-                                            nodes[node_id] = {
-                                                "node": node_info["node"],
-                                                "rank": node_info["rank"],
-                                                "ip": node_info["ip"],
-                                                "recent_messages": [],
-                                                "timestamp": node_info["timestamp"],
-                                            }
-                                            new_nodes_found = True
+                                        # Step 2: Check for running jobs on this cluster
+                                        if "UP" in line:
+                                            queue_success, queue_stdout, _ = (
+                                                self.run_sky_cmd(
+                                                    "queue", deployment_cluster
+                                                )
+                                            )
+                                            if queue_success and queue_stdout:
+                                                queue_lines = queue_stdout.split("\n")
+                                                for qline in queue_lines:
+                                                    if job_name in qline:
+                                                        qparts = qline.split()
+                                                        if len(qparts) >= 7:
+                                                            duration = qparts[5]
+                                                            status = qparts[6]
+                                                            if status == "RUNNING":
+                                                                status_lines.append(
+                                                                    f"📋 Job: {job_name} - RUNNING for {duration}"
+                                                                )
 
-                                        # Update node info
-                                        nodes[node_id]["ip"] = node_info["ip"]
-                                        nodes[node_id]["timestamp"] = node_info[
-                                            "timestamp"
-                                        ]
+                                                                # Get recent activity
+                                                                (
+                                                                    log_success,
+                                                                    log_stdout,
+                                                                    _,
+                                                                ) = self.run_sky_cmd(
+                                                                    "logs",
+                                                                    deployment_cluster,
+                                                                    "--tail=3",
+                                                                )
+                                                                if (
+                                                                    log_success
+                                                                    and log_stdout
+                                                                ):
+                                                                    recent_lines = [
+                                                                        line.strip()
+                                                                        for line in log_stdout.split(
+                                                                            "\n"
+                                                                        )[-3:]
+                                                                        if line.strip()
+                                                                    ]
+                                                                    if recent_lines:
+                                                                        status_lines.append(
+                                                                            "\n📝 Recent Activity:"
+                                                                        )
+                                                                        for log_line in recent_lines:
+                                                                            # Clean up log formatting
+                                                                            if (
+                                                                                "] "
+                                                                                in log_line
+                                                                            ):
+                                                                                clean_line = log_line.split(
+                                                                                    "] ",
+                                                                                    1,
+                                                                                )[-1]
+                                                                            else:
+                                                                                clean_line = log_line
+                                                                            if (
+                                                                                "Container"
+                                                                                in clean_line
+                                                                                and (
+                                                                                    "Starting"
+                                                                                    in clean_line
+                                                                                    or "Started"
+                                                                                    in clean_line
+                                                                                )
+                                                                            ):
+                                                                                status_lines.append(
+                                                                                    f"  ✅ {clean_line[:70]}..."
+                                                                                )
+                                                                            elif (
+                                                                                "Pulled"
+                                                                                in clean_line
+                                                                            ):
+                                                                                status_lines.append(
+                                                                                    f"  📦 {clean_line[:70]}..."
+                                                                                )
+                                                                            else:
+                                                                                status_lines.append(
+                                                                                    f"  • {clean_line[:70]}..."
+                                                                                )
 
-                                        # Keep last 5 messages for status determination
-                                        nodes[node_id]["recent_messages"].append(
-                                            node_info["message"]
-                                        )
-                                        if len(nodes[node_id]["recent_messages"]) > 5:
-                                            nodes[node_id]["recent_messages"].pop(0)
+                                                                # Check for deployment completion indicators
+                                                                if any(
+                                                                    keyword
+                                                                    in log_stdout.lower()
+                                                                    for keyword in [
+                                                                        "deployment complete",
+                                                                        "cluster is running",
+                                                                        "node is ready",
+                                                                    ]
+                                                                ):
+                                                                    completion_detected = True
+                                                                    status_lines.append(
+                                                                        "\n🎉 Deployment appears to be complete!"
+                                                                    )
 
-                                # Update display if we have nodes
-                                if nodes:
-                                    live.update(self._create_deployment_table(nodes))
-                                elif new_nodes_found:
-                                    live.update(self._create_deployment_table(nodes))
+                                                            elif status == "PENDING":
+                                                                status_lines.append(
+                                                                    f"📋 Job: {job_name} - PENDING for {duration}"
+                                                                )
+                                                            elif status == "SUCCEEDED":
+                                                                status_lines.append(
+                                                                    f"📋 Job: {job_name} - SUCCEEDED in {duration}"
+                                                                )
+                                                                completion_detected = (
+                                                                    True
+                                                                )
+                                                            elif status == "FAILED":
+                                                                status_lines.append(
+                                                                    f"📋 Job: {job_name} - FAILED after {duration}"
+                                                                )
+                                                                completion_detected = (
+                                                                    True
+                                                                )
+                                        break
 
-                            # If we haven't seen activity in 5 minutes, show waiting message
-                            elif time.time() - last_activity > 300:
-                                waiting_panel = Panel(
-                                    f"⏳ Waiting for deployment activity...\n"
-                                    f"Cluster: {cluster_name}\n"
-                                    f"Elapsed: {int(time.time() - start_time)}s\n"
-                                    f"Last activity: {int(time.time() - last_activity)}s ago",
-                                    title="🌍 Deployment Monitor",
-                                    border_style="yellow",
-                                )
-                                if (
-                                    not nodes
-                                ):  # Only show if we don't have nodes to display
-                                    live.update(waiting_panel)
-
+                        # If no cluster found yet
+                        if deployment_cluster is None:
+                            status_lines = [
+                                "⏳ Waiting for cluster to appear...",
+                                f"Looking for job: {job_name}",
+                                f"Elapsed: {elapsed}s",
+                            ]
+                            border_color = "yellow"
                         else:
-                            # Cluster doesn't exist yet
-                            waiting_panel = Panel(
-                                f"🔄 Waiting for cluster creation...\n"
-                                f"Cluster: {cluster_name}\n"
-                                f"Elapsed: {int(time.time() - start_time)}s",
-                                title="🌍 Deployment Monitor",
-                                border_style="blue",
-                            )
-                            if not nodes:  # Only show if we don't have nodes to display
-                                live.update(waiting_panel)
+                            status_lines.insert(0, f"⏱️  Elapsed: {elapsed}s")
 
-                    except Exception as e:
-                        # Log errors but continue monitoring
-                        if time.time() - start_time > 30:  # Only show errors after 30s
-                            error_panel = Panel(
-                                f"⚠️  Monitor error (continuing): {str(e)}\n"
-                                f"Elapsed: {int(time.time() - start_time)}s",
-                                title="🌍 Deployment Monitor",
-                                border_style="red",
-                            )
-                            if not nodes:  # Only show if we don't have nodes to display
-                                live.update(error_panel)
+                        # Build and display panel
+                        content = (
+                            "\n".join(status_lines)
+                            if status_lines
+                            else "Scanning for deployment..."
+                        )
+                        panel = Panel(
+                            content,
+                            title="🌍 Deployment Monitor",
+                            border_style=border_color,
+                        )
+                        live.update(panel)
 
-                    # Sleep before next check
+                        # Update last status for change detection
+                        current_status = "\n".join(status_lines)
+                        if current_status != last_status:
+                            last_status = current_status
+
+                    except Exception as inner_e:
+                        error_panel = Panel(
+                            f"⚠️ Monitor error: {inner_e}\nElapsed: {elapsed}s",
+                            title="🌍 Deployment Monitor",
+                            border_style="red",
+                        )
+                        live.update(error_panel)
+
                     time.sleep(3)
 
+                # Final status
+                if completion_detected:
+                    final_panel = Panel(
+                        "🎉 Deployment monitoring complete!\nUse 'amauo status' to check cluster health.",
+                        title="🌍 Deployment Monitor",
+                        border_style="green",
+                    )
+                    live.update(final_panel)
+                    time.sleep(2)  # Show completion message briefly
+                else:
+                    timeout_panel = Panel(
+                        f"⚠️ Monitoring timeout after {timeout // 60} minutes\nCluster may still be deploying in background.",
+                        title="🌍 Deployment Monitor",
+                        border_style="yellow",
+                    )
+                    live.update(timeout_panel)
+                    time.sleep(2)
+
         except KeyboardInterrupt:
-            # User interrupted - that's fine
-            pass
+            self.console.print("\n[yellow]⚠️ Monitoring interrupted by user[/yellow]")
+        except Exception as e:
+            self.console.print(f"\n[red]❌ Monitor error: {e}[/red]")
+
+    def _detect_deployment_completion(self, cluster_name: str) -> tuple[bool, str]:
+        """
+        Detect if deployment has completed successfully.
+        Returns (is_complete, status_message)
+        """
+        try:
+            # Check if cluster is UP
+            status_success, status_stdout, _ = self.run_sky_cmd("status")
+            if not status_success or not status_stdout:
+                return False, "Cannot get cluster status"
+
+            cluster_up = False
+            actual_cluster_name = None
+
+            # Find our cluster in the status output
+            for line in status_stdout.split("\n"):
+                if "sky-" in line and "UP" in line:
+                    parts = line.split()
+                    if len(parts) >= 1:
+                        actual_cluster_name = parts[0]
+                        cluster_up = True
+                        break
+
+            if not cluster_up or actual_cluster_name is None:
+                return False, "Cluster not yet UP"
+
+            # Check job status
+            queue_success, queue_stdout, _ = self.run_sky_cmd(
+                "queue", actual_cluster_name
+            )
+            if not queue_success:
+                return False, "Cannot check job queue"
+
+            # Look for our job in the queue
+            for line in queue_stdout.split("\n"):
+                if cluster_name in line:  # cluster_name is actually the job name
+                    parts = line.split()
+                    if len(parts) >= 7:
+                        status = parts[6]
+                        duration = parts[5]
+                        if status == "SUCCEEDED":
+                            return True, f"Job completed successfully in {duration}"
+                        elif status == "FAILED":
+                            return True, f"Job failed after {duration}"
+                        elif status == "RUNNING":
+                            # Check if it's been running long enough to be considered "setup complete"
+                            # Parse duration (e.g., "5m30s" -> seconds)
+                            try:
+                                duration_seconds = self._parse_duration_to_seconds(
+                                    duration
+                                )
+                                if duration_seconds > 300:  # 5 minutes
+                                    # Check logs for completion indicators
+                                    if actual_cluster_name is not None:
+                                        log_success, log_stdout, _ = self.run_sky_cmd(
+                                            "logs", actual_cluster_name, "--tail=10"
+                                        )
+                                        if log_success and log_stdout:
+                                            completion_indicators = [
+                                                "deployment complete",
+                                                "cluster is running",
+                                                "sensor simulator started",
+                                                "bacalhau compute started",
+                                                "deployment status",
+                                                "node is ready",
+                                            ]
+                                            if any(
+                                                indicator in log_stdout.lower()
+                                                for indicator in completion_indicators
+                                            ):
+                                                return (
+                                                    True,
+                                                    f"Deployment setup completed (running for {duration})",
+                                                )
+
+                            except Exception:
+                                pass
+                            return False, f"Job still running ({duration})"
+                        elif status == "PENDING":
+                            return False, f"Job pending ({duration})"
+
+            return False, "Job not found in queue"
+
+        except Exception as e:
+            return False, f"Error checking completion: {e}"
+
+    def _parse_duration_to_seconds(self, duration: str) -> int:
+        """Parse duration string like '5m30s' to total seconds."""
+        import re
+
+        total_seconds = 0
+
+        # Handle formats like \"5m30s\", \"2h15m\", \"45s\"
+        hours = re.search(r"(\\d+)h", duration)
+        minutes = re.search(r"(\\d+)m", duration)
+        seconds = re.search(r"(\\d+)s", duration)
+
+        if hours:
+            total_seconds += int(hours.group(1)) * 3600
+        if minutes:
+            total_seconds += int(minutes.group(1)) * 60
+        if seconds:
+            total_seconds += int(seconds.group(1))
+
+        return total_seconds
 
     def _extract_node_info_from_logs(self) -> dict[str, dict[str, Any]]:
         """Extract node information from recent cluster logs."""
@@ -972,8 +1185,9 @@ class ClusterManager:
     def monitor_deployments(self, follow: bool = False) -> bool:
         """Monitor active deployments and cluster health."""
         try:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.console.print(
-                "\n🔍 [bold cyan]Deployment Health Monitor[/bold cyan]\n"
+                f"\n🔍 [bold cyan]Deployment Health Monitor[/bold cyan] [dim]({current_time})[/dim]\n"
             )
 
             # Check if SkyPilot container is running
