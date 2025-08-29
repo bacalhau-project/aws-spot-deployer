@@ -1080,7 +1080,7 @@ class ClusterManager:
             if self.log_to_console:
                 # Show output when --console flag used
                 success, stdout, stderr = self.run_sky_cmd(
-                    "launch", config_file, "--name", cluster_name, "--yes"
+                    "launch", config_file, "--name", cluster_name, "--yes", timeout=600
                 )
                 if stdout:
                     print(stdout)
@@ -1114,7 +1114,12 @@ class ClusterManager:
 
                     # Run deployment (the streaming monitor will track progress)
                     success, stdout, stderr = self.run_sky_cmd(
-                        "launch", config_file, "--name", cluster_name, "--yes"
+                        "launch",
+                        config_file,
+                        "--name",
+                        cluster_name,
+                        "--yes",
+                        timeout=600,
                     )
 
                     # Log output to file
@@ -1127,7 +1132,12 @@ class ClusterManager:
                 except Exception as e:
                     self.log_error(f"Deployment monitoring error: {e}")
                     success, stdout, stderr = self.run_sky_cmd(
-                        "launch", config_file, "--name", cluster_name, "--yes"
+                        "launch",
+                        config_file,
+                        "--name",
+                        cluster_name,
+                        "--yes",
+                        timeout=600,
                     )
                 finally:
                     # Wait a bit for final status updates
@@ -1385,7 +1395,7 @@ class ClusterManager:
             return False
 
         self.log_info(f"Showing logs for cluster: {cluster_name}")
-        success, stdout, stderr = self.run_sky_cmd("logs", cluster_name)
+        success, stdout, stderr = self.run_sky_cmd("logs", cluster_name, timeout=30)
         if success:
             if stdout:
                 print(stdout)
@@ -1406,7 +1416,9 @@ class ClusterManager:
         self.log_header(f"Destroying Cluster: {cluster_name}")
         self.log_warning("This will terminate all instances and delete all data!")
 
-        success, stdout, stderr = self.run_sky_cmd("down", cluster_name, "--yes")
+        success, stdout, stderr = self.run_sky_cmd(
+            "down", cluster_name, "--yes", timeout=300
+        )
         if success:
             if stdout and "not found" in stdout:
                 self.log_info(f"Cluster '{cluster_name}' does not exist")
