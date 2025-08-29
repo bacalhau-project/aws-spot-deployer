@@ -1,0 +1,6 @@
+description: Converted from SkyPilot cluster configuration
+name: amauo-bacalhau-deployment
+uploads:
+- destination: /opt/deployment/scripts/
+  permissions: '755'
+  source: scripts/

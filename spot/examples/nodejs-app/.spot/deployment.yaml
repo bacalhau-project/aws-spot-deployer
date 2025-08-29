@@ -1,0 +1,36 @@
+# Node.js Web Application Deployment
+version: 1
+
+deployment:
+  # Install Node.js and dependencies
+  packages:
+    - nodejs
+    - npm
+    - nginx
+    - certbot
+    - python3-certbot-nginx
+
+  # Setup scripts
+  scripts:
+    - name: install-app
+      path: scripts/install.sh
+      order: 1
+    - name: configure-nginx
+      path: scripts/nginx.sh
+      order: 2
+
+  # Application files
+  uploads:
+    - source: configs/app.env
+      destination: /opt/app/.env
+      permissions: "600"
+    - source: configs/nginx.conf
+      destination: /etc/nginx/sites-available/app
+      permissions: "644"
+
+  # SystemD services
+  services:
+    - name: nodeapp
+      file: services/nodeapp.service
+      enabled: true
+      start: true

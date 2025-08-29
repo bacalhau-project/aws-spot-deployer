@@ -1,0 +1,7 @@
+# Redirect curl/wget requests to install.sh
+/*  /install.sh  200!  User-Agent=curl/*
+/*  /install.sh  200!  User-Agent=Wget/*
+/*  /install.sh  200!  User-Agent=fetch/*
+
+# Default to index.html for browsers
+/*  /index.html  200

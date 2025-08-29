@@ -1,0 +1,32 @@
+{
+  "sensor_id": "SENSOR_TN_NAS_4252",
+  "location": {
+    "city": "Nashville",
+    "state": "TN",
+    "coordinates": {
+      "latitude": 36.17043,
+      "longitude": -86.78651
+    },
+    "timezone": "America/Chicago",
+    "address": "Nashville, TN, USA"
+  },
+  "device_info": {
+    "manufacturer": "AcmeSensors",
+    "model": "EnviroPro-3000",
+    "firmware_version": "3.3.2",
+    "serial_number": "AcmeSensors-324085",
+    "manufacture_date": "2025-05-25"
+  },
+  "deployment": {
+    "deployment_type": "street_pole",
+    "installation_date": "2025-05-25",
+    "height_meters": 10.5,
+    "orientation_degrees": 325
+  },
+  "metadata": {
+    "instance_id": "i-1234567890abcdef0",
+    "identity_generation_timestamp": "2025-08-18T18:21:28.845771",
+    "generation_seed": 263662312046034352660800051568002324085,
+    "sensor_type": "environmental_monitoring"
+  }
+}
