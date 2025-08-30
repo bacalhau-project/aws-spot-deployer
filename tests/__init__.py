@@ -1,1 +1,1 @@
-# Tests for spot-deployer
+# Tests for amauo

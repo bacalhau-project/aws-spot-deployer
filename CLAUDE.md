@@ -8,7 +8,7 @@ A **modern AWS spot instance deployment tool** for deploying Bacalhau compute no
 
 ## Key Architecture
 
-- **Package structure**: Modular design in `spot_deployer/` package
+- **Package structure**: Modular design in `amauo/` package
 - **State management**: JSON-based (`instances.json`) for simplicity
 - **Configuration**: YAML-based (`config.yaml`) with sensible defaults
 - **Caching**: File-based AMI caching (`.aws_cache/`)
@@ -94,7 +94,7 @@ uv run ruff check . --fix
 uv run ruff format .
 
 # Type checking - CRITICAL: Run same command as CI
-uv run mypy spot_deployer/ --ignore-missing-imports --check-untyped-defs
+uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs
 ```
 
 **Important:** Pre-commit hooks will automatically run `ruff`, `mypy`, and `bandit` checks on every commit. The configurations are now synchronized between pre-commit and CI to prevent discrepancies. If you have a global git hooks path configured, you may need to run checks manually with `uv run pre-commit run --all-files`.
@@ -102,7 +102,7 @@ uv run mypy spot_deployer/ --ignore-missing-imports --check-untyped-defs
 ## Core Components
 
 ### Main Entry Points
-- `spot_deployer/` - Main package directory
+- `src/amauo/` - Main package directory
 - `spot-dev` - Local development CLI wrapper using uv
 - `delete_vpcs.py` - Advanced VPC cleanup utility
 
@@ -116,7 +116,7 @@ uv run mypy spot_deployer/ --ignore-missing-imports --check-untyped-defs
 
 ### File Layout
 ```
-├── spot_deployer/              # Main package
+├── src/amauo/                  # Main package
 │   ├── commands/               # CLI commands (create, destroy, list, etc.)
 │   ├── core/                   # Core classes (config, state, constants)
 │   └── utils/                  # Utilities (AWS, SSH, display, etc.)
@@ -145,7 +145,7 @@ aws:
 regions:
   - us-west-2:
       machine_type: t3.medium
-      image: auto  # Auto-discovers latest Ubuntu 22.04
+      image: auto  # Auto-discovers latest Ubuntu 24.04
 ```
 
 ### Bacalhau Orchestrator Configuration

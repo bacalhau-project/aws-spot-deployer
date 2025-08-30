@@ -1,0 +1,282 @@
+"""
+Command-line interface for amauo.
+
+Provides a Click-based CLI for deploying and managing Bacalhau compute nodes
+across multiple AWS regions using spot instances.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+import click
+from rich.console import Console
+
+from . import get_runtime_version
+from .commands import (
+    cmd_cleanup,
+    cmd_create,
+    cmd_destroy,
+    cmd_generate,
+    cmd_help,
+    cmd_list,
+    cmd_nuke,
+    cmd_random_ip,
+    cmd_readme,
+    cmd_setup,
+    cmd_validate,
+    cmd_version,
+)
+from .core.config import SimpleConfig
+from .core.state import SimpleStateManager
+
+console = Console()
+
+
+@click.group(invoke_without_command=True)
+@click.option(
+    "-c",
+    "--config",
+    default="config.yaml",
+    help="Config file path",
+    show_default=True,
+)
+@click.option(
+    "--version",
+    is_flag=True,
+    help="Show version and exit",
+)
+@click.pass_context
+def cli(
+    ctx: click.Context,
+    config: str,
+    version: bool,
+) -> None:
+    """
+    🌟 Amauo - Deploy Bacalhau compute nodes effortlessly across the cloud.
+
+    Deploy Bacalhau compute nodes across multiple cloud regions using spot instances
+    for cost-effective distributed computing.
+
+    Examples:
+        uvx amauo create              # Deploy nodes
+        uvx amauo list                # List nodes
+        uvx amauo destroy             # Clean up
+        uvx amauo setup               # Initial setup
+    """
+    if version:
+        runtime_version = get_runtime_version()
+        click.echo(f"amauo version {runtime_version}")
+        sys.exit(0)
+
+    # Store common options in context
+    ctx.ensure_object(dict)
+    ctx.obj["config_path"] = config
+
+    # Initialize core components
+    try:
+        ctx.obj["config"] = SimpleConfig(config)
+        ctx.obj["state"] = SimpleStateManager()
+    except Exception as e:
+        if ctx.invoked_subcommand not in ["setup", "help", "version"]:
+            console.print(f"[red]❌ Config error: {e}[/red]")
+            console.print("[yellow]💡 Try running 'amauo setup' first[/yellow]")
+            sys.exit(1)
+
+    # Show help if no command provided
+    if ctx.invoked_subcommand is None:
+        runtime_version = get_runtime_version()
+        click.echo(f"Amauo v{runtime_version}")
+        click.echo(ctx.get_help())
+
+
+@cli.command()
+@click.pass_context
+def create(ctx: click.Context) -> None:
+    """Deploy Bacalhau compute nodes across multiple regions."""
+    config: SimpleConfig = ctx.obj["config"]
+    state: SimpleStateManager = ctx.obj["state"]
+
+    try:
+        cmd_create(config, state)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]⚠️  Deployment interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        console.print(f"[red]❌ Deployment failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def destroy(ctx: click.Context) -> None:
+    """Destroy all instances and clean up resources."""
+    config: SimpleConfig = ctx.obj["config"]
+    state: SimpleStateManager = ctx.obj["state"]
+
+    try:
+        cmd_destroy(config=config, state=state)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]⚠️  Destruction interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        console.print(f"[red]❌ Destruction failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command(name="list")
+@click.pass_context
+def list_nodes(ctx: click.Context) -> None:
+    """List all running instances with detailed information."""
+    state: SimpleStateManager = ctx.obj["state"]
+
+    try:
+        cmd_list(state)
+    except Exception as e:
+        console.print(f"[red]❌ List failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def setup(ctx: click.Context) -> None:
+    """Set up initial configuration."""
+    config_path: str = ctx.obj["config_path"]
+
+    try:
+        # Create config if it doesn't exist, then initialize it
+        config_file = Path(config_path)
+        if not config_file.exists():
+            # Create minimal config
+            config_file.write_text("""# Amauo Configuration
+aws:
+  total_instances: 3
+  username: ubuntu
+  ssh_key_name: ""
+  public_ssh_key_path: ""
+  private_ssh_key_path: ""
+
+regions:
+  - us-west-2:
+      machine_type: t3.medium
+      image: auto
+""")
+
+        config = SimpleConfig(config_path)
+        cmd_setup(config)
+    except Exception as e:
+        console.print(f"[red]❌ Setup failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def nuke(ctx: click.Context) -> None:
+    """Emergency cleanup - destroy ALL instances across ALL regions."""
+    config: SimpleConfig = ctx.obj["config"]
+    state: SimpleStateManager = ctx.obj["state"]
+
+    try:
+        cmd_nuke(config=config, state=state)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]⚠️  Nuke interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        console.print(f"[red]❌ Nuke failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+def generate() -> None:
+    """Generate deployment structure and templates."""
+    try:
+        cmd_generate()
+    except Exception as e:
+        console.print(f"[red]❌ Generate failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+def version() -> None:
+    """Show detailed version information."""
+    try:
+        cmd_version()
+    except Exception as e:
+        console.print(f"[red]❌ Version failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+def help() -> None:
+    """Show detailed help information."""
+    try:
+        cmd_help()
+    except Exception as e:
+        console.print(f"[red]❌ Help failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command(name="random-ip")
+@click.pass_context
+def random_ip(ctx: click.Context) -> None:
+    """Get random instance IP for SSH access."""
+    state: SimpleStateManager = ctx.obj["state"]
+    
+    try:
+        cmd_random_ip(state)
+    except Exception as e:
+        console.print(f"[red]❌ Random IP failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def readme(ctx: click.Context) -> None:
+    """Show deployment information and status."""
+    state: SimpleStateManager = ctx.obj["state"]
+    
+    try:
+        cmd_readme(state)
+    except Exception as e:
+        console.print(f"[red]❌ Readme failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+@click.pass_context  
+def validate(ctx: click.Context) -> None:
+    """Validate deployment configuration before deployment."""
+    config: SimpleConfig = ctx.obj["config"]
+    state: SimpleStateManager = ctx.obj["state"]
+    
+    try:
+        cmd_validate(config, state)
+    except Exception as e:
+        console.print(f"[red]❌ Validate failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+def cleanup() -> None:
+    """Clean up temporary files and prevent conflicts."""
+    try:
+        cmd_cleanup()
+    except Exception as e:
+        console.print(f"[red]❌ Cleanup failed: {e}[/red]")
+        sys.exit(1)
+
+
+def main() -> None:
+    """Entry point for the CLI."""
+    try:
+        cli()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]⚠️  Interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        console.print(f"[red]❌ Unexpected error: {e}[/red]")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

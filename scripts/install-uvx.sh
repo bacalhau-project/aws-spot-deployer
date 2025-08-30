@@ -15,7 +15,7 @@ set -e
 
 # Configuration
 REPO_OWNER="bacalhau-project"
-REPO_NAME="aws-spot-deployer"
+REPO_NAME="aws-amauo"
 GITHUB_REPO="${REPO_OWNER}/${REPO_NAME}"
 
 # Colors for output
@@ -106,7 +106,7 @@ setup_directories() {
         fi
     fi
 
-    # Export for spot-deployer
+    # Export for amauo
     export SPOT_CONFIG_FILE="$CONFIG_FILE"
     export SPOT_FILES_DIR="$FILES_DIR"
     export SPOT_OUTPUT_DIR="$OUTPUT_DIR"
@@ -115,13 +115,13 @@ setup_directories() {
 run_uvx() {
     local uvx_cmd=(
         "uvx" "--from" "git+https://github.com/${GITHUB_REPO}"
-        "spot-deployer" "$COMMAND"
+        "amauo" "$COMMAND"
     )
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "Would run: ${uvx_cmd[*]}"
     else
-        log_info "Running: spot-deployer $COMMAND"
+        log_info "Running: amauo $COMMAND"
         "${uvx_cmd[@]}"
     fi
 }

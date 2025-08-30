@@ -6,13 +6,13 @@ on:
       - "examples/**"
       - "test-deployment/**"
       - ".spot/**"
-      - "spot_deployer/**"
+      - "src/amauo/**"
   pull_request:
     paths:
       - "examples/**"
       - "test-deployment/**"
       - ".spot/**"
-      - "spot_deployer/**"
+      - "src/amauo/**"
 
 jobs:
   validate-examples:
@@ -45,7 +45,7 @@ jobs:
           echo "Validating deployment in $(pwd)"
 
           # Run validation
-          uv run python -m spot_deployer validate
+          uv run python -m amauo validate
 
           # Check required files exist
           test -f .spot/deployment.yaml || test -f deployment.yaml
@@ -101,7 +101,7 @@ jobs:
           # Test tarball handler directly
           uv run python -c "
           from pathlib import Path
-          from spot_deployer.utils.tarball_handler import TarballHandler
+          from amauo.utils.tarball_handler import TarballHandler
 
           handler = TarballHandler()
           source = Path('test-tarball-project')

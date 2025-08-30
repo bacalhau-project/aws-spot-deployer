@@ -43,14 +43,14 @@ repos:
     hooks:
       - id: mypy-check
         name: Run mypy type checking (match CI)
-        entry: uv run mypy src/spot_deployer/ --ignore-missing-imports --check-untyped-defs
+        entry: uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs
         language: system
         pass_filenames: false
         always_run: true
 
       - id: bandit-security
         name: Run bandit security check (match CI)
-        entry: uv run bandit -r src/spot_deployer/ -ll --skip B101,B108,B202,B324,B601
+        entry: uv run bandit -r src/amauo/ -ll --skip B101,B108,B202,B324,B601
         language: system
         pass_filenames: false
         always_run: true

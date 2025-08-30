@@ -1,0 +1,48 @@
+services:
+  bacalhau-node:
+    image: ghcr.io/bacalhau-project/bacalhau:latest-dind
+    container_name: bacalhau-node
+    privileged: true
+    restart: unless-stopped
+    command: ["serve", "--config", "/etc/bacalhau/config.yaml"]
+    volumes:
+      - /bacalhau_node/config.yaml:/etc/bacalhau/config.yaml:ro
+      - /bacalhau_node/node-info:/etc/node-info
+      - /bacalhau_data:/bacalhau_data
+      - /opt/sensor/data:/opt/sensor/data
+      - /opt/sensor/exports:/opt/sensor/exports
+      - /tmp:/tmp
+    ports:
+      - "1234:1234" # API port
+      - "4222:4222" # NATS port
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:1234/api/v1/agent/alive"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  sensor-simulator:
+    image: ghcr.io/bacalhau-project/sensor-log-generator:latest
+    container_name: sensor-simulator
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - /opt/sensor/.env
+    environment:
+      - CONFIG_FILE=/config/sensor-config.yaml
+      - IDENTITY_FILE=/config/node_identity.json
+      - AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials
+      - AWS_CONFIG_FILE=/root/.aws/config
+    volumes:
+      - /opt/sensor/config:/config
+      - /opt/sensor/data:/app/data
+      - /opt/sensor/logs:/app/logs
+      - /opt/sensor/exports:/app/exports
+      - /root/.aws:/root/.aws:ro
+      - /home/ubuntu/.aws:/home/app/.aws:ro

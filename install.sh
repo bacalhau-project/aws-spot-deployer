@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-# SkyPilot Spot Deployer - One-command installation script
+# Amauo - One-command installation script
 # Usage: curl -sSL https://tada.wang/install.sh | bash
 
-SCRIPT_NAME="SkyPilot Spot Deployer Installer"
-PACKAGE_NAME="spot-deployer"
+SCRIPT_NAME="Amauo Installer"
+PACKAGE_NAME="amauo"
 MIN_PYTHON_VERSION="3.9"
 
 # Colors for output
@@ -98,7 +98,7 @@ install_uv() {
 
 check_docker() {
     if ! command -v docker >/dev/null 2>&1; then
-        log_warning "Docker not found. Docker is required for SkyPilot operations."
+        log_warning "Docker not found. Docker may be required for some deployment operations."
         log_info "Please install Docker from: https://docs.docker.com/get-docker/"
         return 1
     fi

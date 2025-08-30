@@ -33,12 +33,12 @@ jobs:
 
       - name: Run ruff linter
         run: |
-          uv run ruff check src/spot_deployer/ tests/ --output-format=github
-          uv run ruff format --check src/spot_deployer/ tests/
+          uv run ruff check src/amauo/ tests/ --output-format=github
+          uv run ruff format --check src/amauo/ tests/
 
       - name: Run mypy type checker
         run: |
-          uv run mypy src/spot_deployer/ --ignore-missing-imports --check-untyped-defs
+          uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs
 
   pre-commit:
     name: Pre-commit Checks
@@ -153,13 +153,13 @@ jobs:
       - name: Test CLI commands
         run: |
           # Test version command
-          uv run python -m spot_deployer --version
+          uv run amauo --version
 
           # Test help command
-          uv run python -m spot_deployer --help
+          uv run amauo --help
 
           # Test check command (should work without prerequisites in CI)
-          uv run python -m spot_deployer check --help
+          uv run amauo check --help
 
   security-check:
     name: Security Checks
@@ -181,7 +181,7 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          uv run --with bandit bandit -r spot_deployer/ -ll --skip B101,B601 -f json -o bandit-results.json
+          uv run --with bandit bandit -r src/amauo/ -ll --skip B101,B601 -f json -o bandit-results.json
         continue-on-error: true
 
       - name: Check for secrets
