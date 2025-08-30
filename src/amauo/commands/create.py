@@ -979,7 +979,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
 
                 # Create unique tarball in /tmp
                 unique_id = str(uuid.uuid4())[:8]
-                shared_tarball_path = f"/tmp/spot-deployment-{unique_id}.tar.gz"
+                shared_tarball_path = f"/tmp/amauo-deployment-{unique_id}.tar.gz"
 
                 # Use the generic tarball creation method
                 temp_tarball = handler.create_tarball(source_path)
@@ -1003,10 +1003,10 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
 
     # Setup local logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = f"spot_creation_{timestamp}.log"
+    log_filename = f"amauo_creation_{timestamp}.log"
 
     # Generate unique deployment ID for this batch
-    deployment_id = f"spot-{timestamp}-{str(uuid.uuid4())[:8]}"
+    deployment_id = f"amauo-{timestamp}-{str(uuid.uuid4())[:8]}"
 
     # Get AWS caller identity for creator tag
     try:
@@ -1021,7 +1021,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     # Create console handler with instance IP map
     instance_ip_map: Dict[str, str] = {}
     console_handler = ConsoleLogger(console, instance_ip_map)
-    logger = setup_logger("spot_creator", log_filename, console_handler)
+    logger = setup_logger("amauo_creator", log_filename, console_handler)
 
     # Check for SSH key configuration
     public_key_path = config.public_ssh_key_path()

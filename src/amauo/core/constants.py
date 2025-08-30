@@ -49,5 +49,5 @@ DEFAULT_STATE_FILE = os.path.join(DEFAULT_OUTPUT_DIR, "instances.json")
 CACHE_DIR = os.path.join(DEFAULT_OUTPUT_DIR, ".aws_cache")
 
 # Security group
-DEFAULT_SECURITY_GROUP_NAME = "spot-deployer-sg"
-DEFAULT_SECURITY_GROUP_DESC = "Simple security group for spot instances"
+DEFAULT_SECURITY_GROUP_NAME = "amauo-sg"
+DEFAULT_SECURITY_GROUP_DESC = "Simple security group for amauo instances"

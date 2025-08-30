@@ -18,7 +18,7 @@ class TarballHandler:
 
     def __init__(self):
         """Initialize tarball handler."""
-        self.temp_dir = Path(tempfile.gettempdir()) / "spot-deployer"
+        self.temp_dir = Path(tempfile.gettempdir()) / "amauo"
         self.temp_dir.mkdir(exist_ok=True)
         self.ui = UIManager()
 

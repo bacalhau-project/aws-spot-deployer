@@ -1,21 +1,9 @@
 #!/bin/bash
-# Main setup script for your deployment
-# This script runs after packages are installed
+# Convention-based deployment setup script
+# This is just a marker file for deployment discovery
+# The actual setup happens from files deployed via the tarball
 
-set -e  # Exit on error
+set -e
 
-echo "Starting deployment setup..."
-
-# Add your setup commands here
-# Examples:
-# - Clone repositories
-# - Install application dependencies
-# - Configure environment
-# - Build your application
-
-# Example: Install Python requirements
-# if [ -f /opt/uploaded_files/requirements.txt ]; then
-#     pip3 install -r /opt/uploaded_files/requirements.txt
-# fi
-
-echo "Setup complete!"
+echo "Convention-based deployment setup complete"
+echo "Actual deployment files are handled via tarball deployment"

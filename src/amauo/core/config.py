@@ -157,7 +157,7 @@ class SimpleConfig:
     def security_group_name(self) -> str:
         """Get security group name."""
         return cast(
-            str, self.data.get("aws", {}).get("security_group_name", "spot-deployer-sg")
+            str, self.data.get("aws", {}).get("security_group_name", "amauo-sg")
         )
 
     def vpc_tag_name(self) -> Optional[str]:
@@ -192,5 +192,5 @@ class SimpleConfig:
         if SimpleConfig._deployment_id is None:
             import time
 
-            SimpleConfig._deployment_id = f"spot-{int(time.time())}"
+            SimpleConfig._deployment_id = f"amauo-{int(time.time())}"
         return SimpleConfig._deployment_id

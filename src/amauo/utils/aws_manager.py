@@ -152,7 +152,7 @@ class AWSResourceManager:
 
         # Tag resources
         tags = [
-            {"Key": "Name", "Value": f"spot-vpc-{deployment_id}"},
+            {"Key": "Name", "Value": f"amauo-vpc-{deployment_id}"},
             {"Key": "ManagedBy", "Value": "Amauo"},
             {"Key": "DeploymentId", "Value": deployment_id},
         ]

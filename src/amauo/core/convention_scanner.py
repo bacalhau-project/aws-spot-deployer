@@ -71,7 +71,14 @@ class ConventionScanner:
             config_path = self.deployment_dir.parent / "config.yaml"
             if config_path.exists():
                 config = SimpleConfig.load(config_path)
-                return config.cloud_init_template()
+                template_path = config.cloud_init_template()
+                if template_path:
+                    # Make path absolute relative to the config file location
+                    absolute_template_path = (config_path.parent / template_path).resolve()
+                    if absolute_template_path.exists():
+                        return str(absolute_template_path)
+                    else:
+                        logger.warning(f"Template file not found: {absolute_template_path}")
         except Exception as e:
             logger.debug(f"Could not read template from config: {e}")
         return None

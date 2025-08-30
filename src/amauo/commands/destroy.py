@@ -37,8 +37,8 @@ class DestroyManager:
     def initialize_logger(self):
         """Set up logging."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_filename = f"spot_destroy_{timestamp}.log"
-        self.logger = setup_logger("spot_destroyer", log_filename)
+        log_filename = f"amauo_destroy_{timestamp}.log"
+        self.logger = setup_logger("amauo_destroyer", log_filename)
         return log_filename
 
     def update_status(self, instance_id: str, region: str, status: str, detail: str = ""):

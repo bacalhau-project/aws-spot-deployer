@@ -108,22 +108,6 @@ runcmd:
   # Create necessary directories 
   - mkdir -p ${bacalhau_data_dir} ${bacalhau_node_dir} /opt/bacalhau_node
 
-  # Enable and start services
-  - systemctl daemon-reload
-  - systemctl enable bacalhau.service
-  - systemctl enable sensor.service
-  - chmod 0400 ${bacalhau_node_dir}/docker-compose.yaml
-  - chmod 0777 ${bacalhau_data_dir}
-
-  # Set ownership
-  - chown -R ${username}:${username} ${bacalhau_data_dir}
-  - chown -R ${username}:${username} ${bacalhau_node_dir}
-  - chown ${username}:${username} ${bacalhau_node_dir}/config.yaml
-  - chown ${username}:${username} ${bacalhau_node_dir}/docker-compose.yaml
-
-  # Add user to docker group
-  - usermod -aG docker ${username}
-
   # Install uv globally and set permissions
   - export HOME=/root
   - curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" HOME=/root sh
@@ -137,18 +121,22 @@ runcmd:
   # Configure Docker to start on boot
   - systemctl enable docker.service
   - systemctl enable containerd.service
-
-  # Start services
   - systemctl daemon-reload
-  - systemctl enable docker
   - systemctl start docker
-  - systemctl enable bacalhau.service
-  - systemctl start bacalhau.service
 
-  - uv run /usr/local/bin/startup.py
+  # Wait for Docker to be ready
+  - sleep 10
 
-  # Run additional commands if file exists
-  - test -f /tmp/exs/additional_commands.sh && sh -c /tmp/exs/additional_commands.sh
+  # Set proper permissions and ownership
+  - chmod 0400 ${bacalhau_node_dir}/docker-compose.yaml || true
+  - chmod 0777 ${bacalhau_data_dir} || true
+  - chown -R ${username}:${username} ${bacalhau_data_dir} || true
+  - chown -R ${username}:${username} ${bacalhau_node_dir} || true
+  - chown ${username}:${username} ${bacalhau_node_dir}/config.yaml || true
+  - chown ${username}:${username} ${bacalhau_node_dir}/docker-compose.yaml || true
+
+  # Run deployment setup script - this will deploy files and enable/start services
+  - test -f /opt/deployment/setup.sh && chmod +x /opt/deployment/setup.sh && /opt/deployment/setup.sh
 
 power_state:
   mode: reboot
