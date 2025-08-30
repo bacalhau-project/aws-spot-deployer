@@ -130,8 +130,7 @@ class DeploymentConfig:
                 # Check required fields
                 if not config.get("aws"):
                     errors.append("config.yaml missing 'aws' section")
-                elif not config["aws"].get("ssh_key_name"):
-                    errors.append("config.yaml missing 'aws.ssh_key_name'")
+                # Note: ssh_key_name is no longer required - we use SSH keys directly
 
                 if not config.get("regions"):
                     errors.append("config.yaml missing 'regions' section")

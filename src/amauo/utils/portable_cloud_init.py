@@ -327,7 +327,7 @@ nohup bash -c 'sleep 45; /tmp/install_services.sh' > /opt/services.log 2>&1 &"""
             return template.render(self.config)
         elif template_name:
             # Use library template
-            from spot_deployer.templates.cloud_init_templates import TemplateLibrary
+            from amauo.templates.cloud_init_templates import TemplateLibrary
 
             try:
                 template = TemplateLibrary.get_template(template_name)

@@ -16,27 +16,24 @@ from rich.prompt import Confirm
 console = Console()
 
 # Template for AWS configuration
-CONFIG_TEMPLATE = """# Spot Deployer Configuration
-# This file defines AWS settings for your deployment
-
-aws:
-  # Total number of instances to deploy
-  total_instances: 1
-
-  # SSH settings
+CONFIG_TEMPLATE = """aws:
+  total_instances: 3
   username: ubuntu
-  ssh_key_name: YOUR-SSH-KEY-NAME  # REQUIRED: Replace with your AWS SSH key name
-
-  # Directories (relative to .spot/)
-  files_directory: "files"
-  scripts_directory: "scripts"
-
-# Region configuration
-# You can specify multiple regions with different instance types
+  # ssh_key_name: ''  # NOT NEEDED - using SSH keys directly
+  public_ssh_key_path: ''  # REQUIRED: Set path to your public SSH key
+  private_ssh_key_path: ''  # REQUIRED: Set path to your private SSH key
+  files_directory: instance-files
+  scripts_directory: instance/scripts
+  cloud_init_template: instance/cloud-init/init-vm-template.yml
+  startup_script: instance/scripts/deploy_services.py
+  instance_storage_gb: 50
+  tags:
+    Project: Amauo
+  use_dedicated_vpc: true
 regions:
-  - us-west-2:
-      machine_type: t3.medium
-      image: auto  # Auto-discovers latest Ubuntu 22.04
+- us-west-2:
+    machine_type: t3.medium
+    image: auto
 """
 
 # Template for deployment manifest
@@ -170,22 +167,20 @@ def generate_structure(base_dir: Path = Path.cwd()) -> None:
     Args:
         base_dir: Base directory to create structure in
     """
-    spot_dir = base_dir / ".spot"
+    # Create structure directly in current directory
+    deployment_dir = base_dir
 
-    console.print("\n[bold blue]Generating Spot Deployer structure...[/bold blue]\n")
+    console.print("\n[bold blue]Generating deployment structure...[/bold blue]\n")
 
     # Create directory structure
     directories = [
-        spot_dir,
-        spot_dir / "scripts",
-        spot_dir / "services",
-        spot_dir / "configs",
-        spot_dir / "files",
+        deployment_dir / "deployment",
+        deployment_dir / "files",
     ]
 
     for directory in directories:
         directory.mkdir(parents=True, exist_ok=True)
-        if not any(directory.iterdir()) or directory == spot_dir:
+        if not any(directory.iterdir()) or directory == deployment_dir / "deployment":
             console.print(f"  [green]✓[/green] Created {directory}/")
 
     # Create files
@@ -193,31 +188,16 @@ def generate_structure(base_dir: Path = Path.cwd()) -> None:
     files_skipped = 0
 
     # Core configuration files
-    if create_file(spot_dir / "config.yaml", CONFIG_TEMPLATE):
+    if create_file(deployment_dir / "config.yaml", CONFIG_TEMPLATE):
         files_created += 1
     else:
         files_skipped += 1
 
-    if create_file(spot_dir / "deployment.yaml", DEPLOYMENT_TEMPLATE):
+    # Main setup script
+    if create_file(deployment_dir / "deployment" / "setup.sh", SETUP_SCRIPT_TEMPLATE):
         files_created += 1
     else:
         files_skipped += 1
-
-    # Scripts
-    if create_file(spot_dir / "scripts" / "setup.sh", SETUP_SCRIPT_TEMPLATE):
-        files_created += 1
-    else:
-        files_skipped += 1
-
-    if create_file(spot_dir / "scripts" / "additional_commands.sh", ADDITIONAL_COMMANDS_TEMPLATE):
-        files_created += 1
-    else:
-        files_skipped += 1
-
-    # Example service (only if services dir is empty)
-    if not any((spot_dir / "services").glob("*.service")):
-        if create_file(spot_dir / "services" / "example.service.disabled", SERVICE_TEMPLATE):
-            files_created += 1
 
     # Create placeholder in files directory
     readme_content = """# Files Directory
@@ -227,22 +207,10 @@ They will be uploaded to /opt/uploaded_files/ by default.
 
 For sensitive files like credentials, use appropriate permissions in deployment.yaml.
 """
-    if create_file(spot_dir / "files" / "README.md", readme_content):
+    if create_file(deployment_dir / "files" / "README.md", readme_content):
         files_created += 1
     else:
         files_skipped += 1
-
-    # Update .gitignore if it exists
-    gitignore_path = base_dir / ".gitignore"
-    if gitignore_path.exists():
-        gitignore_content = gitignore_path.read_text()
-        if ".spot/files/orchestrator_" not in gitignore_content:
-            with open(gitignore_path, "a") as f:
-                f.write("\n" + GITIGNORE_TEMPLATE)
-            console.print("  [green]✓[/green] Updated .gitignore")
-    else:
-        if create_file(gitignore_path, GITIGNORE_TEMPLATE):
-            files_created += 1
 
     # Summary
     console.print("\n[bold green]✅ Generation complete![/bold green]")
@@ -251,24 +219,29 @@ For sensitive files like credentials, use appropriate permissions in deployment.
         console.print(f"  Skipped: {files_skipped} existing files")
 
     console.print("\n[bold]Next steps:[/bold]")
-    console.print("1. Edit [cyan].spot/config.yaml[/cyan] and set your SSH key name")
-    console.print("2. Edit [cyan].spot/deployment.yaml[/cyan] to define your deployment")
-    console.print("3. Add your setup logic to [cyan].spot/scripts/setup.sh[/cyan]")
-    console.print("4. Place any files to upload in [cyan].spot/files/[/cyan]")
-    console.print("5. Run [green]spot create[/green] to deploy\n")
+    console.print("1. Edit [cyan]config.yaml[/cyan] and set your SSH key name")
+    console.print("2. Add your setup logic to [cyan]deployment/setup.sh[/cyan]")
+    console.print("3. Update SSH key settings in [cyan]config.yaml[/cyan]")
+    console.print("4. Place any files to upload in [cyan]files/[/cyan]")
+    console.print("5. Run [green]amauo create[/green] to deploy\n")
 
 
 def main():
     """Main entry point for generate command."""
     try:
-        # Check if .spot already exists
-        spot_dir = Path.cwd() / ".spot"
-        if spot_dir.exists():
-            if not Confirm.ask(
-                "\n[yellow]⚠️  .spot/ directory already exists.[/yellow] Continue and skip existing files?"
-            ):
-                console.print("[red]Generation cancelled.[/red]")
-                return
+        # Check if deployment structure already exists
+        deployment_dir = Path.cwd() / "deployment"
+        config_file = Path.cwd() / "config.yaml"
+        if deployment_dir.exists() or config_file.exists():
+            try:
+                if not Confirm.ask(
+                    "\n[yellow]⚠️  Deployment files already exist.[/yellow] Continue and skip existing files?"
+                ):
+                    console.print("[red]Generation cancelled.[/red]")
+                    return
+            except EOFError:
+                # Non-interactive mode - continue with defaults
+                console.print("[yellow]Non-interactive mode detected. Skipping existing files.[/yellow]")
 
         generate_structure()
 

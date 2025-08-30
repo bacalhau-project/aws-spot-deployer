@@ -150,14 +150,14 @@ uvx amauo migrate
 
 ### Advanced Options
 ```bash
-# Custom config file
-uvx amauo create -c my-config.yaml
+# Use custom config file (default: config.yaml)
+uvx amauo create --config my-config.yaml
 
-# Show logs to console instead of log file
-uvx amauo create --console
+# Dry run to validate configuration without deploying
+uvx amauo create --dry-run
 
-# Custom log file location
-uvx amauo create --log-file deployment.log
+# Verbose output for debugging
+uvx amauo create --verbose
 ```
 
 ## 🧪 **Local Development & Testing**
@@ -165,13 +165,13 @@ uvx amauo create --log-file deployment.log
 ### Quick Test
 ```bash
 # Test the CLI without installation
-uvx amauo --version
+uvx amauo version
 
-# Check prerequisites
-uvx amauo check
+# Setup configuration
+uvx amauo setup
 
-# Test with dry run (if available)
-uvx amauo create --help
+# Test with dry run
+uvx amauo create --dry-run
 ```
 
 ### Local Development
@@ -184,7 +184,7 @@ cd bacalhau-skypilot
 uv pip install -e .
 
 # Run locally during development
-python -m amauo.cli --version
+python -m amauo version
 
 # Run tests
 uv run pytest
@@ -195,36 +195,34 @@ uv run ruff check .
 
 ### Debug Deployment
 ```bash
-# Enable console logging for debugging
-uvx amauo create --console
+# Enable verbose logging for debugging
+uvx amauo create --verbose
 
-# Check SkyPilot status
-uvx amauo status
+# Check instance status
+uvx amauo list
 
-# View detailed logs
-uvx amauo logs
-
-# SSH to node for debugging
-uvx amauo ssh
+# SSH to specific instance for debugging
+# Use instance ID from the list command
+ssh -i ~/.ssh/your-key ubuntu@instance-ip
 ```
 
 ### Test Individual Components
 ```bash
 # Test node identity generation
-INSTANCE_ID=i-test123 ./scripts/generate_node_identity.py
+INSTANCE_ID=i-test123 python3 instance/scripts/generate_node_identity.py
 
 # Test Bacalhau config generation
-./scripts/generate_bacalhau_config.py
+python3 instance/scripts/generate_bacalhau_config.sh
 
-# Test health check script
-./scripts/health_check.sh
+# Check deployment logs on instance
+ssh -i ~/.ssh/your-key ubuntu@instance-ip sudo tail -f /opt/deployment.log
 ```
 
-## 🌐 **Multi-Cloud Support**
+## 🌐 **AWS Integration**
 
 ### Current Support
-- **AWS**: Full support with spot instances, auto-recovery
-- **GCP, Azure**: SkyPilot supports them, configuration needed
+- **AWS**: Full native support with spot instances
+- **Multi-region**: Deploy across multiple AWS regions simultaneously
 
 ### Cloud Provider Detection
 ```bash
@@ -250,68 +248,57 @@ Every deployment includes comprehensive monitoring:
 
 ### Status Dashboard
 ```bash
-# View cluster overview
-./cluster-deploy status
-
-# Detailed health report via logs
-./cluster-deploy logs
+# View instance overview
+uvx amauo list
 
 # SSH to specific node for debugging
-./cluster-deploy ssh
+ssh -i ~/.ssh/your-key ubuntu@instance-ip
+
+# Check deployment logs
+ssh -i ~/.ssh/your-key ubuntu@instance-ip sudo tail -f /opt/deployment.log
 ```
 
 ## 🔒 **Security**
 
 ### Credential Management
 - **Never committed to git** - credentials/ in .gitignore
-- **Docker volume mounts** for secure credential access
-- **Encrypted in transit** - HTTPS/TLS everywhere
-- **Least privilege** - minimal required permissions
+- **Secure file transfer** via SSH to remote instances
+- **Encrypted in transit** - SSH/TLS everywhere
+- **Least privilege** - minimal required AWS permissions
 
-### Container Security
-- **Official SkyPilot image** - berkeley/skypilot
-- **Read-only mounts** where possible
-- **Isolated container environment**
-- **Automatic container cleanup**
+### Instance Security
+- **Official Ubuntu 22.04 LTS AMI** - automatically discovered
+- **Security groups** with minimal required ports
+- **SSH key-based access** - no password authentication
+- **Automatic security updates** via cloud-init
 
 ## 🚀 **Performance**
 
 ### Deployment Speed
-- **~5-10 minutes** for 9-node global cluster deployment
-- **Parallel deployment** across regions via SkyPilot
-- **Docker container reuse** - fast subsequent deployments
+- **~3-5 minutes** for multi-region deployment
+- **Parallel deployment** across regions via boto3
+- **Fast startup time** - ~0.15 seconds CLI response
 
 ### Resource Efficiency
-- **t3.medium instances** (2 vCPU, 4GB RAM)
+- **t3.medium instances** (2 vCPU, 4GB RAM) by default
 - **30GB disk** per node
 - **Spot pricing** - up to 90% cost savings
-- **Automatic spot recovery** - SkyPilot handles preemptions
+- **Efficient resource cleanup** on destroy
 
 ### Reliability
-- **Docker container isolation** - consistent environment
-- **Health monitoring** with automatic restart
+- **Immutable infrastructure** - destroy and recreate for changes
+- **Health monitoring** with systemd services
 - **Multi-region distribution** for availability
-- **SkyPilot retry logic** for transient failures
+- **AWS retry logic** for transient API failures
 
 ## 🆘 **Troubleshooting**
 
 ### Common Issues
 
-#### 1. Docker Not Running
+#### 1. AWS Credentials
 ```bash
-# Check Docker status
-docker --version
-docker info
-
-# Start Docker (varies by OS)
-# macOS: Open Docker Desktop
-# Linux: sudo systemctl start docker
-```
-
-#### 2. AWS Credentials
-```bash
-# Check AWS access through container
-docker exec skypilot-cluster-deploy aws sts get-caller-identity
+# Check AWS access
+aws sts get-caller-identity
 
 # Configure if needed
 aws configure
@@ -319,42 +306,44 @@ aws configure
 aws sso login
 ```
 
-#### 3. Container Issues
+#### 2. SSH Key Issues
 ```bash
-# Check container status
-docker ps --filter name=skypilot-cluster-deploy
+# Ensure SSH key exists and has correct permissions
+chmod 400 ~/.ssh/your-key.pem
 
-# View container logs
-docker logs skypilot-cluster-deploy
-
-# Restart container
-./cluster-deploy cleanup
-./cluster-deploy status  # This will restart the container
+# Test SSH access to instance
+ssh -i ~/.ssh/your-key.pem ubuntu@instance-ip
 ```
 
-#### 4. SkyPilot Issues
+#### 3. Configuration Issues
 ```bash
-# Check SkyPilot through container
-docker exec skypilot-cluster-deploy sky check
+# Validate configuration file
+uvx amauo create --dry-run
 
-# View cluster status
-docker exec skypilot-cluster-deploy sky status
+# Check current configuration
+cat config.yaml
+```
 
-# Reset cluster if needed
-docker exec skypilot-cluster-deploy sky down --all --yes
+#### 4. Instance Connectivity
+```bash
+# List current instances
+uvx amauo list
+
+# Check instance logs
+ssh -i ~/.ssh/your-key ubuntu@instance-ip sudo tail -f /opt/deployment.log
 ```
 
 ### Debug Commands
 ```bash
 # Verbose deployment
-bash -x ./cluster-deploy create
+uvx amauo create --verbose
 
-# Direct SkyPilot commands
-docker exec skypilot-cluster-deploy sky status --refresh
+# Check AWS resources directly
+aws ec2 describe-instances --filters "Name=tag:amauo,Values=true"
 
 # SSH to node for debugging
-./cluster-deploy ssh
-# Then run: sudo docker ps, sudo docker logs <container>
+ssh -i ~/.ssh/your-key ubuntu@instance-ip
+# Then run: sudo docker ps, sudo systemctl status bacalhau
 ```
 
 ## 🤝 **Contributing**
@@ -364,24 +353,24 @@ docker exec skypilot-cluster-deploy sky status --refresh
 git clone <repository-url>
 cd bacalhau-skypilot
 
-# Ensure Docker is running
-docker --version
+# Install in development mode
+uv pip install -e .
 
-# Test the script
-./cluster-deploy help
+# Test the CLI
+python -m amauo version
 ```
 
 ### Testing Changes
-1. **Local testing**: Use `./cluster-deploy status` to test Docker setup
-2. **Configuration test**: Modify `cluster.yaml` and test parsing
-3. **Single node test**: Deploy to one region first
-4. **Full cluster test**: Test complete 9-node deployment
+1. **Local testing**: Use `uvx amauo version` to test CLI
+2. **Configuration test**: Modify `config.yaml` and test parsing
+3. **Single node test**: Deploy to one region first with minimal config
+4. **Full deployment test**: Test complete multi-region deployment
 
 ### Code Standards
-- **Docker-first** - all SkyPilot operations via container
-- **Shell scripting** - bash with proper error handling
-- **Volume mounts** - leverage Docker for isolation
-- **SkyPilot native** - use SkyPilot capabilities fully
+- **Python-first** - native Python with boto3, no containers
+- **Type safety** - full type annotations and mypy checking
+- **Rich UI** - beautiful terminal output with progress indicators
+- **Immutable infrastructure** - destroy and recreate for changes
 
 ## 📄 **License**
 
@@ -389,11 +378,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🔗 **Links**
 
-- **SkyPilot Documentation**: https://docs.skypilot.co/
 - **Bacalhau Documentation**: https://docs.bacalhau.org/
-- **Docker Documentation**: https://docs.docker.com/
+- **AWS Documentation**: https://docs.aws.amazon.com/
+- **uvx Documentation**: https://docs.astral.sh/uv/guides/tools/
 
 ---
 
-**Ready to deploy?** Ensure Docker is running, then: `./cluster-deploy create`
-# Test change
+**Ready to deploy?** Ensure AWS credentials are configured, then: `uvx amauo create`

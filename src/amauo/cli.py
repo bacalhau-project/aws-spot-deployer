@@ -2,9 +2,10 @@
 Command-line interface for amauo.
 
 Provides a Click-based CLI for deploying and managing Bacalhau compute nodes
-across multiple cloud regions using the proven SPAT architecture.
+across multiple AWS regions using spot instances.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -19,7 +20,10 @@ from .commands import (
     cmd_help,
     cmd_list,
     cmd_nuke,
+    cmd_random_ip,
+    cmd_readme,
     cmd_setup,
+    cmd_validate,
     cmd_version,
 )
 from .core.config import SimpleConfig
@@ -68,7 +72,7 @@ def cli(
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = config
 
-    # Initialize SPAT components
+    # Initialize core components
     try:
         ctx.obj["config"] = SimpleConfig(config)
         ctx.obj["state"] = SimpleStateManager()
@@ -211,27 +215,43 @@ def help() -> None:
         sys.exit(1)
 
 
-@cli.command()
-@click.option(
-    "--cluster-file",
-    default="cluster.yaml",
-    help="SkyPilot cluster config file",
-    show_default=True,
-)
-@click.option(
-    "--output-file",
-    default="config.yaml",
-    help="Output SPAT config file",
-    show_default=True,
-)
-def migrate(cluster_file: str, output_file: str) -> None:
-    """Migrate from SkyPilot cluster.yaml to SPAT config.yaml format."""
+@cli.command(name="random-ip")
+@click.pass_context
+def random_ip(ctx: click.Context) -> None:
+    """Get random instance IP for SSH access."""
+    state: SimpleStateManager = ctx.obj["state"]
+    
     try:
-        from .config_adapter import migrate_config
-
-        migrate_config(cluster_file, output_file)
+        cmd_random_ip(state)
     except Exception as e:
-        console.print(f"[red]❌ Migration failed: {e}[/red]")
+        console.print(f"[red]❌ Random IP failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def readme(ctx: click.Context) -> None:
+    """Show deployment information and status."""
+    state: SimpleStateManager = ctx.obj["state"]
+    
+    try:
+        cmd_readme(state)
+    except Exception as e:
+        console.print(f"[red]❌ Readme failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+@click.pass_context  
+def validate(ctx: click.Context) -> None:
+    """Validate deployment configuration before deployment."""
+    config: SimpleConfig = ctx.obj["config"]
+    state: SimpleStateManager = ctx.obj["state"]
+    
+    try:
+        cmd_validate(config, state)
+    except Exception as e:
+        console.print(f"[red]❌ Validate failed: {e}[/red]")
         sys.exit(1)
 
 

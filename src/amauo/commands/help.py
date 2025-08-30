@@ -7,14 +7,14 @@ def cmd_help() -> None:
     """Display a Rich help panel."""
     if RICH_AVAILABLE and console:
         help_text = """
-[bold]AWS Spot Instance Deployer[/bold]
+[bold]Amauo - Deploy Bacalhau compute nodes effortlessly across the cloud[/bold]
 
 [bold]Usage:[/bold]
-  [cyan]./deploy_spot.py [command] [options][/cyan]
+  [cyan]amauo [command] [options][/cyan]
 
 [bold]Commands:[/bold]
   [green]setup[/green]      - Create a default 'config.yaml' file and directory structure.
-  [green]generate[/green]   - Generate standard deployment structure in .spot/ directory.
+  [green]generate[/green]   - Generate standard deployment structure in current directory.
   [green]validate[/green]   - Validate deployment configuration before deployment.
   [green]create[/green]     - Create and deploy spot instances based on 'config.yaml'.
   [green]list[/green]       - List all currently managed instances from 'instances.json'.
@@ -33,15 +33,12 @@ def cmd_help() -> None:
   [yellow]--version, -V[/yellow]  - Show version
 
 [bold]Environment Variables:[/bold]
-  [blue]SPOT_CONFIG[/blue]      - Override default config file path
-  [blue]SPOT_FILES[/blue]       - Override default files directory
-  [blue]SPOT_OUTPUT[/blue]      - Override default output directory
-  [blue]SPOT_CONFIG_PATH[/blue] - Legacy: Override config file path
-  [blue]SPOT_FILES_DIR[/blue]   - Legacy: Override files directory
-  [blue]SPOT_OUTPUT_DIR[/blue]  - Legacy: Override output directory
+  [blue]AMAUO_CONFIG[/blue]      - Override default config file path
+  [blue]AMAUO_FILES[/blue]       - Override default files directory
+  [blue]AMAUO_OUTPUT[/blue]      - Override default output directory
 """
         console.print(Panel(help_text, title="Help", border_style="blue"))
     else:
         print(
-            "Usage: ./deploy_spot.py [setup|generate|create|list|destroy|nuke|readme|help] [--config PATH] [--files PATH] [--output PATH]"
+            "Usage: amauo [setup|generate|create|list|destroy|nuke|random-ip|readme|validate|help|version] [--config PATH]"
         )

@@ -55,9 +55,9 @@ def cmd_setup(config: SimpleConfig) -> None:
             "files_directory": "files",
             "scripts_directory": "instance/scripts",
             "cloud_init_template": "instance/cloud-init/init-vm-template.yml",
-            "startup_script": "instance/scripts/startup.py",
+            "startup_script": "instance/scripts/deploy_services.py",
             "instance_storage_gb": 50,
-            "tags": {"Project": "SpotDeployer"},
+            "tags": {"Project": "Amauo"},
             "use_dedicated_vpc": True,  # Create isolated VPC per deployment
         },
         "regions": [
@@ -138,6 +138,6 @@ After deployment, this directory will contain:
 [bold]Next Steps:[/bold]
 1. Edit config.yaml with your AWS settings
 2. Add orchestrator credentials to files/
-3. Run: spot-deployer create""")
+3. Run: amauo create""")
     except Exception as e:
         rich_error(f"Failed to write config file: {e}")

@@ -46,10 +46,35 @@ class ConventionScanner:
             scripts=scripts,
             uploads=uploads,
             services=services,
+            template=self._get_template_from_config(),
         )
-        # Set tarball_source to use the deployment directory
-        config.tarball_source = str(self.deployment_dir)
+        # Set tarball_source to use instance-files directory (mirrors instance structure)
+        # Look for instance-files in the parent directory (project root)
+        project_root = self.deployment_dir.parent
+        instance_files_dir = project_root / "instance-files"
+        if instance_files_dir.exists():
+            config.tarball_source = str(instance_files_dir)
+        else:
+            # Fallback to deployment directory if instance-files not found
+            config.tarball_source = str(self.deployment_dir)
+            logger.warning(f"instance-files directory not found, using deployment dir: {self.deployment_dir}")
         return config
+
+    def _get_template_from_config(self) -> Optional[str]:
+        """Get cloud-init template from config.yaml.
+        
+        Returns:
+            Path to cloud-init template or None if not specified
+        """
+        try:
+            from .config import SimpleConfig
+            config_path = self.deployment_dir.parent / "config.yaml"
+            if config_path.exists():
+                config = SimpleConfig.load(config_path)
+                return config.cloud_init_template()
+        except Exception as e:
+            logger.debug(f"Could not read template from config: {e}")
+        return None
 
     def _scan_packages(self) -> list:
         """Scan for package requirements.

@@ -6,7 +6,12 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 import boto3
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
-from mypy_boto3_ec2.client import EC2Client
+# Type hint imports
+try:
+    from mypy_boto3_ec2.client import EC2Client
+except ImportError:
+    # Fallback for runtime - use Any for type hints
+    from typing import Any as EC2Client  # type: ignore
 
 from ..core.constants import CANONICAL_OWNER_ID, DEFAULT_UBUNTU_AMI_PATTERN
 
@@ -44,7 +49,7 @@ class AWSResourceManager:
             Tuple of (vpc_id, subnet_id)
         """
         if use_dedicated and deployment_id:
-            # First check if we already have a SpotDeployer VPC
+            # First check if we already have an Amauo VPC
             existing_vpc = self._find_existing_spot_vpc()
             if existing_vpc:
                 return existing_vpc
@@ -54,18 +59,18 @@ class AWSResourceManager:
             return self._find_default_vpc()
 
     def _find_existing_spot_vpc(self) -> Optional[Tuple[str, str]]:
-        """Find an existing VPC created by SpotDeployer."""
+        """Find an existing VPC created by Amauo."""
         try:
             # Look for VPCs with our ManagedBy tag
             vpcs = self.ec2.describe_vpcs(
                 Filters=[
-                    {"Name": "tag:ManagedBy", "Values": ["SpotDeployer"]},
+                    {"Name": "tag:ManagedBy", "Values": ["Amauo"]},
                     {"Name": "state", "Values": ["available"]},
                 ]
             )
 
             if vpcs["Vpcs"]:
-                # Use the first available SpotDeployer VPC
+                # Use the first available Amauo VPC
                 vpc_id = vpcs["Vpcs"][0]["VpcId"]
 
                 # Find a subnet in this VPC
@@ -148,7 +153,7 @@ class AWSResourceManager:
         # Tag resources
         tags = [
             {"Key": "Name", "Value": f"spot-vpc-{deployment_id}"},
-            {"Key": "ManagedBy", "Value": "SpotDeployer"},
+            {"Key": "ManagedBy", "Value": "Amauo"},
             {"Key": "DeploymentId", "Value": deployment_id},
         ]
 

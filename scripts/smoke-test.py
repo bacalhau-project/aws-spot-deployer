@@ -3,7 +3,7 @@
 # requires-python = ">=3.9"
 # dependencies = []
 # ///
-"""Quick smoke test for SkyPilot cluster deployment tool."""
+"""Quick smoke test for amauo AWS deployment tool."""
 
 import subprocess
 import sys
@@ -131,7 +131,7 @@ def main() -> int:
     quiet = "--quiet" in sys.argv
 
     if not quiet:
-        print("🧪 Running SkyPilot deployment smoke tests...")
+        print("🧪 Running amauo deployment smoke tests...")
 
     all_errors = []
 

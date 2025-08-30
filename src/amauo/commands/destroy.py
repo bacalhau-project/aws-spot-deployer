@@ -128,7 +128,7 @@ class DestroyManager:
                         Filters=[
                             {
                                 "Name": "tag:ManagedBy",
-                                "Values": ["SpotDeployer", "aws-spot-deployer"],
+                                "Values": ["Amauo", "amauo", "SpotDeployer", "aws-spot-deployer"],
                             },
                             {
                                 "Name": "instance-state-name",

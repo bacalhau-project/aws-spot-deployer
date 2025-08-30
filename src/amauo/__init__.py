@@ -1,14 +1,12 @@
 """
-SkyPilot Spot Deployer - Global cluster deployment made simple.
+Amauo - AWS Spot Instance Deployment Tool.
 
-Deploy Bacalhau compute clusters across multiple cloud regions with one command.
-Uses SkyPilot for cloud orchestration and spot instance management.
+Deploy Bacalhau compute nodes across multiple AWS regions using spot instances
+for cost-effective distributed computing.
 """
 
 __author__ = "Amauo Team"
 __email__ = "hello@amauo.dev"
-
-from .manager import ClusterManager
 
 # Version is now managed by hatch-vcs from git tags
 try:
@@ -25,4 +23,4 @@ def get_runtime_version() -> str:
     return __version__
 
 
-__all__ = ["ClusterManager"]
+__all__ = ["get_runtime_version"]

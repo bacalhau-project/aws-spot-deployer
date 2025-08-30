@@ -25,7 +25,7 @@ def cmd_validate(config: SimpleConfig, state: SimpleStateManager) -> None:
     if discovery_result.mode == DeploymentMode.NONE:
         errors.append("No deployment structure found (.spot/ or deployment/ directory)")
         rich_error("❌ No deployment structure found")
-        rich_print("\n[yellow]Run 'spot generate' to create the required structure.[/yellow]")
+        rich_print("\n[yellow]Run 'amauo generate' to create the required structure.[/yellow]")
         return
 
     if discovery_result.mode == DeploymentMode.PORTABLE:

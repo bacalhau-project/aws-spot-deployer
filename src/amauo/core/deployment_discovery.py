@@ -1,6 +1,7 @@
 """Deployment discovery module for detecting and validating deployment structures."""
 
 import logging
+import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -44,7 +45,19 @@ class DeploymentDiscovery:
         Args:
             start_path: Starting path for discovery (defaults to current directory)
         """
-        self.start_path = Path(start_path) if start_path else Path.cwd()
+        if start_path:
+            self.start_path = Path(start_path)
+        else:
+            # Try to get the original working directory where user executed the command
+            # This handles cases where tools like `uv run --directory` change cwd
+            # Use PWD environment variable which preserves the shell's working directory
+            original_cwd = os.environ.get('PWD')
+            current_cwd = str(Path.cwd())
+            if original_cwd and original_cwd != current_cwd:
+                # PWD differs from Python's cwd, use PWD (user's original directory)
+                self.start_path = Path(original_cwd)
+            else:
+                self.start_path = Path.cwd()
 
     def discover(self) -> DeploymentDiscoveryResult:
         """Discover deployment mode and configuration.
@@ -74,14 +87,23 @@ class DeploymentDiscovery:
         Returns:
             DeploymentMode indicating the type of deployment structure found
         """
+        # Debug output
+        print(f"Debug: Checking from path {self.start_path}")
+        
         # Check for portable mode (.spot directory with deployment.yaml)
         spot_dir = self.start_path / ".spot"
+        print(f"Debug: Checking .spot at {spot_dir}, exists: {spot_dir.exists()}")
         if spot_dir.exists() and (spot_dir / "deployment.yaml").exists():
             return DeploymentMode.PORTABLE
 
         # Check for convention mode (deployment/ directory)
         deployment_dir = self.start_path / "deployment"
+        print(f"Debug: Checking deployment at {deployment_dir}, exists: {deployment_dir.exists()}")
         if deployment_dir.exists() and deployment_dir.is_dir():
+            setup_sh = deployment_dir / "setup.sh"
+            init_sh = deployment_dir / "init.sh"
+            print(f"Debug: Checking setup.sh at {setup_sh}, exists: {setup_sh.exists()}")
+            print(f"Debug: Checking init.sh at {init_sh}, exists: {init_sh.exists()}")
             # Check if it has expected convention structure
             if (deployment_dir / "setup.sh").exists() or (deployment_dir / "init.sh").exists():
                 return DeploymentMode.CONVENTION

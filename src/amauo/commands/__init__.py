@@ -9,6 +9,7 @@ from .nuke import cmd_nuke
 from .random_ip import cmd_random_ip
 from .readme import cmd_readme
 from .setup import cmd_setup
+from .validate import cmd_validate
 from .version import cmd_version
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "cmd_setup",
     "cmd_help",
     "cmd_readme",
+    "cmd_validate",
     "cmd_version",
 ]

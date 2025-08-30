@@ -679,13 +679,13 @@ def create_instances_in_region_with_table(
                     "ResourceType": "instance",
                     "Tags": [
                         {"Key": "Name", "Value": f"spot-{region}-{created_at}"},
-                        {"Key": "ManagedBy", "Value": "aws-spot-deployer"},
+                        {"Key": "ManagedBy", "Value": "amauo"},
                         {"Key": "DeploymentId", "Value": deployment_id},
                         {"Key": "CreatedAt", "Value": datetime.now().isoformat()},
                         {"Key": "CreatedBy", "Value": creator},
                         {"Key": "Region", "Value": region},
-                        {"Key": "SpotDeployerVersion", "Value": __version__},
-                        {"Key": "App", "Value": "aws-spot-deployer"},
+                        {"Key": "AmauoVersion", "Value": __version__},
+                        {"Key": "App", "Value": "amauo"},
                     ]
                     + [
                         {"Key": k, "Value": v}
@@ -918,7 +918,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             for error in discovery_result.validation_errors:
                 rich_error(f"   • {error}")
             rich_print(
-                "\n[yellow]Run 'spot generate' to create the required structure.[/yellow]"
+                "\n[yellow]Run 'amauo generate' to create the required structure.[/yellow]"
             )
             return
 
@@ -948,7 +948,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         # No deployment structure found
         rich_error("❌ No deployment structure found")
         rich_print(
-            "\n[yellow]Run 'spot generate' to create the required structure.[/yellow]"
+            "\n[yellow]Run 'amauo generate' to create the required structure.[/yellow]"
         )
         return
 
