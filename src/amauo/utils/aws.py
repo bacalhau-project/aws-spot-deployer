@@ -56,7 +56,7 @@ def save_cache(filepath: str, data: Dict) -> None:
 def get_latest_ubuntu_ami(
     region: str, log_function=None, cache_dir: Optional[str] = None
 ) -> Optional[str]:
-    """Get latest Ubuntu 22.04 LTS AMI for region."""
+    """Get latest Ubuntu 24.04 LTS AMI for region."""
     if cache_dir is None:
         cache_dir = os.environ.get("SPOT_OUTPUT_DIR", CACHE_DIR)
         if cache_dir != CACHE_DIR:

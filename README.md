@@ -116,7 +116,7 @@ aws:
 regions:
   - us-west-2:
       machine_type: t3.medium
-      image: auto  # Auto-discovers latest Ubuntu 22.04
+      image: auto  # Auto-discovers latest Ubuntu 24.04
   - us-east-1:
       machine_type: t3.medium
       image: auto
@@ -267,7 +267,7 @@ ssh -i ~/.ssh/your-key ubuntu@instance-ip sudo tail -f /opt/deployment.log
 - **Least privilege** - minimal required AWS permissions
 
 ### Instance Security
-- **Official Ubuntu 22.04 LTS AMI** - automatically discovered
+- **Official Ubuntu 24.04 LTS AMI** - automatically discovered
 - **Security groups** with minimal required ports
 - **SSH key-based access** - no password authentication
 - **Automatic security updates** via cloud-init

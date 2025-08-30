@@ -899,8 +899,24 @@ def create_instances_in_region_with_table(
         return []
 
 
+def _run_cleanup_script():
+    """Run the cleanup script to prevent file conflicts."""
+    import subprocess
+    from pathlib import Path
+    
+    cleanup_script = Path(__file__).parent.parent.parent.parent / "scripts" / "cleanup.sh"
+    if cleanup_script.exists():
+        try:
+            subprocess.run([str(cleanup_script)], check=False, capture_output=True)
+        except Exception:
+            pass  # Cleanup failures shouldn't block deployment
+
+
 def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     """Create spot instances across configured regions with enhanced real-time progress tracking."""
+    # Run aggressive cleanup before deployment to prevent file conflicts
+    _run_cleanup_script()
+    
     if not check_aws_auth():
         return
 

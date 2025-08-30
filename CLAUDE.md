@@ -145,7 +145,7 @@ aws:
 regions:
   - us-west-2:
       machine_type: t3.medium
-      image: auto  # Auto-discovers latest Ubuntu 22.04
+      image: auto  # Auto-discovers latest Ubuntu 24.04
 ```
 
 ### Bacalhau Orchestrator Configuration

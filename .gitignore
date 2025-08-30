@@ -47,9 +47,76 @@ output/
 data/
 instance/config/sample-identity.json
 
-# Spot Deployer
+# Old Spot Deployer references (keep for cleanup)
 .spot/files/orchestrator_*
 .spot/files/credentials*
 .spot/files/secrets*
 *.key
 *.pem
+
+# Aggressive temp file cleanup
+*.tmp
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.bak
+*.backup
+*.old
+*.orig
+*_backup
+*_old
+.*.swp
+.*.swo
+
+# Log files (all patterns)
+*.log
+*_creation_*.log
+*_destroy_*.log
+spot_*.log
+amauo_*.log
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Temporary deployment files
+/tmp/
+temp/
+.tmp/
+*deployment*.tar.gz
+/tmp/*deployment*.tar.gz
+
+# Config and state backups
+config*.yaml.bak
+config*.yaml.old
+config*.yaml.tmp
+instances.json.bak
+instances.json.old
+instances.json.tmp
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.sublime-*
+.atom/
+.vim/
+
+# OS generated files
+.Trashes
+ehthumbs.db
+
+# Instance files - exclude actual credentials (keep .example files)
+instance-files/etc/aws/credentials/
+instance-files/bacalhau/orchestrator_endpoint
+instance-files/bacalhau/orchestrator_token
+instance-files/opt/uploaded_files/orchestrator_endpoint
+instance-files/opt/uploaded_files/orchestrator_token
+instance-files/opt/uploaded_files/aws-credentials
+!instance-files/bacalhau/orchestrator_endpoint.example
+!instance-files/bacalhau/orchestrator_token.example

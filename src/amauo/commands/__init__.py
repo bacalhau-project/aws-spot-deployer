@@ -1,5 +1,6 @@
-"""Command implementations for spot deployer."""
+"""Command implementations for amauo deployer."""
 
+from .cleanup import cmd_cleanup
 from .create import cmd_create
 from .destroy import cmd_destroy
 from .generate import main as cmd_generate
@@ -13,6 +14,7 @@ from .validate import cmd_validate
 from .version import cmd_version
 
 __all__ = [
+    "cmd_cleanup",
     "cmd_create",
     "cmd_destroy",
     "cmd_generate",

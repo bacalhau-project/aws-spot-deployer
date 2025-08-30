@@ -14,6 +14,7 @@ from rich.console import Console
 
 from . import get_runtime_version
 from .commands import (
+    cmd_cleanup,
     cmd_create,
     cmd_destroy,
     cmd_generate,
@@ -252,6 +253,16 @@ def validate(ctx: click.Context) -> None:
         cmd_validate(config, state)
     except Exception as e:
         console.print(f"[red]❌ Validate failed: {e}[/red]")
+        sys.exit(1)
+
+
+@cli.command()
+def cleanup() -> None:
+    """Clean up temporary files and prevent conflicts."""
+    try:
+        cmd_cleanup()
+    except Exception as e:
+        console.print(f"[red]❌ Cleanup failed: {e}[/red]")
         sys.exit(1)
 
 
