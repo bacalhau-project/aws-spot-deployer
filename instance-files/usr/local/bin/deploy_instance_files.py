@@ -73,8 +73,11 @@ def deploy_directory_structure(source_dir: Path, target_root: Path):
 
             # Set proper ownership for ubuntu user
             try:
-                subprocess.run(["chown", "ubuntu:ubuntu", str(target_path)],
-                             check=False, capture_output=True)
+                subprocess.run(
+                    ["chown", "ubuntu:ubuntu", str(target_path)],
+                    check=False,
+                    capture_output=True,
+                )
             except Exception:
                 pass  # Ignore ownership errors
 

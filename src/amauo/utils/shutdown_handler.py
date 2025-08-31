@@ -3,7 +3,8 @@
 import signal
 import sys
 import threading
-from typing import Any, Callable, Literal, Optional
+from types import FrameType
+from typing import Any, Callable, Literal, Optional, Union
 
 from ..utils.ui_manager import UIManager
 
@@ -15,10 +16,14 @@ class ShutdownHandler:
         """Initialize the shutdown handler."""
         self.ui = UIManager()
         self._shutdown_requested = False
-        self._cleanup_callbacks: list[Callable] = []
+        self._cleanup_callbacks: list[Callable[[], None]] = []
         self._lock = threading.Lock()
-        self._original_sigint: Any = None
-        self._original_sigterm: Any = None
+        self._original_sigint: Optional[
+            Union[Callable[[int, Optional[FrameType]], Any], int]
+        ] = None
+        self._original_sigterm: Optional[
+            Union[Callable[[int, Optional[FrameType]], Any], int]
+        ] = None
 
     def register(self) -> None:
         """Register signal handlers for graceful shutdown."""
@@ -32,12 +37,12 @@ class ShutdownHandler:
         if self._original_sigterm is not None:
             signal.signal(signal.SIGTERM, self._original_sigterm)
 
-    def add_cleanup_callback(self, callback: Callable) -> None:
+    def add_cleanup_callback(self, callback: Callable[[], None]) -> None:
         """Add a cleanup callback to be called on shutdown."""
         with self._lock:
             self._cleanup_callbacks.append(callback)
 
-    def remove_cleanup_callback(self, callback: Callable) -> None:
+    def remove_cleanup_callback(self, callback: Callable[[], None]) -> None:
         """Remove a cleanup callback."""
         with self._lock:
             if callback in self._cleanup_callbacks:
@@ -47,7 +52,7 @@ class ShutdownHandler:
         """Check if shutdown has been requested."""
         return self._shutdown_requested
 
-    def _handle_shutdown(self, signum: int, frame: Any) -> None:
+    def _handle_shutdown(self, signum: int, frame: Optional[FrameType]) -> None:
         """Handle shutdown signal."""
         if self._shutdown_requested:
             # Force exit on second signal
@@ -79,7 +84,7 @@ class ShutdownHandler:
 class ShutdownContext:
     """Context manager for graceful shutdown handling."""
 
-    def __init__(self, cleanup_message: Optional[str] = None):
+    def __init__(self, cleanup_message: Optional[str] = None) -> None:
         """
         Initialize shutdown context.
 
@@ -88,9 +93,9 @@ class ShutdownContext:
         """
         self.handler = ShutdownHandler()
         self.cleanup_message = cleanup_message
-        self._cleanup_functions: list[Callable] = []
+        self._cleanup_functions: list[Callable[[], None]] = []
 
-    def add_cleanup(self, func: Callable) -> None:
+    def add_cleanup(self, func: Callable[[], None]) -> None:
         """Add a cleanup function to be called on shutdown."""
         self._cleanup_functions.append(func)
 
@@ -123,8 +128,8 @@ class ShutdownContext:
 
 
 def handle_shutdown_in_operation(
-    operation_name: str, cleanup_func: Optional[Callable] = None
-) -> Callable:
+    operation_name: str, cleanup_func: Optional[Callable[[], None]] = None
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator to add shutdown handling to long-running operations.
 
@@ -133,7 +138,7 @@ def handle_shutdown_in_operation(
         cleanup_func: Optional cleanup function to call on shutdown
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             with ShutdownContext(f"Cleaning up {operation_name}...") as ctx:
                 if cleanup_func:

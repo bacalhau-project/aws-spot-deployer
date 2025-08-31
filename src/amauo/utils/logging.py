@@ -11,14 +11,14 @@ class ConsoleLogger(logging.Handler):
     """Custom logging handler that adds instance context to console output."""
 
     def __init__(
-        self, console_obj: Any = None, instance_ip_map: Optional[dict] = None
+        self, console_obj: Any = None, instance_ip_map: Optional[dict[str, str]] = None
     ) -> None:
         super().__init__()
         self.console = console_obj or console
         self.instance_ip_map = instance_ip_map or {}
         self.setLevel(logging.INFO)
 
-    def emit(self, record: Any) -> None:
+    def emit(self, record: logging.LogRecord) -> None:
         try:
             msg = self.format(record)
 

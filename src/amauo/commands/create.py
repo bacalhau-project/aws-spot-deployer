@@ -57,7 +57,7 @@ def transfer_portable_files(
     state: Optional[Any] = None,
     instance_id: Optional[str] = None,
     shared_tarball_path: Optional[str] = None,
-) -> None:
+) -> bool:
     """Transfer files for portable deployment based on deployment config."""
 
     from ..utils.file_uploader import FileUploader
@@ -84,11 +84,13 @@ def transfer_portable_files(
             ssh_manager = SSHManager(host, username, key_path)
 
             # Test SSH connection
-            test_result = ssh_manager.execute_command("echo 'SSH connection test'")
-            if not test_result:
+            test_success, _, _ = ssh_manager.execute_command(
+                "echo 'SSH connection test'"
+            )
+            if not test_success:
                 log_function("ERROR: SSH connection failed")
                 return False
-            log_function("✓ SSH connection established")  # type: ignore[unreachable]
+            log_function("✓ SSH connection established")
 
             if progress_callback:
                 progress_callback(
@@ -185,16 +187,16 @@ def transfer_portable_files(
             ssh_manager = SSHManager(host, username, key_path)
 
             # Test SSH connection first
-            test_result = ssh_manager.execute_command(
+            test_success, _, _ = ssh_manager.execute_command(
                 "echo 'SSH connection established'"
             )
-            if test_result:
+            if test_success:
                 log_function("✓ SSH connected successfully")
             else:
                 log_function("ERROR: SSH connection failed")
                 return False
 
-            # Update state to uploading  # type: ignore[unreachable]
+            # Update state to uploading
             if state and instance_id:
                 update_instance_state(state, instance_id, "uploading")
 
