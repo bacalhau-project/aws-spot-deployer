@@ -83,6 +83,8 @@ def test_required_files() -> list[tuple[str, str]]:
         "README.md",
         "instance-files/opt/uploaded_files/bacalhau-config-template.yaml",
         "instance-files/opt/sensor/config/sensor-config.yaml",
+        "instance-files/opt/uploaded_files/bacalhau-config-template.yaml",
+        "instance-files/opt/sensor/config/sensor-config.yaml",
         "config/sensor-config.yaml",
         "compose/bacalhau-compose.yml",
         "compose/sensor-compose.yml",

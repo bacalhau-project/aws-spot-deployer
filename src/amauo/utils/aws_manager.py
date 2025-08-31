@@ -1,18 +1,23 @@
 """AWS Resource Manager - Centralized AWS operations management."""
 
 import time
-from typing import Any, Optional, cast
+
+# Type hint imports
+from typing import TYPE_CHECKING, Any, Optional
 
 import boto3
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
 
-# Type hint imports
-try:
-    from mypy_boto3_ec2.client import EC2Client
-except ImportError:
-    # Fallback for runtime - use Any for type hints
-    from typing import Any as EC2Client
+if TYPE_CHECKING:
+    try:
+        from types_boto3_ec2.client import EC2Client
+    except ImportError:
+        EC2Client = Any  # type: ignore[misc, assignment]
+else:
+    from typing import Any
+
+    EC2Client = Any
 
 from ..core.constants import CANONICAL_OWNER_ID, DEFAULT_UBUNTU_AMI_PATTERN
 
@@ -156,14 +161,14 @@ class AWSResourceManager:
         self.ec2.associate_route_table(RouteTableId=rt_id, SubnetId=subnet_id)
 
         # Tag resources
-        tags = [
+        tags: list[dict[str, str]] = [
             {"Key": "Name", "Value": f"amauo-vpc-{deployment_id}"},
             {"Key": "ManagedBy", "Value": "Amauo"},
             {"Key": "DeploymentId", "Value": deployment_id},
         ]
 
         for resource_id in [vpc_id, subnet_id, igw_id, rt_id]:
-            self.ec2.create_tags(Resources=[resource_id], Tags=tags)
+            self.ec2.create_tags(Resources=[resource_id], Tags=tags)  # type: ignore[arg-type]
 
         return vpc_id, subnet_id
 
@@ -172,7 +177,7 @@ class AWSResourceManager:
         azs = self.ec2.describe_availability_zones(
             Filters=[{"Name": "state", "Values": ["available"]}]
         )
-        return cast(str, azs["AvailabilityZones"][0]["ZoneName"])
+        return azs["AvailabilityZones"][0]["ZoneName"]
 
     def create_security_group(self, vpc_id: str) -> str:
         """Create a security group for spot instances."""
@@ -184,7 +189,7 @@ class AWSResourceManager:
                 Description="Security group for spot instances",
                 VpcId=vpc_id,
             )
-            sg_id = cast(str, response["GroupId"])
+            sg_id = response["GroupId"]
 
             # Add ingress rules
             self.ec2.authorize_security_group_ingress(
@@ -217,7 +222,7 @@ class AWSResourceManager:
                     ]
                 )
                 if sgs["SecurityGroups"]:
-                    return cast(str, sgs["SecurityGroups"][0]["GroupId"])
+                    return sgs["SecurityGroups"][0]["GroupId"]
             raise
 
     def find_ubuntu_ami(
@@ -243,7 +248,7 @@ class AWSResourceManager:
                 response["Images"], key=lambda x: x["CreationDate"], reverse=True
             )
 
-            return cast(str, images[0]["ImageId"])
+            return images[0]["ImageId"]
 
         except Exception as e:
             # Log error but don't fail - will try default AMI
@@ -363,7 +368,7 @@ class AWSResourceManager:
 
             for reservation in response.get("Reservations", []):
                 for instance in reservation.get("Instances", []):
-                    return cast(str, instance.get("State", {}).get("Name", "unknown"))
+                    return instance.get("State", {}).get("Name", "unknown")
 
             return "not-found"
         except ClientError as e:
