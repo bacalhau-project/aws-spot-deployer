@@ -6,8 +6,10 @@ repos:
       - id: ruff
         args: [--fix]
         files: ^(src|tests|scripts)/.*\.py$
+        exclude: src/amauo/_version\.py
       - id: ruff-format
         files: ^(src|tests|scripts)/.*\.py$
+        exclude: src/amauo/_version\.py
 
   # Essential file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -21,6 +23,7 @@ repos:
       - id: check-merge-conflict
       - id: check-ast  # Verify Python syntax
         files: ^(src|tests|scripts)/.*\.py$
+        exclude: src/amauo/_version\.py
       - id: detect-private-key
 
   # Security checks
@@ -43,7 +46,7 @@ repos:
     hooks:
       - id: mypy-check
         name: Run mypy type checking (match CI)
-        entry: uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs
+        entry: uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs --exclude _version.py
         language: system
         pass_filenames: false
         always_run: true
