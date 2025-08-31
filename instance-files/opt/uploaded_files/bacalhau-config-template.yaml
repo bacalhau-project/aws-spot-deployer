@@ -16,6 +16,13 @@ Compute:
   Auth:
     Token: "{{ORCHESTRATOR_TOKEN}}"
 
+  # Node labels for identification and filtering
+  Labels:
+    instance-id: "{{INSTANCE_ID}}"
+    node-type: "spot"
+    cloud-provider: "aws"
+    region: "{{REGION}}"
+
   # Resources this node offers (empty means use all available)
   Resources:
     CPU: ""

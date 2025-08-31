@@ -147,13 +147,32 @@ if [ -z "$TOKEN" ]; then
     exit 1
 fi
 
+# Get instance metadata for node labeling
+echo "Retrieving instance metadata..."
+INSTANCE_ID=$(curl -s --max-time 5 http://169.254.169.254/latest/meta-data/instance-id || echo "unknown")
+REGION=$(curl -s --max-time 5 http://169.254.169.254/latest/meta-data/placement/region || echo "unknown")
+
+if [ "$INSTANCE_ID" = "unknown" ]; then
+    echo "WARNING: Could not retrieve instance ID from metadata service"
+    INSTANCE_ID=$(hostname)
+fi
+
+if [ "$REGION" = "unknown" ]; then
+    echo "WARNING: Could not retrieve region from metadata service"
+    REGION="us-west-2"
+fi
+
 echo "SUCCESS: Using orchestrator endpoint: $ENDPOINT"
 echo "SUCCESS: Using orchestrator token: ${TOKEN:0:15}..."
+echo "SUCCESS: Instance ID: $INSTANCE_ID"
+echo "SUCCESS: Region: $REGION"
 
 # STRICT: Render template with validation
 echo "SUCCESS: Rendering Bacalhau config from template..."
 if ! sed -e "s|{{ORCHESTRATOR_ENDPOINT}}|$ENDPOINT|g" \
          -e "s|{{ORCHESTRATOR_TOKEN}}|$TOKEN|g" \
+         -e "s|{{INSTANCE_ID}}|$INSTANCE_ID|g" \
+         -e "s|{{REGION}}|$REGION|g" \
          /opt/uploaded_files/bacalhau-config-template.yaml | sudo -u ubuntu tee /bacalhau_node/config.yaml > /dev/null; then
     echo "ERROR: Failed to render Bacalhau config template"
     echo "ERROR: Template rendering failed - deployment aborted"
