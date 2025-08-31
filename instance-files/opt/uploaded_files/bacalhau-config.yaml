@@ -15,20 +15,20 @@ Compute:
     - nats://147.135.16.87:4222
   Auth:
     Token: 9847fc83-f353-4cf6-8001-b82da00bacf5
-  
+
   # Resources this node offers (empty means use all available)
   Resources:
-    CPU: ""      
-    Memory: ""   
-    Disk: ""     
-    GPU: ""      
+    CPU: ""
+    Memory: ""
+    Disk: ""
+    GPU: ""
 
 # Engines to enable
 Engines:
   Types:
     - docker
     - wasm
-  
+
   Docker:
     ManifestCache:
       Size: 1000
@@ -40,7 +40,7 @@ InputSources:
   MaxRetries: 3
   Types:
     - local
-  
+
   # Allow reading from the sensor data directory
   Local:
     AllowedPaths:
