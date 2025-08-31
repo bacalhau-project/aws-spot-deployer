@@ -79,7 +79,7 @@ def test_required_files() -> list[tuple[str, str]]:
     errors = []
 
     required_files = [
-        "config.yaml",
+        "config.example.yaml",
         "README.md",
         "instance-files/opt/uploaded_files/bacalhau-config-template.yaml",
         "instance-files/opt/sensor/config/sensor-config.yaml",
