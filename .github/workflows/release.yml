@@ -94,37 +94,34 @@ jobs:
         curl -sSL https://tada.wang/install.sh | bash -s -- create
 
         # Or use uvx directly
-        uvx --from git+https://github.com/${{ github.repository }}@v${{ steps.version.outputs.version }} spot-deployer create
-        ```
+        uvx --from git+https://github.com/${{ github.repository }}@v${{ steps.version.outputs.version }} amauo create
 
-        #### Install Globally
-        ```bash
-        # With uvx
-        uvx install --from git+https://github.com/${{ github.repository }}@v${{ steps.version.outputs.version }} spot-deployer
+        # Or install to test multiple commands
+        uvx install --from git+https://github.com/${{ github.repository }}@v${{ steps.version.outputs.version }} amauo
 
         # With pip
-        pip install spot-deployer==${{ steps.version.outputs.version }}
+        pip install amauo==${{ steps.version.outputs.version }}
         ```
 
         ### 🎯 Key Features
-        - **Universal Deployments** - Deploy any application, not just Bacalhau
-        - **Portable Manifests** - `.spot/deployment.yaml` configuration
-        - **Local Tarball Creation** - Bundle directories on-the-fly
-        - **Service Management** - Automatic SystemD service installation
-        - **Pre-deployment Validation** - Catch errors before AWS deployment
+        - **AWS Spot Instances** - Deploy Bacalhau compute nodes on cost-effective spot instances
+        - **Multi-Region Support** - Deploy across multiple AWS regions simultaneously
+        - **YAML Configuration** - Simple `config.yaml` for deployment settings
+        - **Auto-Discovery** - Automatic AMI and VPC discovery
+        - **Rich Terminal UI** - Beautiful progress display and status tables
 
         ### 📚 Documentation
         - [Quick Start Guide](https://github.com/${{ github.repository }}/blob/main/README.md)
-        - [Portable Deployment Guide](https://github.com/${{ github.repository }}/blob/main/PORTABLE_DEPLOYMENT_GUIDE.md)
-        - [Example Deployments](https://github.com/${{ github.repository }}/tree/main/examples)
+        - [Development Guide](https://github.com/${{ github.repository }}/blob/main/DEVELOP.md)
+        - [Migration Guide](https://github.com/${{ github.repository }}/blob/main/MIGRATION_GUIDE.md)
 
         ### 🔄 Upgrade Instructions
         ```bash
         # If installed with uvx
-        uvx upgrade spot-deployer
+        uvx upgrade amauo
 
         # If installed with pip
-        pip install --upgrade spot-deployer
+        pip install --upgrade amauo
         ```
 
         EOF
@@ -146,7 +143,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/spot-deployer
+      url: https://pypi.org/p/amauo
     permissions:
       id-token: write  # For trusted publishing
 
