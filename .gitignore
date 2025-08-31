@@ -1,7 +1,8 @@
 .env
 .idea
 .pem
-config*.yaml
+# Generated version file by setuptools-scm
+src/amauo/_version.py
 **/*.log
 machines.db
 **/__pycache__
