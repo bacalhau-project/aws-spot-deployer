@@ -158,8 +158,8 @@ jobs:
           # Test help command
           uv run amauo --help
 
-          # Test check command (should work without prerequisites in CI)
-          uv run amauo check --help
+          # Test validate command (should work without prerequisites in CI)
+          uv run amauo validate --help
 
   security-check:
     name: Security Checks
