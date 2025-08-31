@@ -1,7 +1,7 @@
 """Configuration management for spot deployer."""
 
 import os
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Optional, cast
 
 import yaml
 
@@ -23,7 +23,7 @@ class SimpleConfig:
         self.output_dir = output_dir
         self.data = self._load_config()
 
-    def _load_config(self) -> Dict:
+    def _load_config(self) -> dict:
         """Load YAML configuration."""
         try:
             with open(self.config_file) as f:
@@ -35,7 +35,7 @@ class SimpleConfig:
             print(f"Error loading config: {e}")
             return {}
 
-    def regions(self) -> List[str]:
+    def regions(self) -> list[str]:
         """Get list of regions."""
         return [list(region.keys())[0] for region in self.data.get("regions", [])]
 
@@ -168,9 +168,9 @@ class SimpleConfig:
         """Whether to associate public IP addresses."""
         return cast(bool, self.data.get("aws", {}).get("associate_public_ip", True))
 
-    def tags(self) -> Dict[str, str]:
+    def tags(self) -> dict[str, str]:
         """Get additional tags for instances."""
-        return cast(Dict[str, str], self.data.get("aws", {}).get("tags", {}))
+        return cast(dict[str, str], self.data.get("aws", {}).get("tags", {}))
 
     def use_dedicated_vpc(self) -> bool:
         """Whether to create dedicated VPCs for each deployment."""
@@ -180,11 +180,11 @@ class SimpleConfig:
         """Whether to create default VPCs if they don't exist."""
         return cast(bool, self.data.get("aws", {}).get("ensure_default_vpc", True))
 
-    def region_config(self, region: str) -> Dict[Any, Any]:
+    def region_config(self, region: str) -> dict[Any, Any]:
         """Get config for specific region."""
-        for r in cast(List[Dict[str, Any]], self.data.get("regions", [])):
+        for r in cast(list[dict[str, Any]], self.data.get("regions", [])):
             if region in r:
-                return cast(Dict[Any, Any], r[region])
+                return cast(dict[Any, Any], r[region])
         return {"machine_type": "t3.medium", "image": "auto"}
 
     def get_deployment_id(self) -> str:

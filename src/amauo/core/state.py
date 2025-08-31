@@ -3,7 +3,7 @@
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 
 class SimpleStateManager:
@@ -12,19 +12,19 @@ class SimpleStateManager:
     def __init__(self, state_file: str = "instances.json"):
         self.state_file = state_file
 
-    def load_instances(self) -> List[Dict[Any, Any]]:
+    def load_instances(self) -> list[dict[Any, Any]]:
         """Load instances from JSON file."""
         try:
             with open(self.state_file) as f:
                 data = json.load(f)
-                return cast(List[Dict[Any, Any]], data.get("instances", []))
+                return cast(list[dict[Any, Any]], data.get("instances", []))
         except FileNotFoundError:
             return []
         except Exception as e:
             print(f"Error loading state: {e}")
             return []
 
-    def save_instances(self, instances: List[Dict]) -> None:
+    def save_instances(self, instances: list[dict]) -> None:
         """Save instances to JSON file."""
         try:
             # Ensure directory exists
@@ -38,7 +38,7 @@ class SimpleStateManager:
         except Exception as e:
             print(f"Error saving state: {e}")
 
-    def add_instance(self, instance: Dict) -> None:
+    def add_instance(self, instance: dict) -> None:
         """Add instance to state."""
         instances = self.load_instances()
         instances.append(instance)

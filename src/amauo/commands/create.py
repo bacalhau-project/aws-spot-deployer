@@ -7,7 +7,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, cast
+from typing import Any, Optional, cast
 
 import boto3
 from botocore.exceptions import ClientError
@@ -37,7 +37,7 @@ from ..utils.ssh import transfer_files_scp, wait_for_ssh_only
 from ..utils.tables import add_instance_row, create_instance_table
 
 
-def update_instance_state(state, instance_id: str, status: str):
+def update_instance_state(state: Any, instance_id: str, status: str) -> None:
     """Update the deployment state of an instance in the state file."""
     instances = state.load_instances()
     for inst in instances:
@@ -51,13 +51,13 @@ def transfer_portable_files(
     host: str,
     username: str,
     key_path: str,
-    deployment_config,
-    progress_callback=None,
-    log_function=None,
-    state=None,
-    instance_id=None,
-    shared_tarball_path=None,
-):
+    deployment_config: Any,
+    progress_callback: Optional[Any] = None,
+    log_function: Optional[Any] = None,
+    state: Optional[Any] = None,
+    instance_id: Optional[str] = None,
+    shared_tarball_path: Optional[str] = None,
+) -> None:
     """Transfer files for portable deployment based on deployment config."""
 
     from ..utils.file_uploader import FileUploader
@@ -88,7 +88,7 @@ def transfer_portable_files(
             if not test_result:
                 log_function("ERROR: SSH connection failed")
                 return False
-            log_function("✓ SSH connection established")
+            log_function("✓ SSH connection established")  # type: ignore[unreachable]
 
             if progress_callback:
                 progress_callback(
@@ -194,7 +194,7 @@ def transfer_portable_files(
                 log_function("ERROR: SSH connection failed")
                 return False
 
-            # Update state to uploading
+            # Update state to uploading  # type: ignore[unreachable]
             if state and instance_id:
                 update_instance_state(state, instance_id, "uploading")
 
@@ -271,7 +271,7 @@ def transfer_portable_files(
         uploader = FileUploader(deployment_config, deployment_config.spot_dir)
 
         # Create a progress wrapper if callback provided
-        def progress_wrapper(message, percent):
+        def progress_wrapper(message: str, percent: float) -> None:
             if progress_callback:
                 progress_callback("Uploading", int(percent), message)
 
@@ -314,14 +314,14 @@ def transfer_portable_files(
 
 
 def post_creation_setup(
-    instances,
-    config,
-    update_status_func,
-    logger,
-    deployment_config=None,
-    state=None,
-    shared_tarball_path=None,
-):
+    instances: Any,
+    config: Any,
+    update_status_func: Any,
+    logger: Any,
+    deployment_config: Optional[Any] = None,
+    state: Optional[Any] = None,
+    shared_tarball_path: Optional[str] = None,
+) -> None:
     """Handle post-creation setup for all instances."""
     if not instances:
         return
@@ -362,7 +362,7 @@ def post_creation_setup(
             )
             additional_commands_path = None  # type: ignore[assignment]
 
-    def setup_instance(instance, instance_key):
+    def setup_instance(instance: Any, instance_key: str) -> None:
         instance_id = instance["id"]
         instance_ip = instance.get("public_ip")
 
@@ -393,7 +393,7 @@ def post_creation_setup(
             logger.info(f"[{instance_id} @ {instance_ip}] Starting file transfer...")
             update_status_func(instance_key, "📦 Preparing upload...")
 
-            def progress_callback(phase, progress, status):
+            def progress_callback(phase: str, progress: int, status: str) -> None:
                 # Show detailed progress with icons
                 if "SSH" in status:
                     icon = "🔐"
@@ -516,22 +516,22 @@ def create_instances_in_region_with_table(
     count: int,
     creation_status: dict,
     lock: threading.Lock,
-    logger,
-    update_status_func,
+    logger: Any,
+    update_status_func: Any,
     instance_ip_map: dict,
     deployment_id: str,
     created_at: str,
     creator: str,
     state: SimpleStateManager,
     deployment_config: Optional[DeploymentConfig] = None,
-) -> List[dict]:
+) -> list[dict]:
     """Create spot instances in a specific region with live table updates."""
     if count <= 0:
         return []
 
     instance_keys = [f"{region}-{i + 1}" for i in range(count)]
 
-    def log_message(msg: str):
+    def log_message(msg: str) -> None:
         """Thread-safe logging to file."""
         logger.info(msg)
 
@@ -748,9 +748,9 @@ def create_instances_in_region_with_table(
                 raise Exception(f"Failed to create instances in {region}")
 
         # Wait for instances to get public IPs
-        created_instances: List[Dict[str, Any]] = []
+        created_instances: list[dict[str, Any]] = []
 
-        typed_instances = cast(List[Dict[str, Any]], result["Instances"])
+        typed_instances = cast(list[dict[str, Any]], result["Instances"])
         instance_ids = [inst["InstanceId"] for inst in typed_instances]
 
         log_message(
@@ -792,11 +792,11 @@ def create_instances_in_region_with_table(
                 instances_data = ec2.describe_instances(InstanceIds=instance_ids)
 
                 typed_reservations = cast(
-                    List[Dict[str, Any]], instances_data["Reservations"]
+                    list[dict[str, Any]], instances_data["Reservations"]
                 )
 
                 for reservation in typed_reservations:
-                    typed_reservation = cast(Dict[str, Any], reservation)
+                    typed_reservation = reservation
                     for inst in typed_reservation["Instances"]:
                         inst_id = inst["InstanceId"]
                         idx = instance_ids.index(inst_id)
@@ -899,12 +899,14 @@ def create_instances_in_region_with_table(
         return []
 
 
-def _run_cleanup_script():
+def _run_cleanup_script() -> None:
     """Run the cleanup script to prevent file conflicts."""
     import subprocess
     from pathlib import Path
-    
-    cleanup_script = Path(__file__).parent.parent.parent.parent / "scripts" / "cleanup.sh"
+
+    cleanup_script = (
+        Path(__file__).parent.parent.parent.parent / "scripts" / "cleanup.sh"
+    )
     if cleanup_script.exists():
         try:
             subprocess.run([str(cleanup_script)], check=False, capture_output=True)
@@ -916,7 +918,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     """Create spot instances across configured regions with enhanced real-time progress tracking."""
     # Run aggressive cleanup before deployment to prevent file conflicts
     _run_cleanup_script()
-    
+
     if not check_aws_auth():
         return
 
@@ -1035,7 +1037,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         creator = "unknown"
 
     # Create console handler with instance IP map
-    instance_ip_map: Dict[str, str] = {}
+    instance_ip_map: dict[str, str] = {}
     console_handler = ConsoleLogger(console, instance_ip_map)
     logger = setup_logger("amauo_creator", log_filename, console_handler)
 
@@ -1103,10 +1105,10 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     rich_print("\n[dim]Preparing deployment resources...[/dim]")
 
     # Track regions that were skipped due to capacity
-    skipped_regions: Set[str] = set()
+    skipped_regions: set[str] = set()
 
     creation_status = {}
-    all_instances: List[Dict[str, Any]] = []
+    all_instances: list[dict[str, Any]] = []
     lock = threading.Lock()
 
     # Initialize status for all instances
@@ -1124,7 +1126,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 "created": "pending...",
             }
 
-    def generate_layout():
+    def generate_layout() -> Any:
         # Count active (non-skipped) instances
         active_count = sum(
             1 for item in creation_status.values() if "SKIPPED" not in item["status"]
@@ -1160,7 +1162,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         all_items = progress_items + error_items + success_items
 
         # Show all instances - no limit
-        for key, item in all_items:
+        for _key, item in all_items:
             status = item["status"]
 
             if "SUCCESS" in status:
@@ -1208,8 +1210,13 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
         return layout
 
     def update_status(
-        key, status, instance_id=None, ip=None, created=None, is_final=False
-    ):
+        key: str,
+        status: str,
+        instance_id: Optional[str] = None,
+        ip: Optional[str] = None,
+        created: Optional[bool] = None,
+        is_final: bool = False,
+    ) -> bool:
         with lock:
             if key in creation_status:
                 creation_status[key]["status"] = status
@@ -1223,11 +1230,12 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 log_ip = ip if ip else "N/A"
                 log_id = instance_id if instance_id else key
                 logger.info(f"[{log_id} @ {log_ip}] {status}")
+        return True
 
     # Set up graceful shutdown handling
     with ShutdownContext("Cleaning up spot instance creation...") as shutdown_ctx:
         # Define cleanup function
-        def cleanup_on_shutdown():
+        def cleanup_on_shutdown() -> None:
             logger.warning("Shutdown requested - cleaning up...")
             # Save any instances that were created
             if all_instances:
@@ -1235,7 +1243,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
                 logger.info(f"Saved state for {len(all_instances)} instances")
             # Update status for any pending instances
             with lock:
-                for key, item in creation_status.items():
+                for _key, item in creation_status.items():
                     if "Waiting" in item["status"] or "Creating" in item["status"]:
                         item["status"] = "INTERRUPTED"
 
@@ -1249,7 +1257,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
             redirect_stdout=False,
         ) as live:
 
-            def create_region_instances(region, count):
+            def create_region_instances(region: str, count: int) -> None:
                 try:
                     # Check for shutdown before starting
                     if shutdown_ctx.shutdown_requested:
@@ -1323,7 +1331,7 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
     )
     if skipped_count > 0:
         skipped_regions = set()
-        for key, item in creation_status.items():
+        for _key, item in creation_status.items():
             if "SKIPPED" in item["status"]:
                 skipped_regions.add(item["region"])
         if skipped_regions:
@@ -1349,8 +1357,8 @@ def cmd_create(config: SimpleConfig, state: SimpleStateManager) -> None:
 
         # Calculate summary statistics
         total_instances = len(all_instances)
-        regions_used = len(set(inst["region"] for inst in all_instances))
-        instance_types: Dict[str, int] = {}
+        regions_used = len({inst["region"] for inst in all_instances})
+        instance_types: dict[str, int] = {}
         total_cost_estimate = 0.0
 
         # Estimate costs (rough estimates)

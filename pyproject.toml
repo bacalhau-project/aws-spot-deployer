@@ -15,7 +15,7 @@ authors = [
 keywords = [
     "aws",
     "cloud",
-    "deployment", 
+    "deployment",
     "spot-instances",
     "bacalhau",
     "distributed-computing"

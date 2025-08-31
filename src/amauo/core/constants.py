@@ -15,7 +15,7 @@ class ColumnWidths:
     CREATED = 24
 
     @classmethod
-    def get_total_width(cls):
+    def get_total_width(cls) -> int:
         """Calculate total table width."""
         return (
             cls.REGION
@@ -37,7 +37,9 @@ DEFAULT_STORAGE_GB = 50
 
 # AWS constants
 CANONICAL_OWNER_ID = "099720109477"  # Ubuntu AMI owner
-DEFAULT_UBUNTU_AMI_PATTERN = "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
+DEFAULT_UBUNTU_AMI_PATTERN = (
+    "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"
+)
 
 # File paths - all relative to current working directory
 DEFAULT_CONFIG_FILE = "config.yaml"

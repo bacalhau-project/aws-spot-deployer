@@ -4,7 +4,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Optional
 
 from ..core.deployment import DeploymentConfig
 
@@ -36,7 +36,7 @@ class FileUploader:
         username: str,
         key_path: str,
         progress_callback: Optional[Callable] = None,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Upload all files according to deployment configuration.
 
         Args:
@@ -89,7 +89,7 @@ class FileUploader:
         else:
             return False, "Failed to upload any files"
 
-    def _prepare_upload_list(self) -> List[Tuple[Path, str, Optional[str]]]:
+    def _prepare_upload_list(self) -> list[tuple[Path, str, Optional[str]]]:
         """Prepare list of files to upload.
 
         Returns:
@@ -134,7 +134,7 @@ class FileUploader:
 
         return upload_list
 
-    def _should_exclude(self, file_path: Path, exclude_patterns: List[str]) -> bool:
+    def _should_exclude(self, file_path: Path, exclude_patterns: list[str]) -> bool:
         """Check if file should be excluded.
 
         Args:
@@ -160,7 +160,7 @@ class FileUploader:
         local_path: Path,
         remote_path: str,
         permissions: Optional[str] = None,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Upload a single file.
 
         Args:
@@ -255,16 +255,20 @@ class FileUploader:
                 f"sudo chmod {permissions} {remote_path}",
             ]
 
-            result = subprocess.run(chmod_cmd, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(
+                chmod_cmd, capture_output=True, text=True, timeout=10
+            )
             if result.returncode != 0:
-                logger.warning(f"Failed to set permissions on {remote_path}: {result.stderr}")
+                logger.warning(
+                    f"Failed to set permissions on {remote_path}: {result.stderr}"
+                )
 
         # Update stats
         self.stats["total_bytes"] += local_path.stat().st_size
 
         return True, "Success"
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get upload statistics.
 
         Returns:
@@ -287,7 +291,7 @@ class FileUploader:
 
         return total_size
 
-    def validate_uploads(self) -> Tuple[bool, List[str]]:
+    def validate_uploads(self) -> tuple[bool, list[str]]:
         """Validate that all source files exist.
 
         Returns:

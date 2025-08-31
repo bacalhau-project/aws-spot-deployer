@@ -57,28 +57,35 @@ class ConventionScanner:
         else:
             # Fallback to deployment directory if instance-files not found
             config.tarball_source = str(self.deployment_dir)
-            logger.warning(f"instance-files directory not found, using deployment dir: {self.deployment_dir}")
+            logger.warning(
+                f"instance-files directory not found, using deployment dir: {self.deployment_dir}"
+            )
         return config
 
     def _get_template_from_config(self) -> Optional[str]:
         """Get cloud-init template from config.yaml.
-        
+
         Returns:
             Path to cloud-init template or None if not specified
         """
         try:
             from .config import SimpleConfig
+
             config_path = self.deployment_dir.parent / "config.yaml"
             if config_path.exists():
-                config = SimpleConfig.load(config_path)
+                config = SimpleConfig(str(config_path))
                 template_path = config.cloud_init_template()
                 if template_path:
                     # Make path absolute relative to the config file location
-                    absolute_template_path = (config_path.parent / template_path).resolve()
+                    absolute_template_path = (
+                        config_path.parent / template_path
+                    ).resolve()
                     if absolute_template_path.exists():
                         return str(absolute_template_path)
                     else:
-                        logger.warning(f"Template file not found: {absolute_template_path}")
+                        logger.warning(
+                            f"Template file not found: {absolute_template_path}"
+                        )
         except Exception as e:
             logger.debug(f"Could not read template from config: {e}")
         return None
@@ -339,7 +346,7 @@ class ConventionScanner:
 
     def _log_discovery(
         self, packages: list, scripts: list, uploads: list, services: list
-    ):
+    ) -> None:
         """Log what was discovered during scanning.
 
         Args:

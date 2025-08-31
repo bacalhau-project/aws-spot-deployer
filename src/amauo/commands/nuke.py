@@ -1,7 +1,7 @@
 """Nuke command - finds and destroys ALL spot instances across all regions."""
 
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List
+from typing import Any
 
 from botocore.exceptions import ClientError
 
@@ -35,7 +35,7 @@ AWS_REGIONS = [
 ]
 
 
-def find_spot_instances_in_region(region: str) -> List[Dict[str, Any]]:
+def find_spot_instances_in_region(region: str) -> list[dict[str, Any]]:
     """Find all spot instances in a specific region."""
     try:
         from ..utils.aws_manager import AWSResourceManager
@@ -54,11 +54,11 @@ def find_spot_instances_in_region(region: str) -> List[Dict[str, Any]]:
             ]
         )
 
-        instances: List[Dict[str, Any]] = []
+        instances: list[dict[str, Any]] = []
         for reservation in response.get("Reservations", []):
             for instance in reservation.get("Instances", []):
                 # Extract tags safely
-                tags_dict: Dict[str, str] = {}
+                tags_dict: dict[str, str] = {}
                 for tag in instance.get("Tags", []):
                     if "Key" in tag and "Value" in tag:
                         tags_dict[tag["Key"]] = tag["Value"]
@@ -86,7 +86,9 @@ def find_spot_instances_in_region(region: str) -> List[Dict[str, Any]]:
         raise
 
 
-def terminate_instances_in_region(region: str, instance_ids: List[str]) -> Dict[str, str]:
+def terminate_instances_in_region(
+    region: str, instance_ids: list[str]
+) -> dict[str, str]:
     """Terminate instances in a specific region."""
     if not instance_ids:
         return {}
@@ -101,7 +103,7 @@ def terminate_instances_in_region(region: str, instance_ids: List[str]) -> Dict[
         response = ec2.terminate_instances(InstanceIds=instance_ids)
 
         # Extract termination status
-        results: Dict[str, str] = {}
+        results: dict[str, str] = {}
         for inst in response.get("TerminatingInstances", []):
             instance_id = inst.get("InstanceId", "unknown")
             current_state = inst.get("CurrentState", {})
@@ -119,24 +121,29 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
     if not check_aws_auth():
         return
 
-    console.print("\n[bold red]🚨 NUCLEAR OPTION - DESTROY ALL SPOT INSTANCES 🚨[/bold red]\n")
+    console.print(
+        "\n[bold red]🚨 NUCLEAR OPTION - DESTROY ALL SPOT INSTANCES 🚨[/bold red]\n"
+    )
     console.print("[yellow]This command will:[/yellow]")
     console.print("  • Scan ALL AWS regions for spot instances")
     console.print("  • Terminate ALL spot instances found")
     console.print("  • This includes instances NOT managed by this tool\n")
 
     # Phase 1: Scan all regions for spot instances
-    console.print("\n[cyan]Phase 1: Scanning all AWS regions for spot instances...[/cyan]")
+    console.print(
+        "\n[cyan]Phase 1: Scanning all AWS regions for spot instances...[/cyan]"
+    )
     console.print(f"[dim]Scanning {len(AWS_REGIONS)} regions in parallel...[/dim]\n")
 
-    all_instances: List[Dict[str, Any]] = []
-    region_errors: List[tuple[str, str]] = []
+    all_instances: list[dict[str, Any]] = []
+    region_errors: list[tuple[str, str]] = []
     completed_regions = 0
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit all region scans
-        scan_future_to_region: Dict[Future[List[Dict[str, Any]]], str] = {
-            executor.submit(find_spot_instances_in_region, region): region for region in AWS_REGIONS
+        scan_future_to_region: dict[Future[list[dict[str, Any]]], str] = {
+            executor.submit(find_spot_instances_in_region, region): region
+            for region in AWS_REGIONS
         }
 
         # Process results as they complete
@@ -153,13 +160,17 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
                         f"  {progress} [green]✓[/green] {region}: Found {len(instances)} spot instances"
                     )
                 else:
-                    console.print(f"  {progress} [dim]✓[/dim] {region}: No spot instances")
+                    console.print(
+                        f"  {progress} [dim]✓[/dim] {region}: No spot instances"
+                    )
             except Exception as e:
                 region_errors.append((region, str(e)))
                 console.print(f"  {progress} [red]✗[/red] {region}: Error - {str(e)}")
 
     if region_errors:
-        console.print(f"\n[yellow]⚠️  Failed to scan {len(region_errors)} regions[/yellow]")
+        console.print(
+            f"\n[yellow]⚠️  Failed to scan {len(region_errors)} regions[/yellow]"
+        )
 
     if not all_instances:
         rich_success("No spot instances found in any region!")
@@ -169,7 +180,7 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
     console.print(f"\n[bold]Found {len(all_instances)} spot instances:[/bold]\n")
 
     # Group by region for display
-    by_region: Dict[str, List[Dict[str, Any]]] = {}
+    by_region: dict[str, list[dict[str, Any]]] = {}
     for inst in all_instances:
         region = inst["region"]
         if region not in by_region:
@@ -179,7 +190,9 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
     for region, instances in sorted(by_region.items()):
         console.print(f"\n[bold]{region}:[/bold]")
         for inst in instances:
-            tags_str = ", ".join(f"{k}={v}" for k, v in inst["tags"].items() if k != "Name")
+            tags_str = ", ".join(
+                f"{k}={v}" for k, v in inst["tags"].items() if k != "Name"
+            )
             name_tag = inst["tags"].get("Name", "")
             if name_tag:
                 name_str = f" [cyan]({name_tag})[/cyan]"
@@ -200,14 +213,16 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
     )
 
     # Group instances by region for termination
-    termination_groups: Dict[str, List[str]] = {}
+    termination_groups: dict[str, list[str]] = {}
     for inst in all_instances:
         region = inst["region"]
         if region not in termination_groups:
             termination_groups[region] = []
         termination_groups[region].append(inst["id"])
 
-    console.print(f"[dim]Terminating instances in {len(termination_groups)} regions...[/dim]\n")
+    console.print(
+        f"[dim]Terminating instances in {len(termination_groups)} regions...[/dim]\n"
+    )
 
     terminated_count = 0
     failed_count = 0
@@ -215,7 +230,7 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         # Submit termination requests
-        terminate_future_to_region: Dict[Future[Dict[str, str]], str] = {
+        terminate_future_to_region: dict[Future[dict[str, str]], str] = {
             executor.submit(terminate_instances_in_region, region, instance_ids): region
             for region, instance_ids in termination_groups.items()
         }
@@ -311,13 +326,17 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
                     else:
                         console.print(" [red]✗[/red]")
                 else:
-                    console.print(f"  Skipping VPC {vpc_id} in {region} (has instances)")
+                    console.print(
+                        f"  Skipping VPC {vpc_id} in {region} (has instances)"
+                    )
 
         except Exception:
             # Skip regions with errors
             pass
 
     if vpc_cleanup_count > 0:
-        console.print(f"\n[green]✅ Deleted {vpc_cleanup_count} SpotDeployer VPCs[/green]")
+        console.print(
+            f"\n[green]✅ Deleted {vpc_cleanup_count} SpotDeployer VPCs[/green]"
+        )
 
     console.print("\n[bold green]🏁 Nuke operation completed![/bold green]\n")

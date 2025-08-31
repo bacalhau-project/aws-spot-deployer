@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from logging import Logger
 from threading import Lock
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from rich.console import Console
 from rich.layout import Layout
@@ -24,24 +24,28 @@ from ..utils.ui_manager import UIManager
 class DestroyManager:
     """Manages instance destruction with live Rich updates."""
 
-    def __init__(self, config: SimpleConfig, state: SimpleStateManager, console: Console):
+    def __init__(
+        self, config: SimpleConfig, state: SimpleStateManager, console: Console
+    ):
         self.config = config
         self.state = state
         self.console = console
         self.logger: Optional[Logger] = None
         self.status_lock = Lock()
-        self.instance_status: Dict[str, Dict[str, Any]] = {}
+        self.instance_status: dict[str, dict[str, Any]] = {}
         self.start_time = datetime.now()
         self.ui_manager = UIManager(console)
 
-    def initialize_logger(self):
+    def initialize_logger(self) -> str:
         """Set up logging."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_filename = f"amauo_destroy_{timestamp}.log"
         self.logger = setup_logger("amauo_destroyer", log_filename)
         return log_filename
 
-    def update_status(self, instance_id: str, region: str, status: str, detail: str = ""):
+    def update_status(
+        self, instance_id: str, region: str, status: str, detail: str = ""
+    ) -> None:
         """Thread-safe status update."""
         with self.status_lock:
             self.instance_status[instance_id] = {
@@ -66,7 +70,9 @@ class DestroyManager:
 
         for instance_id, info in sorted_instances:
             # Use UI manager to format status
-            status_display = self.ui_manager.format_status(info["status"], info["detail"])
+            status_display = self.ui_manager.format_status(
+                info["status"], info["detail"]
+            )
 
             # Add row with all available data
             self.ui_manager.add_instance_row(
@@ -102,7 +108,7 @@ class DestroyManager:
 
         return self.ui_manager.create_progress_panel("Summary", content)
 
-    def _check_aws_orphaned_instances(self):
+    def _check_aws_orphaned_instances(self) -> None:
         """Check AWS for any orphaned spot instances that aren't in state file."""
         try:
             from ..utils.aws_manager import AWSResourceManager
@@ -112,7 +118,9 @@ class DestroyManager:
 
             # Get all regions
             regions = self.config.regions()
-            self.console.print(f"[dim]Scanning {len(regions)} regions: {', '.join(regions)}[/dim]")
+            self.console.print(
+                f"[dim]Scanning {len(regions)} regions: {', '.join(regions)}[/dim]"
+            )
 
             # Check each region from config
             for region in regions:
@@ -128,7 +136,12 @@ class DestroyManager:
                         Filters=[
                             {
                                 "Name": "tag:ManagedBy",
-                                "Values": ["Amauo", "amauo", "SpotDeployer", "aws-spot-deployer"],
+                                "Values": [
+                                    "Amauo",
+                                    "amauo",
+                                    "SpotDeployer",
+                                    "aws-spot-deployer",
+                                ],
                             },
                             {
                                 "Name": "instance-state-name",
@@ -156,9 +169,13 @@ class DestroyManager:
 
                             # Terminate the orphaned instance
                             if state not in ["terminated", "terminating"]:
-                                self.console.print(f"[dim]    → Terminating {instance_id}...[/dim]")
+                                self.console.print(
+                                    f"[dim]    → Terminating {instance_id}...[/dim]"
+                                )
                                 try:
-                                    aws_manager.ec2.terminate_instances(InstanceIds=[instance_id])
+                                    aws_manager.ec2.terminate_instances(
+                                        InstanceIds=[instance_id]
+                                    )
                                     self.console.print(
                                         f"[green]    ✓ Terminated {instance_id}[/green]"
                                     )
@@ -194,7 +211,7 @@ class DestroyManager:
             if self.logger:
                 self.logger.error(f"Error checking for orphaned instances: {e}")
 
-    def destroy_instance(self, instance: Dict) -> bool:
+    def destroy_instance(self, instance: dict) -> bool:
         """Destroy a single instance and its resources."""
         instance_id = instance["id"]
         region = instance["region"]
@@ -215,7 +232,9 @@ class DestroyManager:
             # Step 1: Terminate instance
             self.update_status(instance_id, region, "⏳ Terminating instance...")
             if not aws_manager.terminate_instance(instance_id):
-                self.update_status(instance_id, region, "✗ Failed", "Termination failed")
+                self.update_status(
+                    instance_id, region, "✗ Failed", "Termination failed"
+                )
                 return False
 
             # Step 3: Check for VPC
@@ -240,12 +259,19 @@ class DestroyManager:
                             if "Key" in tag and "Value" in tag:
                                 tags[tag["Key"]] = tag["Value"]
                         if tags.get("ManagedBy") == "SpotDeployer":
-                            self.update_status(instance_id, region, "⏳ Deleting VPC...", vpc_id)
+                            self.update_status(
+                                instance_id, region, "⏳ Deleting VPC...", vpc_id
+                            )
                             if aws_manager.delete_vpc_resources(vpc_id):
-                                self.update_status(instance_id, region, "✓ Complete", "VPC deleted")
+                                self.update_status(
+                                    instance_id, region, "✓ Complete", "VPC deleted"
+                                )
                             else:
                                 self.update_status(
-                                    instance_id, region, "✓ Complete", "VPC deletion failed"
+                                    instance_id,
+                                    region,
+                                    "✓ Complete",
+                                    "VPC deletion failed",
                                 )
                             return True
 
@@ -282,18 +308,24 @@ class DestroyManager:
         # If no instances to destroy, we're done
         if not instances:
             self.console.print("[yellow]ℹ️  No instances found in state file[/yellow]")
-            self.console.print("[dim]   State file exists but contains no instance records[/dim]")
+            self.console.print(
+                "[dim]   State file exists but contains no instance records[/dim]"
+            )
 
             # Also check AWS for any orphaned instances
-            self.console.print("\n[dim]Checking AWS for orphaned spot instances...[/dim]")
+            self.console.print(
+                "\n[dim]Checking AWS for orphaned spot instances...[/dim]"
+            )
             self._check_aws_orphaned_instances()
             return
 
         # Show what we found
-        self.console.print(f"[green]Found {len(instances)} instances in state file[/green]")
+        self.console.print(
+            f"[green]Found {len(instances)} instances in state file[/green]"
+        )
 
         # Group by region for summary
-        instances_by_region: Dict[str, Any] = {}
+        instances_by_region: dict[str, Any] = {}
         for instance in instances:
             region = instance["region"]
             if region not in instances_by_region:
@@ -317,7 +349,9 @@ class DestroyManager:
             }
 
         # Show warning (but no confirmation needed - user explicitly ran destroy)
-        self.console.print(f"\n[bold red]🗑️  Terminating {len(instances)} instances...[/bold red]\n")
+        self.console.print(
+            f"\n[bold red]🗑️  Terminating {len(instances)} instances...[/bold red]\n"
+        )
 
         # Create layout
         def generate_layout() -> Layout:
@@ -334,14 +368,14 @@ class DestroyManager:
         # Process instances with max concurrency of 10
         with ShutdownContext("Saving instance destruction state...") as shutdown_ctx:
             # Define cleanup function
-            def cleanup_on_shutdown():
+            def cleanup_on_shutdown() -> None:
                 if self.logger:
                     self.logger.warning("Shutdown requested - saving current state...")
                 # Save state with any instances that were successfully destroyed
                 self.state.save_instances(self.state.load_instances())
                 # Update status for any pending instances
                 with self.status_lock:
-                    for instance_id, status in self.instance_status.items():
+                    for _instance_id, status in self.instance_status.items():
                         if "⏳" in status["status"]:
                             status["status"] = "⚠️ INTERRUPTED"
                             status["detail"] = "Shutdown requested"
@@ -355,7 +389,9 @@ class DestroyManager:
                 screen=True,
                 redirect_stdout=False,
             ) as live:
-                with ThreadPoolExecutor(max_workers=min(10, len(instances))) as executor:
+                with ThreadPoolExecutor(
+                    max_workers=min(10, len(instances))
+                ) as executor:
                     # Submit all tasks
                     future_to_instance = {
                         executor.submit(self.destroy_instance, instance): instance
@@ -398,9 +434,13 @@ class DestroyManager:
 
         summary_lines = ["\n[bold]Destruction Summary:[/bold]"]
         if completed == total:
-            summary_lines.append(f"[green]✅ All {total} instances destroyed successfully[/green]")
+            summary_lines.append(
+                f"[green]✅ All {total} instances destroyed successfully[/green]"
+            )
         else:
-            summary_lines.append(f"[yellow]⚠️  {completed}/{total} instances destroyed[/yellow]")
+            summary_lines.append(
+                f"[yellow]⚠️  {completed}/{total} instances destroyed[/yellow]"
+            )
             if failed > 0:
                 summary_lines.append(f"[red]❌ {failed} instances failed[/red]")
         self.console.print("\n".join(summary_lines))
@@ -408,7 +448,9 @@ class DestroyManager:
         self.console.print(f"\n[dim]Destruction log saved to: {log_filename}[/dim]")
 
 
-def cmd_destroy(config: SimpleConfig, state: SimpleStateManager, verbose: bool = False) -> None:
+def cmd_destroy(
+    config: SimpleConfig, state: SimpleStateManager, verbose: bool = False
+) -> None:
     """Destroy all instances with enhanced UI."""
     if not check_aws_auth():
         return

@@ -1,7 +1,6 @@
 """Configuration validator - ensures configuration is valid before operations."""
 
 import os
-from typing import Dict, List, Tuple
 
 import yaml
 
@@ -11,13 +10,13 @@ from ..utils.ui_manager import UIManager
 class ConfigValidator:
     """Validates spot deployer configuration files."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the configuration validator."""
         self.ui = UIManager()
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
 
-    def validate_config_file(self, config_path: str) -> Tuple[bool, Dict]:
+    def validate_config_file(self, config_path: str) -> tuple[bool, dict]:
         """
         Validate a configuration file.
 
@@ -61,7 +60,7 @@ class ConfigValidator:
 
         return len(self.errors) == 0, config
 
-    def _validate_structure(self, config: Dict) -> None:
+    def _validate_structure(self, config: dict) -> None:
         """Validate overall configuration structure."""
         # Check required top-level keys
         required_keys = ["aws", "regions"]
@@ -77,7 +76,7 @@ class ConfigValidator:
                 f"Unknown configuration keys: {', '.join(unknown_keys)}"
             )
 
-    def _validate_aws_section(self, aws_config: Dict) -> None:
+    def _validate_aws_section(self, aws_config: dict) -> None:
         """Validate AWS configuration section."""
         # Required fields
         required_fields = {
@@ -170,10 +169,10 @@ class ConfigValidator:
         if not os.path.exists(dir_path):
             self.warnings.append(f"Directory for '{field_name}' not found: {dir_path}")
 
-    def _validate_regions(self, regions: List) -> None:
+    def _validate_regions(self, regions: list) -> None:
         """Validate regions configuration."""
         if not isinstance(regions, list):
-            self.errors.append("'regions' must be a list")
+            self.errors.append("'regions' must be a list")  # type: ignore[unreachable]
             return
 
         if not regions:

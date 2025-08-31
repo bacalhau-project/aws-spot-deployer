@@ -1,7 +1,6 @@
 """Tests for CLI interface."""
 
 import tempfile
-from unittest.mock import Mock, patch
 
 import pytest
 import yaml
@@ -42,7 +41,7 @@ def test_version_command():
     """Test version command."""
     runner = CliRunner()
     result = runner.invoke(cli, ["version"])
-    
+
     assert result.exit_code == 0
     # The command should complete successfully
     # We don't test specific content as it varies by environment
@@ -52,7 +51,7 @@ def test_help_command():
     """Test help command."""
     runner = CliRunner()
     result = runner.invoke(cli, ["help"])
-    
+
     assert result.exit_code == 0
     # The command should complete successfully
 
@@ -89,9 +88,7 @@ def temp_config():
             "username": "ubuntu",
             "ssh_key_name": "test-key",
         },
-        "regions": [
-            {"us-west-2": {"machine_type": "t3.small", "image": "auto"}}
-        ]
+        "regions": [{"us-west-2": {"machine_type": "t3.small", "image": "auto"}}],
     }
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -102,16 +99,17 @@ def temp_config():
 def test_setup_command():
     """Test setup command creates config."""
     runner = CliRunner()
-    
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         config_path = f.name
-    
+
     # Remove the file so setup can create it
     import os
+
     os.unlink(config_path)
-    
+
     # This should create the config file
     result = runner.invoke(cli, ["-c", config_path, "setup"])
-    
+
     # Should succeed or fail gracefully (depending on AWS credentials)
     assert result.exit_code in [0, 1]

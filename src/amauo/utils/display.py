@@ -1,6 +1,6 @@
 """Display utilities for rich terminal output."""
 
-from typing import Optional
+from typing import Any, Optional
 
 # Try to import Rich components
 try:
@@ -98,7 +98,7 @@ def rich_warning(message: str) -> None:
         print(f"⚠️  {message}")
 
 
-def create_progress_bar(description: str, total: int = 100):
+def create_progress_bar(description: str, total: int = 100) -> Any:
     """Create a Rich progress bar."""
     if not RICH_AVAILABLE:
         return None

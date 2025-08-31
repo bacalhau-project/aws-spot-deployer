@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from .convention_scanner import ConventionScanner
 from .deployment import DeploymentConfig
@@ -51,7 +51,7 @@ class DeploymentDiscovery:
             # Try to get the original working directory where user executed the command
             # This handles cases where tools like `uv run --directory` change cwd
             # Use PWD environment variable which preserves the shell's working directory
-            original_cwd = os.environ.get('PWD')
+            original_cwd = os.environ.get("PWD")
             current_cwd = str(Path.cwd())
             if original_cwd and original_cwd != current_cwd:
                 # PWD differs from Python's cwd, use PWD (user's original directory)
@@ -89,7 +89,7 @@ class DeploymentDiscovery:
         """
         # Debug output
         print(f"Debug: Checking from path {self.start_path}")
-        
+
         # Check for portable mode (.spot directory with deployment.yaml)
         spot_dir = self.start_path / ".spot"
         print(f"Debug: Checking .spot at {spot_dir}, exists: {spot_dir.exists()}")
@@ -98,14 +98,20 @@ class DeploymentDiscovery:
 
         # Check for convention mode (deployment/ directory)
         deployment_dir = self.start_path / "deployment"
-        print(f"Debug: Checking deployment at {deployment_dir}, exists: {deployment_dir.exists()}")
+        print(
+            f"Debug: Checking deployment at {deployment_dir}, exists: {deployment_dir.exists()}"
+        )
         if deployment_dir.exists() and deployment_dir.is_dir():
             setup_sh = deployment_dir / "setup.sh"
             init_sh = deployment_dir / "init.sh"
-            print(f"Debug: Checking setup.sh at {setup_sh}, exists: {setup_sh.exists()}")
+            print(
+                f"Debug: Checking setup.sh at {setup_sh}, exists: {setup_sh.exists()}"
+            )
             print(f"Debug: Checking init.sh at {init_sh}, exists: {init_sh.exists()}")
             # Check if it has expected convention structure
-            if (deployment_dir / "setup.sh").exists() or (deployment_dir / "init.sh").exists():
+            if (deployment_dir / "setup.sh").exists() or (
+                deployment_dir / "init.sh"
+            ).exists():
                 return DeploymentMode.CONVENTION
 
         # No deployment structure found
@@ -142,12 +148,16 @@ class DeploymentDiscovery:
             current = parent
 
         # If we're in a directory with any deployment markers, use it
-        if (self.start_path / ".spot").exists() or (self.start_path / "deployment").exists():
+        if (self.start_path / ".spot").exists() or (
+            self.start_path / "deployment"
+        ).exists():
             return self.start_path
 
         return None
 
-    def validate_discovered_structure(self, mode: DeploymentMode, root: Path) -> Tuple[bool, list]:
+    def validate_discovered_structure(
+        self, mode: DeploymentMode, root: Path
+    ) -> tuple[bool, list]:
         """Validate the discovered deployment structure.
 
         Args:
@@ -170,7 +180,9 @@ class DeploymentDiscovery:
 
             for file_path in required_files:
                 if not file_path.exists():
-                    errors.append(f"Missing required file: {file_path.relative_to(root)}")
+                    errors.append(
+                        f"Missing required file: {file_path.relative_to(root)}"
+                    )
 
             # Check optional but recommended directories
             recommended_dirs = [
@@ -196,7 +208,9 @@ class DeploymentDiscovery:
                     deployment_dir / "init.sh"
                 ).exists()
                 if not has_setup:
-                    errors.append("No setup.sh or init.sh found in deployment directory")
+                    errors.append(
+                        "No setup.sh or init.sh found in deployment directory"
+                    )
 
         return len(errors) == 0, errors
 
@@ -253,14 +267,18 @@ class DeploymentDiscovery:
         if not project_root:
             project_root = self.start_path
 
-        errors: List[str] = []
-        is_valid, errors = self.validate_discovered_structure(DeploymentMode.PORTABLE, project_root)
+        errors: list[str] = []
+        is_valid, errors = self.validate_discovered_structure(
+            DeploymentMode.PORTABLE, project_root
+        )
 
         # Try to load deployment config
         deployment_config = None
         if is_valid:
             try:
-                deployment_config = DeploymentConfig.from_spot_dir(project_root / ".spot")
+                deployment_config = DeploymentConfig.from_spot_dir(
+                    project_root / ".spot"
+                )
             except Exception as e:
                 errors.append(f"Failed to load deployment config: {e}")
 
@@ -297,7 +315,7 @@ class DeploymentDiscovery:
         )
 
         # Build deployment config from conventions (will be implemented later)
-        deployment_config = None
+        deployment_config = None  # type: ignore[unreachable]
 
         return DeploymentDiscoveryResult(
             mode=DeploymentMode.CONVENTION,

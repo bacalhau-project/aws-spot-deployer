@@ -2,7 +2,7 @@
 
 import logging
 import re
-from typing import Optional
+from typing import Any, Optional
 
 from .display import console
 
@@ -10,18 +10,22 @@ from .display import console
 class ConsoleLogger(logging.Handler):
     """Custom logging handler that adds instance context to console output."""
 
-    def __init__(self, console_obj=None, instance_ip_map=None):
+    def __init__(
+        self, console_obj: Any = None, instance_ip_map: Optional[dict] = None
+    ) -> None:
         super().__init__()
         self.console = console_obj or console
         self.instance_ip_map = instance_ip_map or {}
         self.setLevel(logging.INFO)
 
-    def emit(self, record):
+    def emit(self, record: Any) -> None:
         try:
             msg = self.format(record)
 
             # Check if the message already contains instance ID and IP
-            instance_pattern = re.match(r"^\[([i-][a-z0-9]+)\s*@\s*([\d.]+)\]\s*(.*)", msg)
+            instance_pattern = re.match(
+                r"^\[([i-][a-z0-9]+)\s*@\s*([\d.]+)\]\s*(.*)", msg
+            )
 
             if instance_pattern:
                 # Message already has instance ID and IP, use as-is
@@ -46,7 +50,9 @@ class ConsoleLogger(logging.Handler):
                             potential_key = match.group(1)
                             if potential_key in self.instance_ip_map:
                                 instance_key = potential_key
-                                instance_ip = self.instance_ip_map.get(potential_key, "")
+                                instance_ip = self.instance_ip_map.get(
+                                    potential_key, ""
+                                )
                     else:
                         # Add region context
                         region = thread_name.replace("Region-", "")
@@ -61,7 +67,9 @@ class ConsoleLogger(logging.Handler):
                         prefix = f"[{instance_key}]"
 
                 # Only add prefix if it's not already in the message
-                if not msg.startswith(prefix) and not msg.startswith(f"[{instance_key}"):
+                if not msg.startswith(prefix) and not msg.startswith(
+                    f"[{instance_key}"
+                ):
                     msg = f"{prefix} {msg}"
 
             # During instance creation, we don't want console output

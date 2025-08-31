@@ -5,7 +5,7 @@ import os
 import threading
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple, cast
+from typing import Any, Optional, cast
 
 import boto3
 
@@ -18,7 +18,7 @@ from ..core.constants import (
 from .display import rich_error
 
 # Global AMI cache
-AMI_CACHE: Dict[str, str] = {}
+AMI_CACHE: dict[str, str] = {}
 CACHE_LOCK = threading.Lock()
 
 
@@ -32,18 +32,18 @@ def cache_file_fresh(
     return age_hours < max_age_hours
 
 
-def load_cache(filepath: str) -> Optional[Dict]:
+def load_cache(filepath: str) -> Optional[dict]:
     """Load data from cache file."""
     if cache_file_fresh(filepath):
         try:
             with open(filepath) as f:
-                return cast(Optional[Dict[Any, Any]], json.load(f))
+                return cast(Optional[dict[Any, Any]], json.load(f))
         except Exception:
             pass
     return None
 
 
-def save_cache(filepath: str, data: Dict) -> None:
+def save_cache(filepath: str, data: dict) -> None:
     """Save data to cache file."""
     try:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -54,7 +54,7 @@ def save_cache(filepath: str, data: Dict) -> None:
 
 
 def get_latest_ubuntu_ami(
-    region: str, log_function=None, cache_dir: Optional[str] = None
+    region: str, log_function: Optional[Any] = None, cache_dir: Optional[str] = None
 ) -> Optional[str]:
     """Get latest Ubuntu 24.04 LTS AMI for region."""
     if cache_dir is None:
@@ -63,7 +63,7 @@ def get_latest_ubuntu_ami(
             cache_dir = os.path.join(cache_dir, ".aws_cache")
     cache_file = f"{cache_dir}/ami_{region}.json"
 
-    def log_message(msg: str):
+    def log_message(msg: str) -> None:
         if log_function:
             log_function(msg)
         else:
@@ -206,7 +206,7 @@ def check_aws_auth() -> bool:
 
 
 def create_simple_security_group(
-    ec2, vpc_id: str, group_name: str = "spot-deployer-sg"
+    ec2: Any, vpc_id: str, group_name: str = "spot-deployer-sg"
 ) -> str:
     """Create basic security group."""
     try:
@@ -273,8 +273,8 @@ def create_simple_security_group(
 
 
 def create_deployment_vpc(
-    ec2_client, region: str, deployment_id: Optional[str] = None
-) -> Tuple[str, str, str]:
+    ec2_client: Any, region: str, deployment_id: Optional[str] = None
+) -> tuple[str, str, str]:
     """
     Create a dedicated VPC for spot deployment with all necessary components.
 
@@ -389,7 +389,7 @@ def create_deployment_vpc(
         raise
 
 
-def delete_deployment_vpc(ec2_client, vpc_id: str) -> bool:
+def delete_deployment_vpc(ec2_client: Any, vpc_id: str) -> bool:
     """
     Delete a VPC and all its associated resources.
     This handles dependencies in the correct order.
@@ -472,7 +472,7 @@ def delete_deployment_vpc(ec2_client, vpc_id: str) -> bool:
         return False
 
 
-def ensure_default_vpc(ec2_client, region: str) -> Optional[str]:
+def ensure_default_vpc(ec2_client: Any, region: str) -> Optional[str]:
     """
     Ensure a default VPC exists in the region. Create one if it doesn't.
     Returns the VPC ID of the default VPC.

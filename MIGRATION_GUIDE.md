@@ -60,7 +60,7 @@ regions:
 All commands remain the same:
 ```bash
 amauo create    # Deploy instances
-amauo list      # Show running instances  
+amauo list      # Show running instances
 amauo destroy   # Clean up all resources
 amauo setup     # Initial configuration
 ```
@@ -85,7 +85,7 @@ amauo generate  # Generate deployment templates
 
 ### Configuration
 - **Removed:** SkyPilot YAML format
-- **Added:** Simplified AWS-focused YAML format  
+- **Added:** Simplified AWS-focused YAML format
 - **Migration:** Automatic via `amauo migrate`
 
 ## Troubleshooting

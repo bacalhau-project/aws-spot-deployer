@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 class PortableCloudInitGenerator:
     """Generates cloud-init configuration from DeploymentConfig."""
 
-    def __init__(self, deployment_config: DeploymentConfig, ssh_public_key: Optional[str] = None):
+    def __init__(
+        self, deployment_config: DeploymentConfig, ssh_public_key: Optional[str] = None
+    ):
         """Initialize generator with deployment configuration.
 
         Args:
@@ -71,7 +73,9 @@ class PortableCloudInitGenerator:
         for package in self.config.packages:
             packages_yaml += f"  - {package}\n"
 
-        logger.debug(f"Generated packages section with {len(self.config.packages)} packages")
+        logger.debug(
+            f"Generated packages section with {len(self.config.packages)} packages"
+        )
         return packages_yaml.rstrip()
 
     def _generate_users_section(self) -> str:
@@ -140,7 +144,11 @@ touch /opt/deployment.complete
 """
 
         write_files.append(
-            {"path": "/opt/deploy.sh", "content": deployment_script, "permissions": "0755"}
+            {
+                "path": "/opt/deploy.sh",
+                "content": deployment_script,
+                "permissions": "0755",
+            }
         )
 
         # Only add small marker files, not service files (those get uploaded)
@@ -285,7 +293,9 @@ nohup bash -c 'sleep 45; /tmp/install_services.sh' > /opt/services.log 2>&1 &"""
 
         # Run the deployment script in background after delay
         # This allows SSH to connect and upload files first
-        commands.append("nohup bash -c 'sleep 30; /opt/deploy.sh' > /opt/deploy.log 2>&1 &")
+        commands.append(
+            "nohup bash -c 'sleep 30; /opt/deploy.sh' > /opt/deploy.log 2>&1 &"
+        )
 
         if not commands:
             return ""
@@ -386,7 +396,7 @@ nohup bash -c 'sleep 45; /tmp/install_services.sh' > /opt/services.log 2>&1 &"""
                 if path:
                     service_names.append(Path(path).name)
             else:
-                service_names.append(Path(s).name)
+                service_names.append(Path(s).name)  # type: ignore[unreachable]
         return "\n".join(f"  - {name}" for name in service_names)
 
     def validate(self) -> tuple[bool, list[str]]:
@@ -416,7 +426,7 @@ nohup bash -c 'sleep 45; /tmp/install_services.sh' > /opt/services.log 2>&1 &"""
                 if not service_path:
                     continue
             else:
-                service_path = service_item
+                service_path = service_item  # type: ignore[unreachable]
             service_file = Path(service_path)
             if not service_file.exists():
                 errors.append(f"Service file not found: {service_path}")
@@ -433,12 +443,12 @@ nohup bash -c 'sleep 45; /tmp/install_services.sh' > /opt/services.log 2>&1 &"""
 class CloudInitBuilder:
     """Builder pattern for constructing cloud-init configurations."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize an empty cloud-init builder."""
-        self.packages = []
-        self.files = []
-        self.commands = []
-        self.users = []
+        self.packages: list[str] = []
+        self.files: list[dict] = []
+        self.commands: list[str] = []
+        self.users: list[dict] = []
 
     def add_package(self, package: str) -> "CloudInitBuilder":
         """Add a package to install.
@@ -464,7 +474,9 @@ class CloudInitBuilder:
         self.packages.extend(packages)
         return self
 
-    def add_file(self, path: str, content: str, permissions: str = "0644") -> "CloudInitBuilder":
+    def add_file(
+        self, path: str, content: str, permissions: str = "0644"
+    ) -> "CloudInitBuilder":
         """Add a file to write.
 
         Args:
@@ -475,7 +487,9 @@ class CloudInitBuilder:
         Returns:
             Self for chaining
         """
-        self.files.append({"path": path, "content": content, "permissions": permissions})
+        self.files.append(
+            {"path": path, "content": content, "permissions": permissions}
+        )
         return self
 
     def add_command(self, command: str) -> "CloudInitBuilder":
