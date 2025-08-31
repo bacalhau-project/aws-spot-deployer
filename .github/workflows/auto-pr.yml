@@ -32,6 +32,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: Create label if it doesn't exist
+      if: steps.check.outputs.commits_ahead > 0 && steps.check.outputs.existing_pr == ''
+      run: |
+        gh label create "auto-generated" --description "Automatically generated PRs" --color "0366d6" || true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Create PR
       if: steps.check.outputs.commits_ahead > 0 && steps.check.outputs.existing_pr == ''
       run: |
@@ -54,5 +61,6 @@ jobs:
         EOF
         )" \
           --label "auto-generated"
+
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
