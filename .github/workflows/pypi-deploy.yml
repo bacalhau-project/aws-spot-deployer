@@ -100,18 +100,26 @@ jobs:
 
     - name: Normalize version for PyPI
       run: |
-        # Extract version and clean it for PyPI compatibility
-        VERSION=$(uv run python -c "from importlib.metadata import version; print(version('amauo'))")
-        echo "Original version: $VERSION"
+        # Extract version from built package filename
+        WHEEL_FILE=$(ls dist/*.whl | head -1)
+        VERSION=$(basename "$WHEEL_FILE" | sed 's/^amauo-//' | sed 's/-py3-none-any\.whl$//')
+        echo "Original version from wheel: $VERSION"
 
         # Remove git hash after + sign for PyPI compatibility
         CLEAN_VERSION=$(echo $VERSION | sed 's/+.*$//')
         echo "Cleaned version: $CLEAN_VERSION"
 
-        # Rebuild package with clean version by setting SETUPTOOLS_SCM_PRETEND_VERSION
-        export SETUPTOOLS_SCM_PRETEND_VERSION=$CLEAN_VERSION
-        rm -rf dist/
-        uv build
+        # Only rebuild if version needs cleaning
+        if [ "$VERSION" != "$CLEAN_VERSION" ]; then
+          echo "Version needs cleaning, rebuilding with: $CLEAN_VERSION"
+          export SETUPTOOLS_SCM_PRETEND_VERSION=$CLEAN_VERSION
+          rm -rf dist/
+          uv build
+          echo "New version after rebuild:"
+          ls dist/
+        else
+          echo "Version is already clean: $CLEAN_VERSION"
+        fi
 
     - name: Deploy to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
@@ -153,20 +161,25 @@ jobs:
 
     - name: Normalize version for PyPI
       run: |
-        # For tagged releases, the version should already be clean
-        # but we'll rebuild to be safe
-        VERSION=$(uv run python -c "from importlib.metadata import version; print(version('amauo'))")
-        echo "Version for PyPI: $VERSION"
+        # Extract version from built package filename
+        WHEEL_FILE=$(ls dist/*.whl | head -1)
+        VERSION=$(basename "$WHEEL_FILE" | sed 's/^amauo-//' | sed 's/-py3-none-any\.whl$//')
+        echo "Original version from wheel: $VERSION"
 
         # Clean any potential git hash for production PyPI
         CLEAN_VERSION=$(echo $VERSION | sed 's/+.*$//')
-        echo "Cleaned version: $CLEAN_VERSION"
+        echo "Cleaned version for production: $CLEAN_VERSION"
 
         # Rebuild if needed
         if [ "$VERSION" != "$CLEAN_VERSION" ]; then
+          echo "Version needs cleaning, rebuilding with: $CLEAN_VERSION"
           export SETUPTOOLS_SCM_PRETEND_VERSION=$CLEAN_VERSION
           rm -rf dist/
           uv build
+          echo "New version after rebuild:"
+          ls dist/
+        else
+          echo "Version is already clean: $CLEAN_VERSION"
         fi
 
     - name: Deploy to PyPI
