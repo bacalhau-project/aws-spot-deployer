@@ -57,26 +57,73 @@ jobs:
       run: |
         mkdir -p docs
         echo '<!DOCTYPE html>' > docs/index.html
-        echo '<html lang="en"><head><meta charset="UTF-8">' >> docs/index.html
-        echo '<title>Amauo - AWS Spot Instance Deployment Tool</title>' >> docs/index.html
-        echo '<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segue UI",Roboto,sans-serif;max-width:800px;margin:0 auto;padding:2rem;line-height:1.6}.hero{text-align:center;margin-bottom:3rem}.install{background:#f6f8fa;padding:1.5rem;border-radius:8px;margin:2rem 0}code{background:#f6f8fa;padding:0.2rem 0.4rem;border-radius:4px}pre{background:#f6f8fa;padding:1rem;border-radius:8px}.links{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:2rem}.link{text-decoration:none;background:#0366d6;color:white;padding:0.5rem 1rem;border-radius:4px}.version{color:#666;font-size:0.9rem}</style>' >> docs/index.html
-        echo '</head><body><div class="hero"><h1>🚀 Amauo</h1>' >> docs/index.html
-        echo '<p>Deploy Bacalhau compute nodes globally with AWS spot instances</p>' >> docs/index.html
-        echo '<p class="version">Version: ${{ steps.get_tag.outputs.tag }}</p></div>' >> docs/index.html
-        echo '<div class="install"><h2>📦 Installation</h2>' >> docs/index.html
-        echo '<p>Install from PyPI using uvx (recommended):</p>' >> docs/index.html
+        echo '<html lang="en"><head>' >> docs/index.html
+        echo '<meta charset="UTF-8">' >> docs/index.html
+        echo '<meta name="viewport" content="width=device-width, initial-scale=1.0">' >> docs/index.html
+        echo '<title>Amauo - Deploy Bacalhau Compute Nodes Globally</title>' >> docs/index.html
+        echo '<meta name="description" content="Deploy Bacalhau compute nodes globally using AWS spot instances for cost-effective distributed computing">' >> docs/index.html
+        echo '<style>' >> docs/index.html
+        echo 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:900px;margin:0 auto;padding:2rem;line-height:1.6;color:#333}' >> docs/index.html
+        echo '.hero{text-align:center;margin-bottom:4rem;padding:2rem 0}' >> docs/index.html
+        echo '.hero h1{font-size:3rem;margin-bottom:1rem;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}' >> docs/index.html
+        echo '.hero p{font-size:1.25rem;color:#666;margin-bottom:0.5rem}' >> docs/index.html
+        echo '.version{color:#888;font-size:1rem;font-weight:500}' >> docs/index.html
+        echo '.section{background:#f8fafc;padding:2rem;border-radius:12px;margin:2rem 0;border-left:4px solid #667eea}' >> docs/index.html
+        echo '.section h2{color:#2d3748;margin-top:0;display:flex;align-items:center;gap:0.5rem}' >> docs/index.html
+        echo '.section p{color:#4a5568;margin-bottom:1rem}' >> docs/index.html
+        echo 'code{background:#e2e8f0;color:#2d3748;padding:0.3rem 0.6rem;border-radius:6px;font-family:"SF Mono",Consolas,monospace;font-size:0.9rem}' >> docs/index.html
+        echo 'pre{background:#2d3748;color:#e2e8f0;padding:1.5rem;border-radius:8px;overflow-x:auto;border-left:4px solid #667eea}' >> docs/index.html
+        echo 'pre code{background:transparent;color:inherit;padding:0}' >> docs/index.html
+        echo '.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem;margin:3rem 0}' >> docs/index.html
+        echo '.feature{background:white;padding:1.5rem;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);border-top:3px solid #667eea}' >> docs/index.html
+        echo '.feature h3{margin-top:0;color:#2d3748}' >> docs/index.html
+        echo '.links{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:3rem}' >> docs/index.html
+        echo '.link{text-decoration:none;background:#667eea;color:white;padding:0.75rem 1.5rem;border-radius:6px;font-weight:500;transition:background 0.2s}' >> docs/index.html
+        echo '.link:hover{background:#5a67d8}' >> docs/index.html
+        echo '@media(max-width:768px){.hero h1{font-size:2rem}.features{grid-template-columns:1fr}}' >> docs/index.html
+        echo '</style>' >> docs/index.html
+        echo '</head><body>' >> docs/index.html
+        echo '<div class="hero">' >> docs/index.html
+        echo '<h1>🚀 Amauo</h1>' >> docs/index.html
+        echo '<p>Deploy Bacalhau compute nodes globally using AWS spot instances</p>' >> docs/index.html
+        echo '<p>Cost-effective distributed computing made simple</p>' >> docs/index.html
+        echo '<p class="version">Version: ${{ steps.get_tag.outputs.tag }}</p>' >> docs/index.html
+        echo '</div>' >> docs/index.html
+        echo '<div class="section">' >> docs/index.html
+        echo '<h2>📦 Installation</h2>' >> docs/index.html
+        echo '<p>Install from PyPI using uvx (recommended for isolation):</p>' >> docs/index.html
         echo '<pre><code>uvx amauo --help</code></pre>' >> docs/index.html
         echo '<p>Or install globally with pip:</p>' >> docs/index.html
-        echo '<pre><code>pip install amauo</code></pre></div>' >> docs/index.html
-        echo '<div class="install"><h2>🚀 Quick Start</h2>' >> docs/index.html
-        echo '<pre><code>amauo setup<br>amauo create<br>amauo list<br>amauo destroy</code></pre></div>' >> docs/index.html
+        echo '<pre><code>pip install amauo</code></pre>' >> docs/index.html
+        echo '</div>' >> docs/index.html
+        echo '<div class="section">' >> docs/index.html
+        echo '<h2>🚀 Quick Start</h2>' >> docs/index.html
+        echo '<p>Get up and running in minutes:</p>' >> docs/index.html
+        echo '<pre><code># Setup configuration<br>amauo setup<br><br># Deploy compute nodes<br>amauo create<br><br># Check running instances<br>amauo list<br><br># Clean up resources<br>amauo destroy</code></pre>' >> docs/index.html
+        echo '</div>' >> docs/index.html
+        echo '<div class="features">' >> docs/index.html
+        echo '<div class="feature">' >> docs/index.html
+        echo '<h3>💰 Cost Effective</h3>' >> docs/index.html
+        echo '<p>Uses AWS spot instances to reduce compute costs by up to 90% compared to on-demand pricing.</p>' >> docs/index.html
+        echo '</div>' >> docs/index.html
+        echo '<div class="feature">' >> docs/index.html
+        echo '<h3>🌍 Global Scale</h3>' >> docs/index.html
+        echo '<p>Deploy nodes across multiple AWS regions for improved performance and redundancy.</p>' >> docs/index.html
+        echo '</div>' >> docs/index.html
+        echo '<div class="feature">' >> docs/index.html
+        echo '<h3>🔧 Simple Setup</h3>' >> docs/index.html
+        echo '<p>Automated configuration with sensible defaults. Get started with just a few commands.</p>' >> docs/index.html
+        echo '</div>' >> docs/index.html
+        echo '</div>' >> docs/index.html
         echo '<div class="links">' >> docs/index.html
-        echo '<a href="https://github.com/bacalhau-project/amauo" class="link">GitHub Repository</a>' >> docs/index.html
-        echo '<a href="https://pypi.org/project/amauo/" class="link">PyPI Package</a>' >> docs/index.html
-        echo '<a href="https://github.com/bacalhau-project/amauo/blob/main/README.md" class="link">Documentation</a>' >> docs/index.html
-        echo '</div></body></html>' >> docs/index.html
+        echo '<a href="https://pypi.org/project/amauo/" class="link">📦 PyPI Package</a>' >> docs/index.html
+        echo '<a href="https://github.com/bacalhau-project/amauo" class="link">🐙 GitHub Repository</a>' >> docs/index.html
+        echo '<a href="https://github.com/bacalhau-project/amauo#readme" class="link">📚 Documentation</a>' >> docs/index.html
+        echo '<a href="https://github.com/bacalhau-project/amauo/issues" class="link">🐛 Report Issues</a>' >> docs/index.html
+        echo '</div>' >> docs/index.html
+        echo '</body></html>' >> docs/index.html
 
-    - name: Create version file
+    - name: Create version file and CNAME
       run: |
         echo "${{ steps.get_tag.outputs.tag }}" > docs/VERSION
         echo "Updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> docs/VERSION
@@ -85,6 +132,9 @@ jobs:
         echo "" >> docs/VERSION
         echo "All versions:" >> docs/VERSION
         git tag -l | sort -V | tail -5 >> docs/VERSION
+
+        # Create CNAME file for custom domain
+        echo "tada.wang" > docs/CNAME
 
     - name: Copy files to temp directory
       run: |

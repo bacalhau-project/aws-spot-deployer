@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "amauo"
 dynamic = ["version"]
-description = "Deploy Bacalhau compute nodes globally with spot instances"
+description = "Deploy Bacalhau compute nodes globally using AWS spot instances for cost-effective distributed computing"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
@@ -46,10 +46,11 @@ dependencies = [
 
 
 [project.urls]
-Homepage = "https://github.com/bacalhau-project/amauo"
+Homepage = "https://tada.wang"
 Documentation = "https://github.com/bacalhau-project/amauo#readme"
 Repository = "https://github.com/bacalhau-project/amauo"
 "Bug Tracker" = "https://github.com/bacalhau-project/amauo/issues"
+"Project Site" = "https://tada.wang"
 
 [project.scripts]
 amauo = "amauo.cli:cli"
