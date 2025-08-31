@@ -26,3 +26,23 @@ services:
       options:
         max-size: "100m"
         max-file: "3"
+
+  sensor-simulator:
+    image: ghcr.io/bacalhau-project/sensor-log-generator:latest
+    container_name: sensor-simulator
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - /opt/sensor/.env
+    environment:
+      - CONFIG_FILE=/config/sensor-config.yaml
+      - IDENTITY_FILE=/config/node_identity.json
+      - AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials
+      - AWS_CONFIG_FILE=/root/.aws/config
+    volumes:
+      - /opt/sensor/config:/config
+      - /opt/sensor/data:/app/data
+      - /opt/sensor/logs:/app/logs
+      - /opt/sensor/exports:/app/exports
+      - /root/.aws:/root/.aws:ro
+      - /home/ubuntu/.aws:/home/app/.aws:ro

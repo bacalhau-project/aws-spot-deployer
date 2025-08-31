@@ -1,12 +1,15 @@
-# Bacalhau Compute Node Configuration
-# This configuration connects nodes to the orchestrator
+# Bacalhau Compute Node Configuration Template
+# This template has credentials injected during deployment
 
+NameProvider: aws
+
+# Data directory for Bacalhau
+DataDir: /bacalhau_data
+
+# API Configuration
 API:
   Host: 0.0.0.0
   Port: 1234
-  TLS:
-    UseTLS: true
-    Insecure: false
 
 # Compute node configuration
 Compute:
@@ -15,56 +18,39 @@ Compute:
     - "{{ORCHESTRATOR_ENDPOINT}}"
   Auth:
     Token: "{{ORCHESTRATOR_TOKEN}}"
+  TLS:
+    RequireTLS: true
+  # Network port range for compute jobs
+  Network:
+    PortRangeStart: 20000
+    PortRangeEnd: 30000
+  # Heartbeat settings
+  Heartbeat:
+    InfoUpdateInterval: 1m0s
+    Interval: 15s
+  # Resource allocation - conservative for spot instances
+  AllocatedCapacity:
+    CPU: "70%"
+    Memory: "70%"
+    Disk: "50%"
+    GPU: "0%"
+  # Allow access to sensor data directories
+  AllowListedLocalPaths:
+    - "/opt/sensor/data:ro"
+    - "/opt/sensor/exports:rw"
+    - "/tmp:rw"
+    - "/bacalhau_data:rw"
 
-  # Node labels for identification and filtering
-  Labels:
-    instance-id: "{{INSTANCE_ID}}"
-    node-type: "spot"
-    cloud-provider: "aws"
-    region: "{{REGION}}"
+# Disable orchestrator mode
+Orchestrator:
+  Enabled: false
 
-  # Resources this node offers (empty means use all available)
-  Resources:
-    CPU: ""
-    Memory: ""
-    Disk: ""
-    GPU: ""
+# Job admission control
+JobAdmissionControl:
+  Locality: anywhere
 
-# Engines to enable
-Engines:
-  Types:
-    - docker
-    - wasm
-
-  Docker:
-    ManifestCache:
-      Size: 1000
-      Duration: 1h
-
-# Input sources - allow reading sensor data
-InputSources:
-  ReadTimeout: 5m
-  MaxRetries: 3
-  Types:
-    - local
-
-  # Allow reading from the sensor data directory
-  Local:
-    AllowedPaths:
-      - /opt/sensor/data
-      - /tmp
-
-# Name provider - generates unique node names
-NameProvider: puuid
-
-# Logging
+# Logging configuration
 Logging:
   Level: info
   Mode: default
-
-# Update configuration
-UpdateConfig:
-  Interval: 24h
-
-# Disable telemetry
-DisableAnalytics: true
+  LogDebugInfoInterval: 30s
