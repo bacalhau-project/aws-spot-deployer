@@ -75,12 +75,12 @@ jobs:
   deploy-test:
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/tags/v'))
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     permissions:
       id-token: write
     environment:
       name: testpypi
-      url: https://test.pypi.org/project/spot-deployer/
+      url: https://test.pypi.org/project/amauo/
 
     steps:
     - uses: actions/checkout@v4
@@ -92,6 +92,26 @@ jobs:
       with:
         name: dist
         path: dist/
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Normalize version for PyPI
+      run: |
+        # Extract version and clean it for PyPI compatibility
+        VERSION=$(uv run python -c "from importlib.metadata import version; print(version('amauo'))")
+        echo "Original version: $VERSION"
+
+        # Remove git hash after + sign for PyPI compatibility
+        CLEAN_VERSION=$(echo $VERSION | sed 's/+.*$//')
+        echo "Cleaned version: $CLEAN_VERSION"
+
+        # Rebuild package with clean version by setting SETUPTOOLS_SCM_PRETEND_VERSION
+        export SETUPTOOLS_SCM_PRETEND_VERSION=$CLEAN_VERSION
+        rm -rf dist/
+        uv build
 
     - name: Deploy to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
@@ -101,19 +121,19 @@ jobs:
 
     - name: Test installation from TestPyPI
       run: |
-        pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ spot-deployer
-        spot-deployer --version
+        pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ amauo
+        amauo --version
 
   deploy-prod:
     runs-on: ubuntu-latest
-    needs: [build, deploy-test]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    if: github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       id-token: write
       contents: write
     environment:
       name: pypi
-      url: https://pypi.org/project/spot-deployer/
+      url: https://pypi.org/project/amauo/
 
     steps:
     - uses: actions/checkout@v4
@@ -126,14 +146,37 @@ jobs:
         name: dist
         path: dist/
 
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Normalize version for PyPI
+      run: |
+        # For tagged releases, the version should already be clean
+        # but we'll rebuild to be safe
+        VERSION=$(uv run python -c "from importlib.metadata import version; print(version('amauo'))")
+        echo "Version for PyPI: $VERSION"
+
+        # Clean any potential git hash for production PyPI
+        CLEAN_VERSION=$(echo $VERSION | sed 's/+.*$//')
+        echo "Cleaned version: $CLEAN_VERSION"
+
+        # Rebuild if needed
+        if [ "$VERSION" != "$CLEAN_VERSION" ]; then
+          export SETUPTOOLS_SCM_PRETEND_VERSION=$CLEAN_VERSION
+          rm -rf dist/
+          uv build
+        fi
+
     - name: Deploy to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
 
     - name: Test installation from PyPI
       run: |
         sleep 60  # Wait for package to be available
-        pip install spot-deployer
-        spot-deployer --version
+        pip install amauo
+        amauo --version
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
