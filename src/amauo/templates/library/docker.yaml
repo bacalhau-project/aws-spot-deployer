@@ -6,7 +6,7 @@ users:
   - name: ubuntu
     groups: sudo, docker
     shell: /bin/bash
-    sudo: ALL=(ALL) NOPASSWD:ALL{{SSH_KEY_SECTION}}
+    sudo: ALL=(ALL) NOPASSWD:ALL{{SSH_KEY_SECTION}}  # pragma: allowlist secret
 
 packages:
   - docker.io

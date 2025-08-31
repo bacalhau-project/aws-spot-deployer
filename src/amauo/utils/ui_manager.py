@@ -1,6 +1,6 @@
 """Unified UI Manager for all Rich display operations."""
 
-from typing import Any, Callable, Dict, Optional, cast
+from typing import Any, Callable, Optional, cast
 
 from rich.console import Console
 from rich.layout import Layout
@@ -97,7 +97,7 @@ class UIManager:
         return status_display
 
     def create_progress_panel(
-        self, title: str, content: Dict[str, Any], border_style: str = "blue"
+        self, title: str, content: dict[str, Any], border_style: str = "blue"
     ) -> Panel:
         """Create a progress panel with formatted content."""
         lines = []
@@ -140,7 +140,7 @@ class UIManager:
         )
         return self._live_display
 
-    def create_layout(self, *sections) -> Layout:
+    def create_layout(self, *sections: Any) -> Layout:
         """Create a layout with multiple sections."""
         layout = Layout()
 
@@ -179,11 +179,11 @@ class UIManager:
         self.console.print(f"[blue]ℹ️  {message}[/blue]")
 
     def create_instance_progress_tracker(
-        self, instances: Dict[str, Dict[str, Any]], title: str = "Instance Progress"
+        self, instances: dict[str, dict[str, Any]], title: str = "Instance Progress"
     ) -> Callable:
         """Create a progress tracking function for instances."""
 
-        def update_progress():
+        def update_progress() -> Any:
             table = self.create_instance_table(title=title)
 
             # Sort instances for consistent display
@@ -192,7 +192,9 @@ class UIManager:
             )
 
             for instance_key, info in sorted_instances:
-                status = self.format_status(info.get("status", "Unknown"), info.get("detail", ""))
+                status = self.format_status(
+                    info.get("status", "Unknown"), info.get("detail", "")
+                )
 
                 self.add_instance_row(
                     table,
@@ -214,15 +216,19 @@ class UIManager:
         total: int,
         completed: int,
         failed: int,
-        additional_info: Optional[Dict[str, Any]] = None,
+        additional_info: Optional[dict[str, Any]] = None,
     ) -> None:
         """Show a summary of operations."""
         lines = [f"\n[bold]{title}:[/bold]"]
 
         if completed == total:
-            lines.append(f"[green]✅ All {total} operations completed successfully[/green]")
+            lines.append(
+                f"[green]✅ All {total} operations completed successfully[/green]"
+            )
         else:
-            lines.append(f"[yellow]⚠️  {completed}/{total} operations completed[/yellow]")
+            lines.append(
+                f"[yellow]⚠️  {completed}/{total} operations completed[/yellow]"
+            )
             if failed > 0:
                 lines.append(f"[red]❌ {failed} operations failed[/red]")
 

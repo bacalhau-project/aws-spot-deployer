@@ -25,7 +25,9 @@ def cmd_validate(config: SimpleConfig, state: SimpleStateManager) -> None:
     if discovery_result.mode == DeploymentMode.NONE:
         errors.append("No deployment structure found (.spot/ or deployment/ directory)")
         rich_error("❌ No deployment structure found")
-        rich_print("\n[yellow]Run 'amauo generate' to create the required structure.[/yellow]")
+        rich_print(
+            "\n[yellow]Run 'amauo generate' to create the required structure.[/yellow]"
+        )
         return
 
     if discovery_result.mode == DeploymentMode.PORTABLE:
@@ -104,7 +106,10 @@ def cmd_validate(config: SimpleConfig, state: SimpleStateManager) -> None:
         rich_success("✅ All referenced files exist")
 
     # 5. Validate tarball source if specified
-    if hasattr(deployment_config, "tarball_source") and deployment_config.tarball_source:
+    if (
+        hasattr(deployment_config, "tarball_source")
+        and deployment_config.tarball_source
+    ):
         console.print("\nValidating tarball source...")
         source_path = Path(deployment_config.tarball_source)
 
@@ -151,13 +156,17 @@ def cmd_validate(config: SimpleConfig, state: SimpleStateManager) -> None:
 
     if not errors and not warnings:
         rich_success("✅ All validation checks passed!")
-        rich_print("\n[green]Your deployment is ready. Run 'spot create' to deploy.[/green]")
+        rich_print(
+            "\n[green]Your deployment is ready. Run 'spot create' to deploy.[/green]"
+        )
     elif not errors:
         rich_success(f"✅ Validation passed with {len(warnings)} warning(s)")
         rich_print("\n[yellow]Warnings:[/yellow]")
         for warning in warnings:
             rich_print(f"  • {warning}")
-        rich_print("\n[green]Your deployment should work. Run 'spot create' to deploy.[/green]")
+        rich_print(
+            "\n[green]Your deployment should work. Run 'spot create' to deploy.[/green]"
+        )
     else:
         rich_error(f"❌ Validation failed with {len(errors)} error(s)")
         if warnings:

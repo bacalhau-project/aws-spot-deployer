@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import yaml
 
@@ -13,10 +13,10 @@ class DeploymentConfig:
 
     # Deployment manifest data
     version: int = 1
-    packages: List[str] = field(default_factory=list)
-    scripts: List[Dict[str, Any]] = field(default_factory=list)
-    uploads: List[Dict[str, Any]] = field(default_factory=list)
-    services: List[Dict[str, Any]] = field(default_factory=list)
+    packages: list[str] = field(default_factory=list)
+    scripts: list[dict[str, Any]] = field(default_factory=list)
+    uploads: list[dict[str, Any]] = field(default_factory=list)
+    services: list[dict[str, Any]] = field(default_factory=list)
     template: Optional[str] = None  # Optional template name or path
     tarball_source: Optional[str] = None  # Optional directory to create tarball from
 
@@ -56,7 +56,9 @@ class DeploymentConfig:
 
         # Load deployment manifest
         if not config.deployment_path.exists():
-            raise FileNotFoundError(f"Deployment manifest not found: {config.deployment_path}")
+            raise FileNotFoundError(
+                f"Deployment manifest not found: {config.deployment_path}"
+            )
 
         with open(config.deployment_path) as f:
             manifest = yaml.safe_load(f)
@@ -80,7 +82,7 @@ class DeploymentConfig:
 
         return config
 
-    def validate(self) -> Tuple[bool, List[str]]:
+    def validate(self) -> tuple[bool, list[str]]:
         """Validate the deployment configuration.
 
         Returns:
@@ -140,7 +142,7 @@ class DeploymentConfig:
 
         return len(errors) == 0, errors
 
-    def get_all_files(self) -> List[Path]:
+    def get_all_files(self) -> list[Path]:
         """Get all files that need to be uploaded.
 
         Returns:
@@ -181,7 +183,7 @@ class DeploymentValidator:
     """Validates deployment structure and configuration."""
 
     @staticmethod
-    def check_spot_directory(base_dir: Optional[Path] = None) -> Tuple[bool, List[str]]:
+    def check_spot_directory(base_dir: Optional[Path] = None) -> tuple[bool, list[str]]:
         """Check if .spot directory exists and has required structure.
 
         Args:
@@ -225,7 +227,7 @@ class DeploymentValidator:
         return len(missing) == 0, missing
 
     @staticmethod
-    def validate_yaml_syntax(file_path: Path) -> Tuple[bool, Optional[str]]:
+    def validate_yaml_syntax(file_path: Path) -> tuple[bool, Optional[str]]:
         """Validate YAML file syntax.
 
         Args:
@@ -244,7 +246,7 @@ class DeploymentValidator:
             return False, f"Failed to read file: {e}"
 
     @staticmethod
-    def validate_service_file(file_path: Path) -> Tuple[bool, List[str]]:
+    def validate_service_file(file_path: Path) -> tuple[bool, list[str]]:
         """Validate systemd service file.
 
         Args:

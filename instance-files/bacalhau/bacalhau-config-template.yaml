@@ -20,6 +20,14 @@ Compute:
     Token: "{{ORCHESTRATOR_TOKEN}}"
   TLS:
     RequireTLS: true
+
+  # Node labels for identification and filtering
+  Labels:
+    instance-id: "{{INSTANCE_ID}}"
+    node-type: "spot"
+    cloud-provider: "aws"
+    region: "{{REGION}}"
+
   # Network port range for compute jobs
   Network:
     PortRangeStart: 20000

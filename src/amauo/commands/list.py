@@ -52,9 +52,13 @@ def cmd_list(state: SimpleStateManager, refresh: bool = False) -> None:
                 region=instance["region"],
                 instance_id=instance["id"],  # Changed from instance_id to id
                 status=status,
-                instance_type=instance.get("type", "unknown"),  # Changed from instance_type to type
+                instance_type=instance.get(
+                    "type", "unknown"
+                ),  # Changed from instance_type to type
                 public_ip=instance.get("public_ip", "pending"),
-                created=instance.get("created", "unknown"),  # Changed from created_at to created
+                created=instance.get(
+                    "created", "unknown"
+                ),  # Changed from created_at to created
             )
 
         # Display the table
@@ -62,8 +66,10 @@ def cmd_list(state: SimpleStateManager, refresh: bool = False) -> None:
 
         # Show summary
         total = len(instances)
-        regions = len(set(i["region"] for i in instances))
-        rich_print(f"\n[green]Total: {total} instances across {regions} regions[/green]")
+        regions = len({i["region"] for i in instances})
+        rich_print(
+            f"\n[green]Total: {total} instances across {regions} regions[/green]"
+        )
     else:
         # Simple text output
         print(f"\nInstances ({len(instances)} total):")

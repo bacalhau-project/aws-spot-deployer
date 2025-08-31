@@ -28,13 +28,13 @@ jobs:
         run: uv sync --frozen --group dev
 
       - name: Run ruff check
-        run: uv run ruff check src/ tests/ scripts/
+        run: uv run ruff check src/ tests/ scripts/ --exclude src/amauo/_version.py
 
       - name: Run ruff format check
-        run: uv run ruff format --check src/ tests/ scripts/
+        run: uv run ruff format --check src/ tests/ scripts/ --exclude src/amauo/_version.py
 
       - name: Run type checking
-        run: uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs
+        run: uv run mypy src/amauo/ --ignore-missing-imports --check-untyped-defs --exclude _version.py
 
       - name: Run security check
         run: uv run bandit -r src/amauo/ -ll --skip B101,B108,B202,B324,B601

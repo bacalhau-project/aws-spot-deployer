@@ -2,7 +2,6 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, List
 
 from ..core.deployment import DeploymentConfig
 
@@ -21,7 +20,7 @@ class ServiceInstaller:
         self.config = deployment_config
         self.service_dir = "/etc/systemd/system"
 
-    def generate_install_commands(self) -> List[str]:
+    def generate_install_commands(self) -> list[str]:
         """Generate commands to install and start services.
 
         Returns:
@@ -53,7 +52,7 @@ class ServiceInstaller:
 
     def _generate_service_commands(
         self, service_file: str, service_name: str, enabled: bool, start: bool
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate commands for a single service.
 
         Args:
@@ -142,7 +141,7 @@ echo "Service installation complete!"
 
         return script
 
-    def validate_services(self) -> tuple[bool, List[str]]:
+    def validate_services(self) -> tuple[bool, list[str]]:
         """Validate service definitions.
 
         Returns:
@@ -167,10 +166,14 @@ echo "Service installation complete!"
             if service.get("file"):
                 service_path = self.config.spot_dir / service["file"]
                 if not service_path.exists():
-                    service_errors.append(f"Service {i + 1}: File not found: {service_path}")
+                    service_errors.append(
+                        f"Service {i + 1}: File not found: {service_path}"
+                    )
                 else:
                     # Validate it's a valid systemd service file
-                    is_valid, validation_errors = self._validate_service_file(service_path)
+                    is_valid, validation_errors = self._validate_service_file(
+                        service_path
+                    )
                     if not is_valid:
                         service_errors.extend(
                             [f"Service {i + 1}: {err}" for err in validation_errors]
@@ -180,7 +183,7 @@ echo "Service installation complete!"
 
         return len(errors) == 0, errors
 
-    def _validate_service_file(self, service_path: Path) -> tuple[bool, List[str]]:
+    def _validate_service_file(self, service_path: Path) -> tuple[bool, list[str]]:
         """Validate a systemd service file.
 
         Args:
@@ -215,7 +218,7 @@ echo "Service installation complete!"
 
         return len(errors) == 0, errors
 
-    def get_service_dependencies(self) -> Dict[str, List[str]]:
+    def get_service_dependencies(self) -> dict[str, list[str]]:
         """Extract service dependencies from service files.
 
         Returns:
@@ -240,7 +243,7 @@ echo "Service installation complete!"
 
         return dependencies
 
-    def _extract_dependencies(self, service_path: Path) -> List[str]:
+    def _extract_dependencies(self, service_path: Path) -> list[str]:
         """Extract dependencies from a service file.
 
         Args:
@@ -284,7 +287,7 @@ echo "Service installation complete!"
 
         return deps
 
-    def generate_health_checks(self) -> List[str]:
+    def generate_health_checks(self) -> list[str]:
         """Generate health check commands for services.
 
         Returns:

@@ -6,7 +6,7 @@ import os
 import tarfile
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from ..utils.ui_manager import UIManager
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class TarballHandler:
     """Handles tarball creation and extraction for deployments."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize tarball handler."""
         self.temp_dir = Path(tempfile.gettempdir()) / "amauo"
         self.temp_dir.mkdir(exist_ok=True)
@@ -26,7 +26,7 @@ class TarballHandler:
         self,
         source_dir: Path,
         output_path: Optional[Path] = None,
-        exclude_patterns: Optional[List[str]] = None,
+        exclude_patterns: Optional[list[str]] = None,
     ) -> Path:
         """Create a tarball from a directory.
 
@@ -193,7 +193,7 @@ echo "Deployment package extracted to {extract_dir}"
 """
         return script
 
-    def validate_tarball(self, tarball_path: Path) -> Tuple[bool, str]:
+    def validate_tarball(self, tarball_path: Path) -> tuple[bool, str]:
         """Validate a tarball file.
 
         Args:
@@ -224,7 +224,7 @@ echo "Deployment package extracted to {extract_dir}"
         except Exception as e:
             return False, f"Invalid tarball: {e}"
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up temporary files."""
         import shutil
 

@@ -9,13 +9,18 @@ from ..core.constants import DEFAULT_SSH_TIMEOUT
 
 
 def _run_scp_with_retry(
-    scp_cmd: list, log_function: Optional[Callable], description: str, timeout: int = 120
+    scp_cmd: list,
+    log_function: Optional[Callable],
+    description: str,
+    timeout: int = 120,
 ) -> bool:
     """Run SCP command with retry logic."""
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            result = subprocess.run(scp_cmd, capture_output=True, text=True, timeout=timeout)
+            result = subprocess.run(
+                scp_cmd, capture_output=True, text=True, timeout=timeout
+            )
             if result.returncode == 0:
                 return True
             elif attempt < max_retries - 1:
@@ -39,7 +44,9 @@ def _run_scp_with_retry(
                 time.sleep(2**attempt)
             else:
                 if log_function:
-                    log_function(f"ERROR: {description} timed out after {max_retries} attempts")
+                    log_function(
+                        f"ERROR: {description} timed out after {max_retries} attempts"
+                    )
                 return False
     return False
 
@@ -95,15 +102,15 @@ def transfer_files_scp(
 ) -> bool:
     """Transfer files to instance using SCP."""
 
-    def update_progress(phase: str, progress: int, status: str = ""):
+    def update_progress(phase: str, progress: int, status: str = "") -> None:
         if progress_callback:
             progress_callback(phase, progress, status)
 
-    def log_message(msg: str):
+    def log_message(msg: str) -> None:
         if log_function:
             log_function(msg)
 
-    def log_error(msg: str):
+    def log_error(msg: str) -> None:
         if log_function:
             log_function(f"ERROR: {msg}")
 
@@ -123,13 +130,17 @@ def transfer_files_scp(
         ]
 
         # Create directories in /tmp (where ubuntu user has permissions)
-        mkdir_cmd = ssh_base + ["mkdir -p /tmp/uploaded_files/scripts /tmp/uploaded_files/config"]
+        mkdir_cmd = ssh_base + [
+            "mkdir -p /tmp/uploaded_files/scripts /tmp/uploaded_files/config"
+        ]
 
         # Retry logic for directory creation
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                result = subprocess.run(mkdir_cmd, capture_output=True, text=True, timeout=30)
+                result = subprocess.run(
+                    mkdir_cmd, capture_output=True, text=True, timeout=30
+                )
                 if result.returncode == 0:
                     break
                 elif attempt < max_retries - 1:
@@ -149,7 +160,9 @@ def transfer_files_scp(
                     )
                     time.sleep(2**attempt)
                 else:
-                    log_error(f"Directory creation timed out after {max_retries} attempts")
+                    log_error(
+                        f"Directory creation timed out after {max_retries} attempts"
+                    )
                     return False
 
         update_progress("SCP: Directories", 20, "Remote directories created")
@@ -253,7 +266,9 @@ def transfer_files_scp(
 
         # Upload additional_commands.sh if provided
         if additional_commands_path and os.path.exists(additional_commands_path):
-            update_progress("SCP: Additional Commands", 92, "Uploading custom commands...")
+            update_progress(
+                "SCP: Additional Commands", 92, "Uploading custom commands..."
+            )
 
             result = subprocess.run(
                 scp_base
@@ -276,7 +291,9 @@ def transfer_files_scp(
                 ]
                 subprocess.run(chmod_cmd, capture_output=True, text=True, timeout=10)
         elif additional_commands_path:
-            log_message(f"Warning: additional_commands.sh not found at {additional_commands_path}")
+            log_message(
+                f"Warning: additional_commands.sh not found at {additional_commands_path}"
+            )
 
         # Verify files were uploaded
         update_progress("SCP: Verifying", 95, "Verifying upload...")
@@ -299,7 +316,9 @@ def transfer_files_scp(
         log_message(f"Uploaded {file_count} files to /tmp/uploaded_files")
 
         # Trigger cloud-init to run the deployment
-        update_progress("SCP: Triggering", 98, f"Triggering deployment ({file_count} files)...")
+        update_progress(
+            "SCP: Triggering", 98, f"Triggering deployment ({file_count} files)..."
+        )
 
         # Create a marker file to signal that files are ready
         marker_cmd = ssh_base + ["touch /tmp/uploaded_files_ready"]

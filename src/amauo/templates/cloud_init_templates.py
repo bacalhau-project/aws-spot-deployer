@@ -3,7 +3,7 @@
 import logging
 import re
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -23,7 +23,7 @@ class CloudInitTemplate:
         """
         self.template_path = template_path
         self.template_content: Optional[str] = None
-        self.variables: Dict[str, str] = {}
+        self.variables: dict[str, str] = {}
 
         if template_path and template_path.exists():
             self._load_template()
@@ -38,7 +38,7 @@ class CloudInitTemplate:
 
         logger.debug(f"Loaded template from {self.template_path}")
 
-    def set_variables(self, variables: Dict[str, Any]) -> None:
+    def set_variables(self, variables: dict[str, Any]) -> None:
         """Set variables for template substitution.
 
         Args:
@@ -95,7 +95,7 @@ class CloudInitTemplate:
 
     def _build_template_variables(
         self, deployment_config: Optional[DeploymentConfig]
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Build template variables from deployment config and custom variables.
 
         Args:
@@ -133,7 +133,7 @@ class CloudInitTemplate:
                     if path:
                         service_names.append(Path(path).name)
                 else:
-                    service_names.append(Path(service).name)
+                    service_names.append(Path(service).name)  # type: ignore[unreachable]
             vars["SERVICES"] = (
                 "\n".join(f"  - {name}" for name in service_names)
                 if service_names
@@ -238,7 +238,7 @@ runcmd:
                 r"\{\{([^}]+)\}\}|\$\{([^}]+)\}", self.template_content
             )
             if unsubstituted:
-                unique_vars = set(var[0] or var[1] for var in unsubstituted)
+                unique_vars = {var[0] or var[1] for var in unsubstituted}
                 # Check if these will be substituted
                 for var in unique_vars:
                     if var not in self.variables and var not in [
@@ -325,7 +325,7 @@ class TemplateInjector:
             base_template: Base cloud-init template string
         """
         self.base_template = base_template
-        self.injections: Dict[str, Any] = {
+        self.injections: dict[str, Any] = {
             "packages": [],
             "write_files": [],
             "runcmd": [],

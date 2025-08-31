@@ -226,7 +226,7 @@ For sensitive files like credentials, use appropriate permissions in deployment.
     console.print("5. Run [green]amauo create[/green] to deploy\n")
 
 
-def main():
+def main() -> None:
     """Main entry point for generate command."""
     try:
         # Check if deployment structure already exists
@@ -241,7 +241,9 @@ def main():
                     return
             except EOFError:
                 # Non-interactive mode - continue with defaults
-                console.print("[yellow]Non-interactive mode detected. Skipping existing files.[/yellow]")
+                console.print(
+                    "[yellow]Non-interactive mode detected. Skipping existing files.[/yellow]"
+                )
 
         generate_structure()
 

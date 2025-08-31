@@ -2,13 +2,13 @@
 
 import os
 import subprocess
-from typing import Any, Dict
+from typing import Any
 
 from .._version import __version__
 from ..utils.display import console
 
 
-def get_runtime_info():
+def get_runtime_info() -> dict[str, str]:
     """Get runtime environment information."""
     runtime_info = {}
 
@@ -27,9 +27,9 @@ def get_runtime_info():
     return runtime_info
 
 
-def get_git_info():
+def get_git_info() -> dict[str, Any]:
     """Get detailed git information."""
-    git_info: Dict[str, Any] = {}
+    git_info: dict[str, Any] = {}
 
     try:
         # Get current branch

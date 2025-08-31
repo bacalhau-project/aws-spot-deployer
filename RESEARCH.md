@@ -9,7 +9,7 @@ Binary file ./spot_deployer/utils/__pycache__/portable_cloud_init.cpython-312.py
 ./spot_deployer/commands/create.py:            setup_cmd = "nohup bash -c 'sleep 5 && cd /opt/deployment && [ -f setup.sh ] && chmod +x setup.sh && ./setup.sh > /var/log/setup.log 2>&1' > /dev/null 2>&1 &"
 Binary file ./spot_deployer/commands/__pycache__/create.cpython-312.pyc matches
 Binary file ./spot_deployer/commands/__pycache__/create.cpython-313.pyc matches
--e 
+-e
 === Setup/deployment scripts that exist ===
 ./docs/install.sh
 ./test-deployment/.spot/scripts/setup.sh
@@ -18,7 +18,7 @@ Binary file ./spot_deployer/commands/__pycache__/create.cpython-313.pyc matches
 ./scripts/install-updated.sh
 ./scripts/install.sh
 ./scripts/install-uvx.sh
--e 
+-e
 === How Docker was installed ===
 ./deployment/setup.sh:    curl -fsSL https://get.docker.com -o get-docker.sh
 ./deployment/setup.sh:    sudo apt-get install -y docker-compose-plugin
@@ -30,9 +30,9 @@ Binary file ./spot_deployer/commands/__pycache__/create.cpython-313.pyc matches
 ./scripts/install-updated.sh:# Pull Docker image
 ./scripts/install-updated.sh:pull_docker_image() {
 ./scripts/install-updated.sh:    info "Pulling Docker image..."
--e 
+-e
 === Cloud-init or user-data files ===
--e 
+-e
 === Any error handling for /dev/null or permissions ===
 ./deployment/scripts/setup-aws-credentials.sh:    cp /opt/deployment/etc/aws/credentials/expanso-production.docker.env /opt/sensor/docker.env 2>/dev/null || true
 ./.venv/lib/python3.12/site-packages/virtualenv/activation/bash/activate.sh:    hash -r 2>/dev/null

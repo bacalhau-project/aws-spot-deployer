@@ -2,7 +2,7 @@
 
 import subprocess
 import time
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Optional
 
 from ..core.constants import DEFAULT_SSH_TIMEOUT
 
@@ -57,7 +57,7 @@ class SSHManager:
 
     def execute_command(
         self, command: str, timeout: int = 30, retries: int = 3
-    ) -> Tuple[bool, str, str]:
+    ) -> tuple[bool, str, str]:
         """
         Execute a command on the remote host with retry logic.
 
@@ -75,7 +75,9 @@ class SSHManager:
 
         for attempt in range(retries):
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=timeout
+                )
                 if result.returncode == 0:
                     return True, result.stdout, result.stderr
                 elif attempt < retries - 1:
@@ -103,10 +105,17 @@ class SSHManager:
         self, local_path: str, remote_path: str, timeout: int = 300, retries: int = 3
     ) -> bool:
         """Transfer a directory to the remote host with retry logic."""
-        return self._scp_with_retry(local_path, remote_path, timeout, retries, recursive=True)
+        return self._scp_with_retry(
+            local_path, remote_path, timeout, retries, recursive=True
+        )
 
     def _scp_with_retry(
-        self, local_path: str, remote_path: str, timeout: int, retries: int, recursive: bool = False
+        self,
+        local_path: str,
+        remote_path: str,
+        timeout: int,
+        retries: int,
+        recursive: bool = False,
     ) -> bool:
         """Execute SCP with retry logic."""
         scp_cmd = ["scp", "-i", self.private_key_path, *self.ssh_base_args]
@@ -118,7 +127,9 @@ class SSHManager:
 
         for attempt in range(retries):
             try:
-                result = subprocess.run(scp_cmd, capture_output=True, text=True, timeout=timeout)
+                result = subprocess.run(
+                    scp_cmd, capture_output=True, text=True, timeout=timeout
+                )
                 if result.returncode == 0:
                     return True
                 elif attempt < retries - 1:
@@ -151,7 +162,7 @@ class SSHManager:
 class BatchSSHManager:
     """Manages SSH operations across multiple hosts concurrently."""
 
-    def __init__(self, hosts: List[Dict[str, str]], private_key_path: str):
+    def __init__(self, hosts: list[dict[str, str]], private_key_path: str):
         """
         Initialize batch SSH manager.
 
@@ -160,13 +171,15 @@ class BatchSSHManager:
             private_key_path: Path to SSH private key
         """
         self.managers = {
-            host["hostname"]: SSHManager(host["hostname"], host["username"], private_key_path)
+            host["hostname"]: SSHManager(
+                host["hostname"], host["username"], private_key_path
+            )
             for host in hosts
         }
 
     def wait_for_all_ssh(
         self, timeout: int = DEFAULT_SSH_TIMEOUT, callback: Optional[Callable] = None
-    ) -> Dict[str, bool]:
+    ) -> dict[str, bool]:
         """
         Wait for SSH to be available on all hosts.
 
@@ -182,7 +195,9 @@ class BatchSSHManager:
                 callback(f"Waiting for SSH on {hostname}...")
 
             elapsed = time.time() - start_time
-            remaining_timeout = max(10, int(timeout - elapsed))  # At least 10 seconds per host
+            remaining_timeout = max(
+                10, int(timeout - elapsed)
+            )  # At least 10 seconds per host
 
             results[hostname] = manager.wait_for_ssh(remaining_timeout)
 
@@ -192,7 +207,9 @@ class BatchSSHManager:
 
         return results
 
-    def execute_on_all(self, command: str, timeout: int = 30) -> Dict[str, Tuple[bool, str, str]]:
+    def execute_on_all(
+        self, command: str, timeout: int = 30
+    ) -> dict[str, tuple[bool, str, str]]:
         """
         Execute a command on all hosts.
 
@@ -206,7 +223,7 @@ class BatchSSHManager:
 
     def transfer_to_all(
         self, local_path: str, remote_path: str, timeout: int = 120
-    ) -> Dict[str, bool]:
+    ) -> dict[str, bool]:
         """
         Transfer a file to all hosts.
 

@@ -5,7 +5,6 @@ Provides a Click-based CLI for deploying and managing Bacalhau compute nodes
 across multiple AWS regions using spot instances.
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -221,7 +220,7 @@ def help() -> None:
 def random_ip(ctx: click.Context) -> None:
     """Get random instance IP for SSH access."""
     state: SimpleStateManager = ctx.obj["state"]
-    
+
     try:
         cmd_random_ip(state)
     except Exception as e:
@@ -233,22 +232,22 @@ def random_ip(ctx: click.Context) -> None:
 @click.pass_context
 def readme(ctx: click.Context) -> None:
     """Show deployment information and status."""
-    state: SimpleStateManager = ctx.obj["state"]
-    
+    # state: SimpleStateManager = ctx.obj["state"]  # Unused for readme command
+
     try:
-        cmd_readme(state)
+        cmd_readme()
     except Exception as e:
         console.print(f"[red]❌ Readme failed: {e}[/red]")
         sys.exit(1)
 
 
 @cli.command()
-@click.pass_context  
+@click.pass_context
 def validate(ctx: click.Context) -> None:
     """Validate deployment configuration before deployment."""
     config: SimpleConfig = ctx.obj["config"]
     state: SimpleStateManager = ctx.obj["state"]
-    
+
     try:
         cmd_validate(config, state)
     except Exception as e:

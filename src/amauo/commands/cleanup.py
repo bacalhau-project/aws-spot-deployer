@@ -6,18 +6,24 @@ from pathlib import Path
 from ..utils.display import console, rich_print, rich_success
 
 
-def cmd_cleanup():
+def cmd_cleanup() -> None:
     """Run aggressive cleanup to remove temporary files and prevent conflicts."""
     rich_print("🧹 [bold]Running aggressive cleanup...[/bold]")
-    
-    cleanup_script = Path(__file__).parent.parent.parent.parent / "scripts" / "cleanup.sh"
-    
+
+    cleanup_script = (
+        Path(__file__).parent.parent.parent.parent / "scripts" / "cleanup.sh"
+    )
+
     if not cleanup_script.exists():
-        console.print("❌ Cleanup script not found. Please ensure scripts/cleanup.sh exists.")
+        console.print(
+            "❌ Cleanup script not found. Please ensure scripts/cleanup.sh exists."
+        )
         return
-    
+
     try:
-        result = subprocess.run([str(cleanup_script)], check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            [str(cleanup_script)], check=True, capture_output=True, text=True
+        )
         console.print(result.stdout)
         rich_success("Cleanup completed successfully!")
     except subprocess.CalledProcessError as e:

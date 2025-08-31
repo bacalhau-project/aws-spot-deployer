@@ -1,17 +1,18 @@
 """AWS Resource Manager - Centralized AWS operations management."""
 
 import time
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Optional, cast
 
 import boto3
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
+
 # Type hint imports
 try:
     from mypy_boto3_ec2.client import EC2Client
 except ImportError:
     # Fallback for runtime - use Any for type hints
-    from typing import Any as EC2Client  # type: ignore
+    from typing import Any as EC2Client
 
 from ..core.constants import CANONICAL_OWNER_ID, DEFAULT_UBUNTU_AMI_PATTERN
 
@@ -25,7 +26,7 @@ class AWSResourceManager:
         self._ec2: Optional[EC2Client] = None
 
     @property
-    def ec2(self):
+    def ec2(self) -> EC2Client:
         """Lazy-load EC2 client with optimized config."""
         if self._ec2 is None:
             boto_config = BotoConfig(
@@ -41,7 +42,7 @@ class AWSResourceManager:
 
     def find_or_create_vpc(
         self, use_dedicated: bool, deployment_id: Optional[str] = None
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Find existing VPC or create a dedicated one.
 
@@ -58,7 +59,7 @@ class AWSResourceManager:
         else:
             return self._find_default_vpc()
 
-    def _find_existing_spot_vpc(self) -> Optional[Tuple[str, str]]:
+    def _find_existing_spot_vpc(self) -> Optional[tuple[str, str]]:
         """Find an existing VPC created by Amauo."""
         try:
             # Look for VPCs with our ManagedBy tag
@@ -90,10 +91,12 @@ class AWSResourceManager:
 
         return None
 
-    def _find_default_vpc(self) -> Tuple[str, str]:
+    def _find_default_vpc(self) -> tuple[str, str]:
         """Find the default VPC and subnet."""
         # Find default VPC
-        vpcs = self.ec2.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
+        vpcs = self.ec2.describe_vpcs(
+            Filters=[{"Name": "isDefault", "Values": ["true"]}]
+        )
 
         if not vpcs["Vpcs"]:
             raise Exception(f"No default VPC found in {self.region}")
@@ -115,7 +118,7 @@ class AWSResourceManager:
 
         return vpc_id, subnet_id
 
-    def _create_dedicated_vpc(self, deployment_id: str) -> Tuple[str, str]:
+    def _create_dedicated_vpc(self, deployment_id: str) -> tuple[str, str]:
         """Create a dedicated VPC for this deployment."""
         # Create VPC
         vpc_response = self.ec2.create_vpc(CidrBlock="10.0.0.0/16")
@@ -132,7 +135,9 @@ class AWSResourceManager:
         subnet_id = subnet_response["Subnet"]["SubnetId"]
 
         # Enable auto-assign public IP
-        self.ec2.modify_subnet_attribute(SubnetId=subnet_id, MapPublicIpOnLaunch={"Value": True})
+        self.ec2.modify_subnet_attribute(
+            SubnetId=subnet_id, MapPublicIpOnLaunch={"Value": True}
+        )
 
         # Create and attach internet gateway
         igw_response = self.ec2.create_internet_gateway()
@@ -175,7 +180,9 @@ class AWSResourceManager:
 
         try:
             response = self.ec2.create_security_group(
-                GroupName=sg_name, Description="Security group for spot instances", VpcId=vpc_id
+                GroupName=sg_name,
+                Description="Security group for spot instances",
+                VpcId=vpc_id,
             )
             sg_id = cast(str, response["GroupId"])
 
@@ -213,7 +220,9 @@ class AWSResourceManager:
                     return cast(str, sgs["SecurityGroups"][0]["GroupId"])
             raise
 
-    def find_ubuntu_ami(self, ami_pattern: str = DEFAULT_UBUNTU_AMI_PATTERN) -> Optional[str]:
+    def find_ubuntu_ami(
+        self, ami_pattern: str = DEFAULT_UBUNTU_AMI_PATTERN
+    ) -> Optional[str]:
         """Find the latest Ubuntu AMI."""
         try:
             response = self.ec2.describe_images(
@@ -230,7 +239,9 @@ class AWSResourceManager:
                 return None
 
             # Sort by creation date and get the latest
-            images = sorted(response["Images"], key=lambda x: x["CreationDate"], reverse=True)
+            images = sorted(
+                response["Images"], key=lambda x: x["CreationDate"], reverse=True
+            )
 
             return cast(str, images[0]["ImageId"])
 
@@ -238,7 +249,9 @@ class AWSResourceManager:
             # Log error but don't fail - will try default AMI
             import logging
 
-            logging.getLogger(__name__).debug(f"Error finding AMI in {self.region}: {e}")
+            logging.getLogger(__name__).debug(
+                f"Error finding AMI in {self.region}: {e}"
+            )
             return None
 
     def delete_vpc_resources(self, vpc_id: str) -> bool:
@@ -274,7 +287,9 @@ class AWSResourceManager:
                 self.ec2.detach_internet_gateway(
                     InternetGatewayId=igw["InternetGatewayId"], VpcId=vpc_id
                 )
-                self.ec2.delete_internet_gateway(InternetGatewayId=igw["InternetGatewayId"])
+                self.ec2.delete_internet_gateway(
+                    InternetGatewayId=igw["InternetGatewayId"]
+                )
 
             # 5. Delete route tables (except main)
             for rt in vpc_resources["route_tables"]:
@@ -292,9 +307,9 @@ class AWSResourceManager:
             logging.getLogger(__name__).error(f"Error deleting VPC {vpc_id}: {e}")
             return False
 
-    def _get_vpc_resources(self, vpc_id: str) -> Dict[str, List]:
+    def _get_vpc_resources(self, vpc_id: str) -> dict[str, list]:
         """Get all resources associated with a VPC."""
-        resources: Dict[str, List[Any]] = {
+        resources: dict[str, list[Any]] = {
             "instances": [],
             "security_groups": [],
             "subnets": [],
@@ -316,11 +331,15 @@ class AWSResourceManager:
             resources["instances"].extend(reservation.get("Instances", []))
 
         # Get security groups
-        sgs = self.ec2.describe_security_groups(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
+        sgs = self.ec2.describe_security_groups(
+            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+        )
         resources["security_groups"] = sgs.get("SecurityGroups", [])
 
         # Get subnets
-        subnets = self.ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
+        subnets = self.ec2.describe_subnets(
+            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+        )
         resources["subnets"] = subnets.get("Subnets", [])
 
         # Get internet gateways
@@ -330,7 +349,9 @@ class AWSResourceManager:
         resources["internet_gateways"] = igws.get("InternetGateways", [])
 
         # Get route tables
-        rts = self.ec2.describe_route_tables(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
+        rts = self.ec2.describe_route_tables(
+            Filters=[{"Name": "vpc-id", "Values": [vpc_id]}]
+        )
         resources["route_tables"] = rts.get("RouteTables", [])
 
         return resources
@@ -363,7 +384,10 @@ class AWSResourceManager:
             return True
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "")
-            if error_code in ["InvalidInstanceID.NotFound", "InvalidInstanceID.Malformed"]:
+            if error_code in [
+                "InvalidInstanceID.NotFound",
+                "InvalidInstanceID.Malformed",
+            ]:
                 # Instance already gone or invalid ID
                 return True
             # Log the actual error for debugging
