@@ -97,10 +97,10 @@ def cmd_setup(config: SimpleConfig) -> None:
             "username": "ubuntu",
             "public_ssh_key_path": "~/.ssh/id_rsa.pub",
             "private_ssh_key_path": "~/.ssh/id_rsa",
-            "files_directory": "files",
-            "scripts_directory": "instance/scripts",
+            "files_directory": "instance-files",
+            "scripts_directory": "instance-files/usr/local/bin",
             "cloud_init_template": "instance/cloud-init/init-vm-template.yml",
-            "startup_script": "instance/scripts/deploy_services.py",
+            "startup_script": "instance-files/usr/local/bin/deploy_services.py",
             "instance_storage_gb": 50,
             "tags": {"Project": "Amauo"},
             "use_dedicated_vpc": True,  # Create isolated VPC per deployment

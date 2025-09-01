@@ -94,7 +94,9 @@ class SimpleConfig:
             return self.files_dir
 
         # Otherwise get from config or use default
-        return cast(str, self.data.get("aws", {}).get("files_directory", "files"))
+        return cast(
+            str, self.data.get("aws", {}).get("files_directory", "instance-files")
+        )
 
     def scripts_directory(self) -> str:
         """Get scripts directory path."""

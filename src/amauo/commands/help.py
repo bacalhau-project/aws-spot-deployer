@@ -27,7 +27,7 @@ def cmd_help() -> None:
 
 [bold]Options:[/bold]
   [yellow]--config, -c[/yellow]   - Path to config file (default: ./config.yaml)
-  [yellow]--files, -f[/yellow]    - Path to files directory (default: ./files/)
+  [yellow]--files, -f[/yellow]    - Path to files directory (default: ./instance-files/)
   [yellow]--output, -o[/yellow]   - Path to output directory (default: ./output/)
   [yellow]--verbose, -v[/yellow]  - Enable verbose output
   [yellow]--version, -V[/yellow]  - Show version

@@ -12,7 +12,7 @@ def cmd_readme() -> None:
 
 [bold]Overview:[/bold]
 The files directory is where you place files to upload to your spot instances.
-These files will be copied to /opt/uploaded_files/ on each instance during deployment.
+These files will be deployed directly to their target locations on each instance (e.g., /etc/bacalhau/, /opt/compose/).
 
 [bold]Directory Structure (in current directory):[/bold]
 ./
