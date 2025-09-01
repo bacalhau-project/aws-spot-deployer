@@ -46,54 +46,27 @@ jobs:
       with:
         version: "latest"
 
-    - name: Update version from tag
+    - name: Set production version from tag
       run: |
         TAG_VERSION="${{ steps.get_tag.outputs.tag }}"
         # Remove 'v' prefix if present
         CLEAN_VERSION=${TAG_VERSION#v}
         echo "Tag version: $TAG_VERSION"
-        echo "Clean version: $CLEAN_VERSION"
+        echo "Production version: $CLEAN_VERSION"
         echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
 
-        # Switch from dynamic to static versioning for production release
-        sed -i 's/dynamic = \["version"\]/version = "'$CLEAN_VERSION'"/' pyproject.toml
+        # Write the exact tag version to __version__ file
+        echo "$CLEAN_VERSION" > src/amauo/__version__
 
-        # Remove hatch-vcs configuration to prevent version override
-        sed -i '/\[tool\.hatch\.version\]/,/raw-options/d' pyproject.toml
-        sed -i '/\[tool\.hatch\.build\.hooks\.vcs\]/,/version-file/d' pyproject.toml
-
-        # Update version in existing _version.py file
-        python3 -c "
-        import re
-
-        # Read the existing file
-        with open('src/amauo/_version.py', 'r') as f:
-            content = f.read()
-
-        # Update the version lines
-        version = '$CLEAN_VERSION'
-        version_tuple = tuple(map(int, version.split('.')))
-
-        # Replace version strings
-        content = re.sub(r\"__version__ = version = '.*'\", f\"__version__ = version = '{version}'\", content)
-        content = re.sub(r\"__version_tuple__ = version_tuple = .*\", f\"__version_tuple__ = version_tuple = {version_tuple}\", content)
-
-        # Write back
-        with open('src/amauo/_version.py', 'w') as f:
-            f.write(content)
-
-        print(f'Updated version to {version}')
-        "
-
-        # Verify the update
-        echo "Updated _version.py content:"
-        grep -E "(version|tuple)" src/amauo/_version.py
-
-        echo "Updated version files to: $CLEAN_VERSION"
+        echo "Updated __version__ file to: $CLEAN_VERSION"
 
     - name: Build package
       run: |
         echo "Building production package with version: $CLEAN_VERSION"
+
+        # Update pyproject.toml with the production version
+        sed -i "s/version = \"0.0.0\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
+
         uv build
 
         # Verify the built version matches the tag

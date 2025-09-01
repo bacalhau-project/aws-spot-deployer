@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "amauo"
-dynamic = ["version"]
+version = "0.0.0"
 description = "Deploy Bacalhau compute nodes globally using AWS spot instances for cost-effective distributed computing"
 readme = "README.md"
 license = "MIT"
@@ -67,13 +67,7 @@ include = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/amauo"]
 
-[tool.hatch.version]
-source = "vcs"
-# Prevent local versions for clean CI builds
-raw-options = { local_scheme = "no-local-version" }
 
-[tool.hatch.build.hooks.vcs]
-version-file = "src/amauo/_version.py"
 
 [tool.ruff]
 line-length = 88

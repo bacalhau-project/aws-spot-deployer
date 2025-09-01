@@ -72,99 +72,49 @@ jobs:
       with:
         version: "latest"
 
-    - name: Generate clean development version
+    - name: Set development version
       run: |
-        # Create clean timestamp-based development version for TestPyPI
-        # PyPI doesn't allow local versions (versions with +git.hash suffixes)
-        TIMESTAMP=$(date +%Y%m%d%H%M%S)
-
-        # Get latest tag version
-        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        # Get latest tag and increment patch version
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v3.0.12")
         BASE_VERSION=${LATEST_TAG#v}
-        DEV_VERSION="${BASE_VERSION}.dev${TIMESTAMP}"
+
+        # Increment patch version (3.0.12 -> 3.0.13)
+        IFS='.' read -ra VERSION_PARTS <<< "$BASE_VERSION"
+        MAJOR=${VERSION_PARTS[0]}
+        MINOR=${VERSION_PARTS[1]}
+        PATCH=${VERSION_PARTS[2]}
+        NEXT_PATCH=$((PATCH + 1))
+        NEXT_VERSION="$MAJOR.$MINOR.$NEXT_PATCH"
 
         echo "Latest tag: $LATEST_TAG"
-        echo "Base version: $BASE_VERSION"
-        echo "Clean development version: $DEV_VERSION"
-        echo "DEV_VERSION=$DEV_VERSION" >> $GITHUB_ENV
+        echo "Current version: $BASE_VERSION"
+        echo "Next development version: $NEXT_VERSION"
 
-        # Override dynamic versioning to use clean version
-        # This prevents hatch-vcs from adding git hash suffixes
-        export SETUPTOOLS_SCM_PRETEND_VERSION="$DEV_VERSION"
-        echo "SETUPTOOLS_SCM_PRETEND_VERSION=$DEV_VERSION" >> $GITHUB_ENV
+        # Write the incremented version to __version__ file
+        echo "$NEXT_VERSION" > src/amauo/__version__
 
-        # Update version in existing _version.py file
-        python3 -c "
-        import re
+        echo "Updated __version__ file to: $NEXT_VERSION"
 
-        # Read the existing file
-        with open('src/amauo/_version.py', 'r') as f:
-            content = f.read()
-
-        # Update the version lines for development version
-        version = '$DEV_VERSION'
-
-        # Replace version strings
-        content = re.sub(r\"__version__ = version = '.*'\", f\"__version__ = version = '{version}'\", content)
-        content = re.sub(r\"__version_tuple__ = version_tuple = .*\", f\"__version_tuple__ = version_tuple = (3, 0, 7, 'dev')\", content)
-
-        # Write back
-        with open('src/amauo/_version.py', 'w') as f:
-            f.write(content)
-
-        print(f'Updated development version to {version}')
-        "
-
-    - name: Build package with clean version
-      env:
-        SETUPTOOLS_SCM_PRETEND_VERSION: ${{ env.DEV_VERSION }}
+    - name: Build package
       run: |
-        echo "Building with version: $DEV_VERSION"
+        # Get the version that _version.py will generate
+        VERSION=$(python3 -c "
+        import sys
+        sys.path.insert(0, 'src')
+        import amauo._version
+        print(amauo._version.__version__)
+        ")
+        echo "Package version: $VERSION"
 
-        # Try building with uv
+        # Update pyproject.toml with the actual version
+        sed -i "s/version = \"0.0.0\"/version = \"$VERSION\"/" pyproject.toml
+
+        echo "Building package..."
         uv build
 
-        # Verify the built version is clean
-        BUILT_VERSION=$(ls dist/*.whl | head -1 | sed 's/.*amauo-//' | sed 's/-py3.*//')
-        echo "Built version from filename: $BUILT_VERSION"
-
-        # Check if version contains local part (+ symbol)
-        if [[ "$BUILT_VERSION" == *"+"* ]]; then
-          echo "WARNING: Built version contains local part: $BUILT_VERSION"
-          echo "Rebuilding with explicit version override..."
-
-          # Clear dist and rebuild with explicit version
-          rm -rf dist/
-
-          # Temporarily set static version in pyproject.toml
-          sed -i "s/dynamic = \[\"version\"\]/version = \"$DEV_VERSION\"/" pyproject.toml
-          sed -i '/\[tool\.hatch\.version\]/,/raw-options/d' pyproject.toml
-          sed -i '/\[tool\.hatch\.build\.hooks\.vcs\]/,/version-file/d' pyproject.toml
-
-          # Update _version.py for fallback
-          python3 -c "
-          import re
-          with open('src/amauo/_version.py', 'r') as f:
-              content = f.read()
-          content = re.sub(r\"__version__ = version = '.*'\", f\"__version__ = version = '$DEV_VERSION'\", content)
-          with open('src/amauo/_version.py', 'w') as f:
-              f.write(content)
-          "
-
-          # Rebuild
-          uv build
-
-          # Verify again
-          BUILT_VERSION=$(ls dist/*.whl | head -1 | sed 's/.*amauo-//' | sed 's/-py3.*//')
-          echo "Rebuilt version: $BUILT_VERSION"
-
-          if [[ "$BUILT_VERSION" == *"+"* ]]; then
-            echo "ERROR: Still contains local part after rebuild"
-            exit 1
-          fi
-        fi
-
-        echo "SUCCESS: Clean version ready for TestPyPI: $BUILT_VERSION"
+        # Show what was built
+        ls -la dist/
+        echo "Package built successfully"
 
     - name: Deploy to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
