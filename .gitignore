@@ -4,7 +4,6 @@
 # Personal configuration files (use config.example.yaml for reference)
 config.yaml
 # Generated version file by setuptools-scm
-src/amauo/_version.py
 **/*.log
 machines.db
 **/__pycache__
