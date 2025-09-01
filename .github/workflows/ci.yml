@@ -74,20 +74,25 @@ jobs:
 
     - name: Generate development version
       run: |
-        # Get base version from pyproject.toml
-        BASE_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "//' | sed 's/"//')
+        # Use hatch-vcs for dynamic versioning from git
+        # The version will be automatically generated from git history
+        echo "Using dynamic versioning from git tags via hatch-vcs"
 
-        # Create development version with timestamp and commit hash
+        # Create timestamp-based development version for TestPyPI
         TIMESTAMP=$(date +%Y%m%d%H%M%S)
         SHORT_HASH=$(git rev-parse --short HEAD)
+
+        # Get latest tag version
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        BASE_VERSION=${LATEST_TAG#v}
         DEV_VERSION="${BASE_VERSION}.dev${TIMESTAMP}"
 
+        echo "Latest tag: $LATEST_TAG"
         echo "Base version: $BASE_VERSION"
         echo "Development version: $DEV_VERSION"
         echo "DEV_VERSION=$DEV_VERSION" >> $GITHUB_ENV
 
-        # Update version temporarily for this build only
-        sed -i "s/version = \".*\"/version = \"$DEV_VERSION\"/" pyproject.toml
+        # Generate _version.py for the build
         echo "__version__ = \"$DEV_VERSION\"" > src/amauo/_version.py
 
     - name: Build package
