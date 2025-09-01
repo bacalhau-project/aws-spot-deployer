@@ -66,13 +66,30 @@ jobs:
 
         # Update both __version__ file and pyproject.toml
         echo "$CLEAN_VERSION" > src/amauo/__version__
-        sed -i "/^\[project\]/,/^\[/ s/^version = \".*\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
+
+        # Use a more reliable sed approach - target the specific line number
+        LINE_NUM=$(grep -n "^version = " pyproject.toml | head -1 | cut -d: -f1)
+        if [ -n "$LINE_NUM" ]; then
+          sed -i "${LINE_NUM}s/^version = \".*\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
+          echo "Updated line $LINE_NUM in pyproject.toml"
+        else
+          echo "ERROR: Could not find version line in pyproject.toml"
+          exit 1
+        fi
 
         # Verify the updates took effect
         echo "Updated __version__ file:"
         cat src/amauo/__version__
-        echo "Updated pyproject.toml version:"
+
+        echo "Checking pyproject.toml before and after sed:"
+        echo "Before sed - project version line:"
+        sed -n '/^\[project\]/,/^\[/{/^version = /p}' pyproject.toml
+
+        echo "After sed - all version lines:"
         grep "version = " pyproject.toml
+
+        echo "After sed - only project section:"
+        sed -n '/^\[project\]/,/^\[/{p}' pyproject.toml | grep "version = "
 
         uv build
 
