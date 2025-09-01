@@ -69,6 +69,8 @@ packages = ["src/amauo"]
 
 [tool.hatch.version]
 source = "vcs"
+# Prevent local versions for clean CI builds
+raw-options = { local_scheme = "no-local-version" }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/amauo/_version.py"

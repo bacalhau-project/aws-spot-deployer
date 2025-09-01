@@ -72,15 +72,11 @@ jobs:
       with:
         version: "latest"
 
-    - name: Generate development version
+    - name: Generate clean development version
       run: |
-        # Use hatch-vcs for dynamic versioning from git
-        # The version will be automatically generated from git history
-        echo "Using dynamic versioning from git tags via hatch-vcs"
-
-        # Create timestamp-based development version for TestPyPI
+        # Create clean timestamp-based development version for TestPyPI
+        # PyPI doesn't allow local versions (versions with +git.hash suffixes)
         TIMESTAMP=$(date +%Y%m%d%H%M%S)
-        SHORT_HASH=$(git rev-parse --short HEAD)
 
         # Get latest tag version
         LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
@@ -89,14 +85,57 @@ jobs:
 
         echo "Latest tag: $LATEST_TAG"
         echo "Base version: $BASE_VERSION"
-        echo "Development version: $DEV_VERSION"
+        echo "Clean development version: $DEV_VERSION"
         echo "DEV_VERSION=$DEV_VERSION" >> $GITHUB_ENV
+
+        # Override dynamic versioning to use clean version
+        # This prevents hatch-vcs from adding git hash suffixes
+        export SETUPTOOLS_SCM_PRETEND_VERSION="$DEV_VERSION"
+        echo "SETUPTOOLS_SCM_PRETEND_VERSION=$DEV_VERSION" >> $GITHUB_ENV
 
         # Generate _version.py for the build
         echo "__version__ = \"$DEV_VERSION\"" > src/amauo/_version.py
 
-    - name: Build package
-      run: uv build
+    - name: Build package with clean version
+      env:
+        SETUPTOOLS_SCM_PRETEND_VERSION: ${{ env.DEV_VERSION }}
+      run: |
+        echo "Building with version: $DEV_VERSION"
+
+        # Try building with uv
+        uv build
+
+        # Verify the built version is clean
+        BUILT_VERSION=$(ls dist/*.whl | head -1 | sed 's/.*amauo-//' | sed 's/-py3.*//')
+        echo "Built version from filename: $BUILT_VERSION"
+
+        # Check if version contains local part (+ symbol)
+        if [[ "$BUILT_VERSION" == *"+"* ]]; then
+          echo "WARNING: Built version contains local part: $BUILT_VERSION"
+          echo "Rebuilding with explicit version override..."
+
+          # Clear dist and rebuild with explicit version
+          rm -rf dist/
+
+          # Temporarily set static version in pyproject.toml
+          sed -i "s/dynamic = \[\"version\"\]/version = \"$DEV_VERSION\"/" pyproject.toml
+          sed -i '/\[tool\.hatch\.version\]/,/raw-options/d' pyproject.toml
+          sed -i '/\[tool\.hatch\.build\.hooks\.vcs\]/,/version-file/d' pyproject.toml
+
+          # Rebuild
+          uv build
+
+          # Verify again
+          BUILT_VERSION=$(ls dist/*.whl | head -1 | sed 's/.*amauo-//' | sed 's/-py3.*//')
+          echo "Rebuilt version: $BUILT_VERSION"
+
+          if [[ "$BUILT_VERSION" == *"+"* ]]; then
+            echo "ERROR: Still contains local part after rebuild"
+            exit 1
+          fi
+        fi
+
+        echo "SUCCESS: Clean version ready for TestPyPI: $BUILT_VERSION"
 
     - name: Deploy to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
