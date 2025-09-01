@@ -66,7 +66,7 @@ jobs:
 
         # Update both __version__ file and pyproject.toml
         echo "$CLEAN_VERSION" > src/amauo/__version__
-        sed -i "s/version = \".*\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
+        sed -i "/^\[project\]/,/^\[/ s/^version = \".*\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
 
         # Verify the updates took effect
         echo "Updated __version__ file:"
