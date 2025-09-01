@@ -64,8 +64,15 @@ jobs:
       run: |
         echo "Building production package with version: $CLEAN_VERSION"
 
-        # Update pyproject.toml with the production version
-        sed -i "s/version = \"0.0.0\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
+        # Update both __version__ file and pyproject.toml
+        echo "$CLEAN_VERSION" > src/amauo/__version__
+        sed -i "s/version = \".*\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
+
+        # Verify the updates took effect
+        echo "Updated __version__ file:"
+        cat src/amauo/__version__
+        echo "Updated pyproject.toml version:"
+        grep "version = " pyproject.toml
 
         uv build
 
