@@ -46,44 +46,39 @@ jobs:
       with:
         version: "latest"
 
-    - name: Update version from tag
+    - name: Set production version from tag
       run: |
         TAG_VERSION="${{ steps.get_tag.outputs.tag }}"
         # Remove 'v' prefix if present
         CLEAN_VERSION=${TAG_VERSION#v}
         echo "Tag version: $TAG_VERSION"
-        echo "Clean version: $CLEAN_VERSION"
+        echo "Production version: $CLEAN_VERSION"
+        echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
 
-        # Update pyproject.toml and _version.py with tag version
-        sed -i "s/version = \".*\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
-        echo "__version__ = \"$CLEAN_VERSION\"" > src/amauo/_version.py
+        # Write the exact tag version to __version__ file
+        echo "$CLEAN_VERSION" > src/amauo/__version__
 
-        echo "Updated version files to: $CLEAN_VERSION"
+        echo "Updated __version__ file to: $CLEAN_VERSION"
 
     - name: Build package
-      run: uv build
-
-    - name: Normalize version for PyPI
       run: |
-        # Extract version from built package filename
-        WHEEL_FILE=$(ls dist/*.whl | head -1)
-        VERSION=$(basename "$WHEEL_FILE" | sed 's/^amauo-//' | sed 's/-py3-none-any\.whl$//')
-        echo "Original version from wheel: $VERSION"
+        echo "Building production package with version: $CLEAN_VERSION"
 
-        # Clean any potential git hash for production PyPI
-        CLEAN_VERSION=$(echo $VERSION | sed 's/+.*$//')
-        echo "Cleaned version for production: $CLEAN_VERSION"
+        # Update pyproject.toml with the production version
+        sed -i "s/version = \"0.0.0\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
 
-        # Rebuild if needed
-        if [ "$VERSION" != "$CLEAN_VERSION" ]; then
-          echo "Version needs cleaning, rebuilding with: $CLEAN_VERSION"
-          export SETUPTOOLS_SCM_PRETEND_VERSION=$CLEAN_VERSION
-          rm -rf dist/
-          uv build
-          echo "New version after rebuild:"
-          ls dist/
+        uv build
+
+        # Verify the built version matches the tag
+        BUILT_VERSION=$(ls dist/*.whl | head -1 | sed 's/.*amauo-//' | sed 's/-py3.*//')
+        echo "Built version: $BUILT_VERSION"
+        echo "Expected version: $CLEAN_VERSION"
+
+        if [ "$BUILT_VERSION" != "$CLEAN_VERSION" ]; then
+          echo "ERROR: Built version ($BUILT_VERSION) does not match tag version ($CLEAN_VERSION)"
+          exit 1
         else
-          echo "Version is already clean: $CLEAN_VERSION"
+          echo "SUCCESS: Version matches tag exactly: $CLEAN_VERSION"
         fi
 
     - name: Deploy to PyPI
@@ -94,8 +89,18 @@ jobs:
     - name: Test installation from PyPI
       run: |
         sleep 60  # Wait for package to be available
-        pip install amauo
-        amauo --version
+        pip install amauo==$CLEAN_VERSION
+        amauo version
+
+        # Verify the installed version matches
+        INSTALLED_VERSION=$(python3 -c "import amauo._version; print(amauo._version.__version__)")
+        echo "Installed version: $INSTALLED_VERSION"
+        if [ "$INSTALLED_VERSION" != "$CLEAN_VERSION" ]; then
+          echo "ERROR: Installed version does not match expected version"
+          exit 1
+        else
+          echo "SUCCESS: Installation verified with correct version"
+        fi
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
