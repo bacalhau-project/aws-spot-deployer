@@ -5,13 +5,17 @@ services:
     privileged: true
     restart: unless-stopped
     command: ["serve", "--config", "/etc/bacalhau/config.yaml"]
+    environment:
+      - AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials
+      - AWS_CONFIG_FILE=/root/.aws/config
     volumes:
       - /bacalhau_node/config.yaml:/etc/bacalhau/config.yaml:ro
-      - /bacalhau_node/node-info:/etc/node-info
       - /bacalhau_data:/bacalhau_data
       - /opt/sensor/data:/opt/sensor/data
       - /opt/sensor/exports:/opt/sensor/exports
       - /tmp:/tmp
+      - /root/.aws:/root/.aws:ro
+      - /home/ubuntu/.aws:/home/ubuntu/.aws:ro
     ports:
       - "1234:1234" # API port
       - "4222:4222" # NATS port
@@ -32,17 +36,11 @@ services:
     container_name: sensor-simulator
     pull_policy: always
     restart: unless-stopped
-    env_file:
-      - /opt/sensor/.env
     environment:
       - CONFIG_FILE=/config/sensor-config.yaml
       - IDENTITY_FILE=/config/node_identity.json
-      - AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials
-      - AWS_CONFIG_FILE=/root/.aws/config
     volumes:
       - /opt/sensor/config:/config
       - /opt/sensor/data:/app/data
       - /opt/sensor/logs:/app/logs
       - /opt/sensor/exports:/app/exports
-      - /root/.aws:/root/.aws:ro
-      - /home/ubuntu/.aws:/home/app/.aws:ro

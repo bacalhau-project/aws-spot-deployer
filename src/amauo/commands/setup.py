@@ -1,8 +1,10 @@
 """Setup command implementation."""
 
 import os
+from pathlib import Path
 
 import yaml
+from rich.panel import Panel
 
 from ..core.config import SimpleConfig
 from ..utils.config_validator import ConfigValidator
@@ -23,8 +25,51 @@ def merge_configs(existing: dict, defaults: dict) -> dict:
     return result
 
 
+def _show_initial_directory_status() -> None:
+    """Show initial directory status at start of setup."""
+    info_lines = []
+    cwd = os.getcwd()
+    info_lines.append(f"Working Directory: [cyan]{cwd}[/cyan]")
+
+    config_file = Path("config.yaml")
+    if config_file.exists():
+        info_lines.append(f"Config File: [green]✅ {config_file.absolute()}[/green]")
+    else:
+        info_lines.append(
+            f"Config File: [yellow]⚠️ {config_file.absolute()} (will be created)[/yellow]"
+        )
+
+    files_dir = Path("files")
+    if files_dir.exists():
+        info_lines.append(f"Files Directory: [green]✅ {files_dir.absolute()}[/green]")
+    else:
+        info_lines.append(
+            f"Files Directory: [yellow]⚠️ {files_dir.absolute()} (will be created)[/yellow]"
+        )
+
+    aws_creds_file = Path.home() / ".aws" / "credentials"
+    aws_env = os.getenv("AWS_ACCESS_KEY_ID") or os.getenv("AWS_PROFILE")
+    if aws_creds_file.exists() or aws_env:
+        info_lines.append("AWS Credentials: [green]✅ Configured[/green]")
+    else:
+        info_lines.append(
+            "AWS Credentials: [red]❌ Not found - you'll need to configure these[/red]"
+        )
+
+    panel = Panel(
+        "\n".join(info_lines),
+        title="[bold]📁 Current Directory Status[/bold]",
+        border_style="blue",
+        padding=(0, 1),
+    )
+    console.print(panel)
+
+
 def cmd_setup(config: SimpleConfig) -> None:
     """Guide user through creating or updating config.yaml."""
+    # Show initial status
+    _show_initial_directory_status()
+
     # When running via uvx, the config is in the current directory
     # So we always want to show paths relative to where the user is running the command
 
