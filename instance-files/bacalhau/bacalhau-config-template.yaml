@@ -1,37 +1,34 @@
-# Bacalhau Compute Node Configuration Template
+# Bacalhau v1.x Compute Node Configuration Template
 # This template has credentials injected during deployment
 
+# Name provider for node identity
 NameProvider: aws
 
 # Data directory for Bacalhau
 DataDir: /bacalhau_data
 
-# API Configuration
-API:
-  Host: 0.0.0.0
-  Port: 1234
-
-# Compute node configuration
-Compute:
-  Enabled: true
-  Orchestrators:
-    - "{{ORCHESTRATOR_ENDPOINT}}"
-  Auth:
-    Token: "{{ORCHESTRATOR_TOKEN}}"
-  TLS:
-    RequireTLS: true
-
-  # Node labels for identification and filtering
+# Node identity - unique identifier for this node
+Node:
+  Name: "bacalhau-{{INSTANCE_ID}}"
+  ClientID: "{{INSTANCE_ID}}"
   Labels:
     instance-id: "{{INSTANCE_ID}}"
     node-type: "spot"
     cloud-provider: "aws"
     region: "{{REGION}}"
 
-  # Network port range for compute jobs
-  Network:
-    PortRangeStart: 20000
-    PortRangeEnd: 30000
+# API Configuration
+API:
+  Host: 0.0.0.0
+  Port: 1234
+
+# Compute node configuration (new v1.x format)
+Compute:
+  Enabled: true
+  Auth:
+    Token: "{{ORCHESTRATOR_TOKEN}}"
+  Orchestrators:
+    - "{{ORCHESTRATOR_ENDPOINT}}"
   # Heartbeat settings
   Heartbeat:
     InfoUpdateInterval: 1m0s
@@ -49,7 +46,7 @@ Compute:
     - "/tmp:rw"
     - "/bacalhau_data:rw"
 
-# Disable orchestrator mode
+# Disable orchestrator mode - this is a compute-only node
 Orchestrator:
   Enabled: false
 
@@ -61,4 +58,3 @@ JobAdmissionControl:
 Logging:
   Level: info
   Mode: default
-  LogDebugInfoInterval: 30s
