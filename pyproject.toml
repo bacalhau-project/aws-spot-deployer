@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "amauo"
-version = "0.0.0"
+version = "3.0.14"
 description = "Deploy Bacalhau compute nodes globally using AWS spot instances for cost-effective distributed computing"
 readme = "README.md"
 license = "MIT"
