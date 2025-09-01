@@ -99,41 +99,37 @@ sudo systemctl enable sensor.service 2>/dev/null && echo "Enabled sensor.service
 # Set up proper ownership and permissions for data directories
 sudo mkdir -p /bacalhau_data /bacalhau_node /opt/bacalhau_node
 sudo mkdir -p /opt/sensor/config /opt/sensor/logs /opt/sensor/data /opt/sensor/exports
-sudo mkdir -p /opt/uploaded_files/scripts
-sudo chown -R ubuntu:ubuntu /bacalhau_data /bacalhau_node /opt/uploaded_files /opt/sensor 2>/dev/null || true
+sudo chown -R ubuntu:ubuntu /bacalhau_data /bacalhau_node /opt/compose /opt/sensor 2>/dev/null || true
 sudo chmod 755 /bacalhau_data /bacalhau_node /opt/sensor 2>/dev/null || true
 
-# Copy docker-compose files to scripts directory for services
-if [ -f /opt/uploaded_files/docker-compose-bacalhau.yaml ]; then
-    sudo -u ubuntu cp /opt/uploaded_files/docker-compose-bacalhau.yaml /opt/uploaded_files/scripts/
-fi
+# Docker compose file is used directly from /opt/compose/ - no copying needed
 
 
 # Generate Bacalhau configuration from template - STRICT MODE
 echo "Generating Bacalhau configuration from template..."
 
 # STRICT: Check for required files
-if [ ! -f /opt/uploaded_files/bacalhau-config-template.yaml ]; then
-    echo "ERROR: Bacalhau config template not found at /opt/uploaded_files/bacalhau-config-template.yaml"
+if [ ! -f /etc/bacalhau/bacalhau-config-template.yaml ]; then
+    echo "ERROR: Bacalhau config template not found at /etc/bacalhau/bacalhau-config-template.yaml"
     echo "ERROR: Required template file is missing from deployment"
     exit 1
 fi
 
-if [ ! -f /opt/uploaded_files/orchestrator_endpoint ]; then
-    echo "ERROR: Orchestrator endpoint file not found at /opt/uploaded_files/orchestrator_endpoint"
+if [ ! -f /etc/bacalhau/orchestrator_endpoint ]; then
+    echo "ERROR: Orchestrator endpoint file not found at /etc/bacalhau/orchestrator_endpoint"
     echo "ERROR: Required credential file is missing from deployment"
     exit 1
 fi
 
-if [ ! -f /opt/uploaded_files/orchestrator_token ]; then
-    echo "ERROR: Orchestrator token file not found at /opt/uploaded_files/orchestrator_token"
+if [ ! -f /etc/bacalhau/orchestrator_token ]; then
+    echo "ERROR: Orchestrator token file not found at /etc/bacalhau/orchestrator_token"
     echo "ERROR: Required credential file is missing from deployment"
     exit 1
 fi
 
 # STRICT: Read credentials and validate
-ENDPOINT=$(cat /opt/uploaded_files/orchestrator_endpoint | tr -d '[:space:]')
-TOKEN=$(cat /opt/uploaded_files/orchestrator_token | tr -d '[:space:]')
+ENDPOINT=$(cat /etc/bacalhau/orchestrator_endpoint | tr -d '[:space:]')
+TOKEN=$(cat /etc/bacalhau/orchestrator_token | tr -d '[:space:]')
 
 if [ -z "$ENDPOINT" ]; then
     echo "ERROR: Orchestrator endpoint is empty"
@@ -191,7 +187,7 @@ if ! sed -e "s|{{ORCHESTRATOR_ENDPOINT}}|$ENDPOINT|g" \
          -e "s|{{ORCHESTRATOR_TOKEN}}|$TOKEN|g" \
          -e "s|{{INSTANCE_ID}}|$INSTANCE_ID|g" \
          -e "s|{{REGION}}|$REGION|g" \
-         /opt/uploaded_files/bacalhau-config-template.yaml | sudo -u ubuntu tee /bacalhau_node/config.yaml > /dev/null; then
+         /etc/bacalhau/bacalhau-config-template.yaml | sudo -u ubuntu tee /bacalhau_node/config.yaml > /dev/null; then
     echo "ERROR: Failed to render Bacalhau config template"
     echo "ERROR: Template rendering failed - deployment aborted"
     exit 1
@@ -222,6 +218,47 @@ fi
 echo "SUCCESS: Configuration validation passed"
 
 
+# Setup AWS credentials for Bacalhau compute nodes (for S3 job access)
+echo "Setting up AWS credentials..."
+AWS_CREDS_SOURCE="/etc/aws/credentials/aws-credentials"
+if [ -f "$AWS_CREDS_SOURCE" ]; then
+    # Setup for root user (Docker containers including Bacalhau)
+    sudo mkdir -p /root/.aws
+    sudo cp "$AWS_CREDS_SOURCE" /root/.aws/credentials
+    sudo chown root:root /root/.aws/credentials
+    sudo chmod 600 /root/.aws/credentials
+
+    # Create basic AWS config for root
+    sudo tee /root/.aws/config > /dev/null << EOF
+[default]
+region = us-west-2
+output = json
+EOF
+    sudo chown root:root /root/.aws/config
+    sudo chmod 600 /root/.aws/config
+
+    # Setup for ubuntu user
+    sudo mkdir -p /home/ubuntu/.aws
+    sudo cp "$AWS_CREDS_SOURCE" /home/ubuntu/.aws/credentials
+    sudo chown ubuntu:ubuntu /home/ubuntu/.aws/credentials
+    sudo chmod 600 /home/ubuntu/.aws/credentials
+
+    # Create basic AWS config for ubuntu
+    sudo -u ubuntu tee /home/ubuntu/.aws/config > /dev/null << EOF
+[default]
+region = us-west-2
+output = json
+EOF
+    sudo chmod 600 /home/ubuntu/.aws/config
+
+    echo "SUCCESS: AWS credentials and config set up for both root and ubuntu users"
+    echo "INFO: Bacalhau compute jobs will have S3 access via mounted credentials"
+    echo "INFO: Sensor simulator writes to host directories only - no AWS access needed"
+else
+    echo "WARNING: AWS credentials not found at $AWS_CREDS_SOURCE"
+    echo "INFO: Bacalhau nodes may not be able to access S3 (sensor simulator doesn't need S3)"
+fi
+
 # Generate node identity if the script exists
 if [ -x /usr/local/bin/generate_node_identity.py ]; then
     echo "Generating node identity..."
@@ -235,3 +272,7 @@ sudo systemctl start bacalhau.service 2>/dev/null && echo "Started bacalhau.serv
 sudo systemctl start sensor.service 2>/dev/null && echo "Started sensor.service" || echo "Could not start sensor.service"
 
 echo "✅ Amauo deployment setup complete!"
+
+# Create completion marker for deploy_services.py
+sudo touch /opt/amauo_setup_complete
+sudo chown ubuntu:ubuntu /opt/amauo_setup_complete

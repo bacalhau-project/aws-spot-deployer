@@ -34,12 +34,14 @@ Compute:
     Memory: "70%"
     Disk: "50%"
     GPU: "0%"
-  # Allow access to sensor data directories
+  # Allow access to sensor data directories and AWS credentials
   AllowListedLocalPaths:
     - "/opt/sensor/data:ro"
     - "/opt/sensor/exports:rw"
     - "/tmp:rw"
     - "/bacalhau_data:rw"
+    - "/root/.aws:ro"
+    - "/home/ubuntu/.aws:ro"
 
 # Disable orchestrator mode - this is a compute-only node
 Orchestrator:
