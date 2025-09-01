@@ -46,6 +46,20 @@ jobs:
       with:
         version: "latest"
 
+    - name: Update version from tag
+      run: |
+        TAG_VERSION="${{ steps.get_tag.outputs.tag }}"
+        # Remove 'v' prefix if present
+        CLEAN_VERSION=${TAG_VERSION#v}
+        echo "Tag version: $TAG_VERSION"
+        echo "Clean version: $CLEAN_VERSION"
+
+        # Update pyproject.toml and _version.py with tag version
+        sed -i "s/version = \".*\"/version = \"$CLEAN_VERSION\"/" pyproject.toml
+        echo "__version__ = \"$CLEAN_VERSION\"" > src/amauo/_version.py
+
+        echo "Updated version files to: $CLEAN_VERSION"
+
     - name: Build package
       run: uv build
 
