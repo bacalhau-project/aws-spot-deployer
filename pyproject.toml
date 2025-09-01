@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "amauo"
-version = "3.0.6"
+dynamic = ["version"]
 description = "Deploy Bacalhau compute nodes globally using AWS spot instances for cost-effective distributed computing"
 readme = "README.md"
 license = "MIT"
@@ -66,6 +66,12 @@ include = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/amauo"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/amauo/_version.py"
 
 [tool.ruff]
 line-length = 88
