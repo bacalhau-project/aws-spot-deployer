@@ -187,10 +187,6 @@ touch /opt/deployment.complete
         commands.extend(
             [
                 "mkdir -p /opt/deployment",
-                "mkdir -p /opt/configs",
-                "mkdir -p /opt/files",
-                "mkdir -p /opt/secrets",
-                "mkdir -p /opt/uploaded_files",
             ]
         )
 

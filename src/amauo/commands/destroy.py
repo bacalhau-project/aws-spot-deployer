@@ -139,8 +139,8 @@ class DestroyManager:
                                 "Values": [
                                     "Amauo",
                                     "amauo",
-                                    "SpotDeployer",
-                                    "aws-spot-deployer",
+                                    "amauo",
+                                    "aws-amauo",
                                 ],
                             },
                             {
@@ -258,7 +258,7 @@ class DestroyManager:
                         for tag in vpc.get("Tags", []):
                             if "Key" in tag and "Value" in tag:
                                 tags[tag["Key"]] = tag["Value"]
-                        if tags.get("ManagedBy") == "SpotDeployer":
+                        if tags.get("ManagedBy") == "amauo":
                             self.update_status(
                                 instance_id, region, "⏳ Deleting VPC...", vpc_id
                             )

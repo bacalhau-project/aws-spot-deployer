@@ -206,7 +206,7 @@ def check_aws_auth() -> bool:
 
 
 def create_simple_security_group(
-    ec2: Any, vpc_id: str, group_name: str = "spot-deployer-sg"
+    ec2: Any, vpc_id: str, group_name: str = "amauo-sg"
 ) -> str:
     """Create basic security group."""
     try:
@@ -301,8 +301,8 @@ def create_deployment_vpc(
         ec2_client.create_tags(
             Resources=[vpc_id],
             Tags=[
-                {"Key": "Name", "Value": f"spot-deployer-{region}"},
-                {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                {"Key": "Name", "Value": f"amauo-{region}"},
+                {"Key": "ManagedBy", "Value": "amauo"},
                 {"Key": "DeploymentId", "Value": deployment_id},
             ],
         )
@@ -327,8 +327,8 @@ def create_deployment_vpc(
         ec2_client.create_tags(
             Resources=[subnet_id],
             Tags=[
-                {"Key": "Name", "Value": f"spot-deployer-subnet-{region}"},
-                {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                {"Key": "Name", "Value": f"amauo-subnet-{region}"},
+                {"Key": "ManagedBy", "Value": "amauo"},
                 {"Key": "DeploymentId", "Value": deployment_id},
             ],
         )
@@ -341,8 +341,8 @@ def create_deployment_vpc(
         ec2_client.create_tags(
             Resources=[igw_id],
             Tags=[
-                {"Key": "Name", "Value": f"spot-deployer-igw-{region}"},
-                {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                {"Key": "Name", "Value": f"amauo-igw-{region}"},
+                {"Key": "ManagedBy", "Value": "amauo"},
                 {"Key": "DeploymentId", "Value": deployment_id},
             ],
         )
@@ -370,8 +370,8 @@ def create_deployment_vpc(
         ec2_client.create_tags(
             Resources=[main_route_table_id],
             Tags=[
-                {"Key": "Name", "Value": f"spot-deployer-rt-{region}"},
-                {"Key": "ManagedBy", "Value": "SpotDeployer"},
+                {"Key": "Name", "Value": f"amauo-rt-{region}"},
+                {"Key": "ManagedBy", "Value": "amauo"},
                 {"Key": "DeploymentId", "Value": deployment_id},
             ],
         )

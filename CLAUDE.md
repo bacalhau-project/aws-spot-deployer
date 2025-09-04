@@ -172,7 +172,7 @@ Create these files in the `deployment-files/` directory before deployment:
 
 #### How It Works
 
-1. During `deploy_spot.py create`, the credential files are uploaded to `/opt/uploaded_files/`
+1. During `amauo create`, the credential files are mirrored to their target locations
 2. The `bacalhau.service` runs `generate_bacalhau_config.sh` which:
    - Reads the credential files
    - Generates a complete `/bacalhau_node/config.yaml` with orchestrator endpoint and token injected
