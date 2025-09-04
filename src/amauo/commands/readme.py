@@ -42,8 +42,8 @@ These files will be deployed directly to their target locations on each instance
 
 [bold]How It Works:[/bold]
 1. Place your credential files in ./files/
-2. Run 'spot-deployer create' to deploy instances
-3. Files are automatically uploaded to /opt/uploaded_files/ on each instance
+2. Run 'amauo create' to deploy instances
+3. Files are automatically mirrored to their target locations on each instance
 4. Services read credentials and connect to the orchestrator
 
 [bold]Security Best Practices:[/bold]

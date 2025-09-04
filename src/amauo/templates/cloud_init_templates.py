@@ -215,8 +215,6 @@ write_files:
 
 runcmd:
   - mkdir -p /opt/deployment
-  - mkdir -p /opt/configs
-  - mkdir -p /opt/secrets
 {{UPLOAD_DIRS}}
   - nohup bash -c 'sleep 30; /opt/deploy.sh' > /opt/deploy.log 2>&1 &
 """

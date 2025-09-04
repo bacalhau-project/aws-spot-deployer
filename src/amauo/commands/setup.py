@@ -166,7 +166,7 @@ def cmd_setup(config: SimpleConfig) -> None:
 
 [bold cyan]Files Directory (./files):[/bold cyan]
 This is where you place files to upload to your spot instances.
-Files placed here will be copied to /opt/uploaded_files/ on each instance.
+Files placed here will be mirrored to their target locations on each instance.
 
 [bold]Required credential files for compute nodes:[/bold]
 • files/orchestrator_endpoint

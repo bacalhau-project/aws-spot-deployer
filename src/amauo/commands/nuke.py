@@ -284,8 +284,8 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
         state.save_instances(remaining_instances)
         console.print("[dim]Local state updated.[/dim]")
 
-    # Phase 3: Clean up SpotDeployer VPCs
-    console.print("\n[cyan]Phase 3: Cleaning up SpotDeployer VPCs...[/cyan]")
+    # Phase 3: Clean up amauo VPCs
+    console.print("\n[cyan]Phase 3: Cleaning up amauo VPCs...[/cyan]")
     vpc_cleanup_count = 0
 
     for region in AWS_REGIONS:
@@ -295,10 +295,10 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
             aws_manager = AWSResourceManager(region)
             ec2 = aws_manager.ec2
 
-            # Find VPCs managed by SpotDeployer
+            # Find VPCs managed by amauo
             vpcs = ec2.describe_vpcs(
                 Filters=[
-                    {"Name": "tag:ManagedBy", "Values": ["SpotDeployer"]},
+                    {"Name": "tag:ManagedBy", "Values": ["amauo"]},
                     {"Name": "state", "Values": ["available"]},
                 ]
             )
@@ -335,8 +335,6 @@ def cmd_nuke(state: SimpleStateManager, config: SimpleConfig) -> None:
             pass
 
     if vpc_cleanup_count > 0:
-        console.print(
-            f"\n[green]✅ Deleted {vpc_cleanup_count} SpotDeployer VPCs[/green]"
-        )
+        console.print(f"\n[green]✅ Deleted {vpc_cleanup_count} amauo VPCs[/green]")
 
     console.print("\n[bold green]🏁 Nuke operation completed![/bold green]\n")

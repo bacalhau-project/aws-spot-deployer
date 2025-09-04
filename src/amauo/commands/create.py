@@ -700,7 +700,7 @@ def create_instances_in_region_with_table(
                             "CreatedAt",
                             "CreatedBy",
                             "Region",
-                            "SpotDeployerVersion",
+                            "amauoVersion",
                         ]
                     ],
                 }
